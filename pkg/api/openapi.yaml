@@ -1,0 +1,631 @@
+openapi: 3.1.0
+info:
+  title: SRE Assistant 與 Control-Plane API
+  version: 1.2.0
+  description: |
+    這是一份根據專案文件綜合分析後，所制定的 SRE Assistant 與 Control-Plane 互動的最終 API 規格書 (繁體中文版)。
+    本規格書定義了兩組關鍵的 API：
+    1.  **主動 API (SRE-Assistant 端點):** 由 Control-Plane 的 Go 後端呼叫，用以觸發分析任務。此處採用雙軌策略：
+        - `/execute`: 一個彈性、通用的端點，供後端立即使用，以實現特定的 UI 功能（如：AI 報告、容量分析）。
+        - `/diagnostics/*`: 語義化的產品級端點，用於穩定、長期的整合，或供未來的外部客戶端、SPA 前端使用。它們可作為 `/execute` 端點的外觀 (Facade) 來實現。
+    2.  **只讀 API (Control-Plane 端點):** 由 Control-Plane 提供，供 SRE-Assistant 作為「工具」來使用，以獲取其分析所需的上下文數據。其資料模型基於 `demo-page.html` 中的詳細定義。
+
+servers:
+  - url: https://api.example.com
+    description: 主要正式環境伺服器
+
+tags:
+  - name: SRE-Assistant - 主動端點
+    description: 由 SRE-assistant 提供，用於執行診斷與分析任務的 API。
+  - name: Control-Plane - 只讀端點
+    description: 由 Control-Plane 提供，用於讓 SRE-assistant 獲取上下文資料的 API。
+  - name: Control-Plane - 回調端點
+    description: 由 SRE-assistant 呼叫，用於回報任務狀態與結果的 API。
+  - name: Observability
+    description: 用於監控服務健康狀態的 API。
+
+paths:
+  /healthz:
+    get:
+      tags:
+        - Observability
+      summary: 健康檢查 (Liveness)
+      description: |
+        一個簡單的健康檢查端點，用於確認服務是否正在運行。
+        此端點應在服務器啟動後立即回應 200 OK。適用於所有服務。
+      responses:
+        "200":
+          description: "服務正在運行"
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "ok"
+
+  /readyz:
+    get:
+      tags:
+        - Observability
+      summary: 就緒檢查 (Readiness)
+      description: |
+        一個就緒檢查端點，用於確認服務是否已準備好接收流量。
+        此端點應在服務完成初始化（例如，資料庫連線已建立）後才回應 200 OK。適用於所有服務。
+      responses:
+        "200":
+          description: "服務已就緒"
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "ok"
+        "503":
+          description: "服務尚未就緒"
+
+  /metrics:
+    get:
+      tags:
+        - Observability
+      summary: 獲取 Prometheus 指標
+      description: |
+        提供 Prometheus 格式的監控指標。適用於所有服務。
+      responses:
+        "200":
+          description: "Prometheus 指標"
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # HELP http_requests_total The total number of HTTP requests.
+                  # TYPE http_requests_total counter
+                  http_requests_total{method="post",code="200"} 1027
+                  http_requests_total{method="post",code="400"} 3
+
+  /execute:
+    post:
+      tags:
+        - SRE-Assistant - 主動端點
+      security:
+        - bearerAuth: []
+      summary: 通用代理 API (用於臨機查詢)
+      description: |
+        一個統一、靈活的端點，專供 Go 後端進行臨機診斷。
+        後端會將使用者的操作（例如點擊「生成報告」）打包成一個自然語言查詢與一個結構化的上下文物件後，向此處發送請求。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenericRequestContext"
+      responses:
+        "202":
+          $ref: "#/components/responses/AcceptedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestResponse"
+
+  /diagnostics/deployment:
+    post:
+      tags:
+        - SRE-Assistant - 主動端點
+      security:
+        - bearerAuth: []
+      summary: 診斷部署健康度 (產品化)
+      description: 一個專門的、語義化的端點，用於分析特定部署的健康狀況。作為一個穩定的產品化介面。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeploymentRequestContext"
+      responses:
+        "202":
+          $ref: "#/components/responses/AcceptedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestResponse"
+
+  /diagnostics/alerts:
+    post:
+      tags:
+        - SRE-Assistant - 主動端點
+      security:
+        - bearerAuth: []
+      summary: 診斷觸發的告警 (產品化)
+      description: 用於由一或多個監控告警所觸發的自動化診斷，對應「生成事件報告」功能。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertRequestContext"
+      responses:
+        "202":
+          $ref: "#/components/responses/AcceptedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestResponse"
+
+  /capacity/analyze:
+    post:
+      tags:
+        - SRE-Assistant - 主動端點
+      security:
+        - bearerAuth: []
+      summary: 分析服務容量 (產品化)
+      description: 針對給定的資源群組與指標，執行容量分析，對應「容量規劃」功能。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapacityRequestContext"
+      responses:
+        "202":
+          $ref: "#/components/responses/AcceptedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestResponse"
+
+  /api/v1/audit-logs:
+    get:
+      tags:
+        - Control-Plane - 只讀端點
+      security:
+        - bearerAuth: []
+      summary: 獲取審計日誌
+      description: 獲取一個服務在特定時間範圍內的變更歷史，用以回答「最近誰動了什麼？」
+      parameters:
+        - name: service_name
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: start_time
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: end_time
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: 一個包含審計日誌事件的陣列。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+        "400":
+          $ref: "#/components/responses/BadRequestResponse"
+
+  /api/v1/incidents:
+    get:
+      tags:
+        - Control-Plane - 只讀端點
+      security:
+        - bearerAuth: []
+      summary: 獲取告警紀錄
+      description: 獲取一份告警事件列表 (在 UI 中稱為「告警紀錄」)。
+      parameters:
+        - name: service_name
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [new, ack, resolved]
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [error, warning, info]
+      responses:
+        "200":
+          description: 一個包含告警紀錄的陣列。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Incident"
+        "400":
+          $ref: "#/components/responses/BadRequestResponse"
+
+  /api/v1/incidents/{id}:
+    get:
+      tags:
+        - Control-Plane - 只讀端點
+      security:
+        - bearerAuth: []
+      summary: 獲取單筆告警紀錄
+      description: 獲取單一告警事件的詳細資訊。
+      parameters:
+        - $ref: "#/components/parameters/IncidentId"
+      responses:
+        "200":
+          description: 所請求的告警紀錄。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+
+  /api/v1/executions/{id}:
+    get:
+      tags:
+        - Control-Plane - 只讀端點
+      security:
+        - bearerAuth: []
+      summary: 獲取自動化執行日誌
+      description: 提供特定自動化腳本執行的詳細日誌。
+      parameters:
+        - $ref: "#/components/parameters/ExecutionId"
+      responses:
+        "200":
+          description: 所請求的執行日誌。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionLog"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+    patch:
+      tags:
+        - Control-Plane - 回調端點
+      security:
+        - bearerAuth: []
+      summary: 更新執行狀態與結果
+      description: |
+        由 SRE-assistant 呼叫，用以在任務完成或失敗時，更新對應的執行紀錄。
+      parameters:
+        - $ref: "#/components/parameters/ExecutionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateExecutionRequest"
+      responses:
+        "200":
+          description: "執行紀錄已成功更新"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionLog"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+
+  /api/v1/executions:
+    post:
+      tags:
+        - Control-Plane - 回調端點
+      security:
+        - bearerAuth: []
+      summary: 回報執行結果
+      description: |
+        由 SRE-assistant 呼叫，用以在一個非同步任務開始時，建立一個對應的執行紀錄。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewExecutionRequest"
+      responses:
+        "201":
+          description: "執行紀錄已成功建立"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionLog"
+        "400":
+          $ref: "#/components/responses/BadRequestResponse"
+
+  /api/v1/sessions/{id}:
+    get:
+      tags:
+        - Control-Plane - 只讀端點
+      summary: 查詢非同步任務狀態
+      description: 根據 session_id 查詢對應的執行紀錄與狀態。
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: "對應的執行紀錄"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionLog"
+        "404":
+          $ref: "#/components/responses/NotFoundResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    NewExecutionRequest:
+      type: object
+      description: "用於建立一個新的執行紀錄"
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: "對應到 `/execute` 回應的 session_id"
+        status:
+          type: string
+          enum: [running, completed, failed]
+        output:
+          type: string
+          description: "任務執行的最終產出或錯誤訊息"
+      required:
+        - session_id
+        - status
+
+    UpdateExecutionRequest:
+      type: object
+      description: "用於更新一個執行紀錄的狀態"
+      properties:
+        status:
+          type: string
+          enum: [running, completed, failed]
+        output:
+          type: string
+          description: "任務執行的最終產出或錯誤訊息"
+      required:
+        - status
+
+    ContextBase:
+      type: object
+      properties:
+        trigger_source:
+          type: string
+          description: 觸發此請求的來源。
+          example: "ControlPlane::Backend::LogsPage"
+        service_name:
+          type: string
+          example: "payment-api"
+        namespace:
+          type: string
+          example: "production"
+      required:
+        - trigger_source
+
+    GenericRequestContext:
+      type: object
+      properties:
+        user_query:
+          type: string
+          description: "由後端系統組裝的自然語言查詢指令"
+          example: "為選定的告警生成一份事件報告。"
+        context:
+          $ref: "#/components/schemas/ContextBase"
+      required:
+        - user_query
+        - context
+
+    DeploymentRequestContext:
+      type: object
+      properties:
+        context:
+          type: object
+          properties:
+            deployment_id:
+              type: string
+              example: "deploy-xyz-12345"
+            image_tag:
+              type: string
+              example: "v1.2.1"
+            service_name:
+              type: string
+            namespace:
+              type: string
+          required:
+            - deployment_id
+            - service_name
+
+    AlertRequestContext:
+      type: object
+      properties:
+        context:
+          type: object
+          properties:
+            incident_ids:
+              type: array
+              items:
+                type: integer
+              description: "在 UI 上被勾選的告警紀錄 ID 列表"
+              example: [1, 2, 3]
+            service_name:
+              type: string
+          required:
+            - incident_ids
+
+    CapacityRequestContext:
+      type: object
+      properties:
+        context:
+          type: object
+          properties:
+            device_group_id:
+              type: integer
+              description: "在 UI 上選擇的資源群組 ID"
+            metric_name:
+              type: string
+              description: "在 UI 上選擇的指標"
+              enum: [cpu_usage, memory_usage, disk_usage, network_traffic]
+          required:
+            - device_group_id
+            - metric_name
+
+    SessionResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: "用於追蹤此非同步任務的會話 ID"
+        message:
+          type: string
+          example: "請求已接受，正在處理中。"
+      required:
+        - session_id
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+      required:
+        - code
+        - message
+
+    # Control-Plane 只讀 API 的資料模型 (基於 demo-page.html)
+    AuditLog:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        event_type:
+          type: string
+          enum: [DEPLOYMENT, CONFIG_UPDATE, TEAM_CHANGE]
+        author:
+          type: string
+        summary:
+          type: string
+      required:
+        - timestamp
+        - event_type
+        - author
+
+    Incident:
+      type: object
+      description: "代表一筆告警紀錄"
+      properties:
+        id:
+          type: integer
+        level:
+          type: string
+          enum: [error, warning, info]
+        time:
+          type: string
+          format: date-time
+        branch:
+          type: string
+        ip:
+          type: string
+          format: ipv4
+        name:
+          type: string
+        desc:
+          type: string
+        status:
+          type: string
+          enum: [new, ack, resolved]
+        assignee:
+          type: string
+          nullable: true
+        acknowledgedBy:
+          type: string
+          nullable: true
+        comments:
+          type: array
+          items:
+            type: object
+            properties:
+              user:
+                type: string
+              text:
+                type: string
+              time:
+                type: string
+                format: date-time
+      required:
+        - id
+        - level
+        - time
+        - name
+        - desc
+        - status
+
+    ExecutionLog:
+      type: object
+      description: "代表一筆自動化腳本執行日誌"
+      properties:
+        id:
+          type: integer
+        executionTime:
+          type: string
+          format: date-time
+        scriptName:
+          type: string
+        triggerAlert:
+          type: string
+        status:
+          type: string
+          enum: [success, failed]
+        duration:
+          type: string
+          example: "15s"
+        output:
+          type: string
+      required:
+        - id
+        - executionTime
+        - scriptName
+        - status
+
+  parameters:
+    IncidentId:
+      name: id
+      in: path
+      required: true
+      description: 告警紀錄的 ID
+      schema:
+        type: integer
+    ExecutionId:
+      name: id
+      in: path
+      required: true
+      description: 自動化執行日誌的 ID
+      schema:
+        type: integer
+    SessionId:
+      name: id
+      in: path
+      required: true
+      description: 非同步任務的會話 ID
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    AcceptedResponse:
+      description: 請求已接受處理
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SessionResponse"
+    BadRequestResponse:
+      description: 無效請求
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFoundResponse:
+      description: 找不到資源
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"

@@ -1,0 +1,105 @@
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Code coverage profiles and other test artifacts
+*.out
+coverage.*
+*.coverprofile
+profile.cov
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+tmp/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Environment files
+.env
+deploy/.env
+
+# Local data
+deploy/data/
+data/
+
+# Logs
+*.log
+logs/
+
+
+# Binaries
+
+# Editor/IDE
+# .idea/
+# .vscode/
+.DS_Store
+# Python
+__pycache__/
+*.py[cod]
+*.$py.class
+*.so
+*.egg
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.venv/
+venv/
+ENV/
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+.python-version
+
+
+# Node.js (if any frontend components)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+.dockerignore
+# Logs
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# VS Code
+.vscode/
+*.code-workspace

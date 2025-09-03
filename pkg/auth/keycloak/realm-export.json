@@ -1,0 +1,205 @@
+{
+  "realm": "sre-platform",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 30,
+  "defaultSignatureAlgorithm": "RS256",
+  "offlineSessionMaxLifespanEnabled": false,
+  "offlineSessionMaxLifespan": 5184000,
+  "clientSessionIdleTimeout": 0,
+  "clientSessionMaxLifespan": 0,
+  "clientOfflineSessionIdleTimeout": 0,
+  "clientOfflineSessionMaxLifespan": 0,
+  "accessTokenLifespan": 300,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "ssoSessionIdleTimeoutRememberMe": 0,
+  "ssoSessionMaxLifespanRememberMe": 0,
+  "offlineSessionIdleTimeout": 2592000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  
+  "roles": {
+    "realm": [
+      {
+        "name": "super_admin",
+        "description": "超級管理員角色",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "team_manager",
+        "description": "團隊管理員角色",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "team_member",
+        "description": "一般使用者角色",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+  
+  "clients": [
+    {
+      "clientId": "control-plane",
+      "name": "Control Plane Service",
+      "description": "Control Plane 後端服務",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "control-plane-secret",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "publicClient": false,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "saml.assertion.signature": "false",
+        "saml.multivalued.roles": "false",
+        "saml.force.post.binding": "false",
+        "saml.encrypt": "false",
+        "saml.server.signature": "false",
+        "saml.server.signature.keyinfo.ext": "false",
+        "exclude.session.state.from.auth.response": "false",
+        "saml_force_name_id_format": "false",
+        "saml.client.signature": "false",
+        "tls.client.certificate.bound.access.tokens": "false",
+        "saml.authnstatement": "false",
+        "display.on.consent.screen": "false",
+        "saml.onetimeuse.condition": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    },
+    {
+      "clientId": "sre-assistant",
+      "name": "SRE Assistant Service",
+      "description": "SRE Assistant 後端服務",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "sre-assistant-secret",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "publicClient": false,
+      "frontchannelLogout": false,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email"
+      ]
+    },
+    {
+      "clientId": "grafana",
+      "name": "Grafana Dashboard",
+      "description": "Grafana 視覺化儀表板",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "grafana-secret",
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://grafana:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://grafana:3000"
+      ],
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "fullScopeAllowed": true
+    }
+  ],
+  
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "email": "admin@sre-platform.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "super_admin"
+      ]
+    },
+    {
+      "username": "manager",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Manager",
+      "lastName": "User",
+      "email": "manager@sre-platform.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "manager123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "team_manager"
+      ]
+    },
+    {
+      "username": "member",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Member",
+      "lastName": "User",
+      "email": "member@sre-platform.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "member123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "team_member"
+      ]
+    }
+  ]
+}
