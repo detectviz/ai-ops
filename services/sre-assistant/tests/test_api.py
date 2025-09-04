@@ -126,12 +126,21 @@ class TestAuthentication:
         
         # 如果有設定 JWKS，應該返回 401
         # 但在測試環境中可能跳過驗證
-        assert response.status_code in [200, 401]診斷完成",
+        assert response.status_code in [200, 401]
+
+    @patch("src.sre_assistant.main.verify_token")
+    @patch("src.sre_assistant.main.workflow")
+    async def test_diagnose_deployment_success(self, mock_workflow, mock_verify, client):
+        """測試部署診斷成功"""
+        # 設定 mock
+        mock_verify.return_value = {"sub": "test-user", "roles": ["admin"]}
+        mock_workflow.execute = AsyncMock(return_value={
+            "summary": "診斷完成",
             "findings": [],
             "recommended_action": "檢查資源限制",
             "confidence_score": 0.85
         })
-        
+
         # 發送請求
         response = client.post(
             "/diagnostics/deployment",
@@ -142,9 +151,9 @@ class TestAuthentication:
             },
             headers={"Authorization": "Bearer test-token"}
         )
-        
+
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["status"] == "COMPLETED"
         assert "summary" in data
@@ -186,12 +195,3 @@ class TestAuthentication:
         assert data["status"] == "COMPLETED"
         assert len(data["findings"]) == 1
         assert data["confidence_score"] == 0.75
-    
-    @patch("src.sre_assistant.main.verify_token")
-    @patch("src.sre_assistant.main.workflow")
-    async def test_execute_query(self, mock_workflow, mock_verify, client):
-        """測試通用查詢端點"""
-        # 設定 mock
-        mock_verify.return_value = {"sub": "test-user", "roles": ["admin"]}
-        mock_workflow.execute = AsyncMock(return_value={
-            "summary": "

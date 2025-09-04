@@ -8,6 +8,8 @@ import (
 
 	"github.com/detectviz/control-plane/internal/auth"
 	"github.com/detectviz/control-plane/internal/config"
+	"github.com/detectviz/control-plane/internal/database"
+	"github.com/detectviz/control-plane/internal/models"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 )
 
@@ -31,4 +33,9 @@ func NewServices(db *sql.DB, cfg *config.Config, logger *otelzap.Logger, authSvc
 		Logger:             logger,
 		SreAssistantClient: sreClient,
 	}
+}
+
+// GetDeploymentByID 透過呼叫資料庫層來根據 ID 檢索部署資訊。
+func (s *Services) GetDeploymentByID(id string) (*models.Deployment, error) {
+	return database.GetDeploymentByID(s.DB, id)
 }

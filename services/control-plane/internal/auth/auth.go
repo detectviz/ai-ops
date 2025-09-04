@@ -10,7 +10,6 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -158,22 +157,18 @@ type UserInfo struct {
 // GetUserInfo 使用 access token 從 OIDC 的 userinfo 端點獲取更詳細的使用者資訊。
 // 這通常在需要顯示使用者姓名、Email 等資訊時使用。
 func (s *KeycloakService) GetUserInfo(ctx context.Context, token *oauth2.Token) (*UserInfo, error) {
-	// 使用 `golang.org/x/oauth2` 提供的 client，它會自動在請求中加入 "Authorization: Bearer <token>" 的標頭。
-	client := s.OAuth2Config.Client(ctx, token)
-	userInfoResp, err := client.Get(s.Provider.Endpoint().UserInfoURL)
+	tokenSource := s.OAuth2Config.TokenSource(ctx, token)
+	oidcUserInfo, err := s.Provider.UserInfo(ctx, tokenSource)
 	if err != nil {
-		return nil, fmt.Errorf("無法獲取使用者資訊: %w", err)
-	}
-	defer userInfoResp.Body.Close()
-
-	if userInfoResp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("從 userinfo 端點獲取到非 200 狀態碼: %s", userInfoResp.Status)
+		return nil, fmt.Errorf("無法從提供者獲取 user info: %w", err)
 	}
 
-	var userInfo UserInfo
-	if err := json.NewDecoder(userInfoResp.Body).Decode(&userInfo); err != nil {
-		return nil, fmt.Errorf("解碼使用者資訊失敗: %w", err)
+	// oidc.UserInfo 包含標準宣告，但我們可能需要自訂宣告。
+	// 使用 Claims 方法將所有宣告解碼到我們自訂的結構中。
+	var claims UserInfo
+	if err := oidcUserInfo.Claims(&claims); err != nil {
+		return nil, fmt.Errorf("無法解析 user info 的宣告: %w", err)
 	}
 
-	return &userInfo, nil
+	return &claims, nil
 }

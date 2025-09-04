@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"html/template"
 	"net/http"
+	"strings"
 
 	"github.com/detectviz/control-plane/internal/auth"
 	"github.com/detectviz/control-plane/internal/services"
@@ -139,11 +140,24 @@ func (h *Handlers) DiagnoseDeployment(w http.ResponseWriter, r *http.Request) {
 
 	h.Logger.Ctx(ctx).Info("開始部署診斷", zap.String("deploymentID", deploymentID))
 
-	// TODO: 實際的 serviceName 和 namespace 應該從資料庫或其他地方獲取
-	mockServiceName := "payment-api"
-	mockNamespace := "production"
+	// 從資料庫獲取部署資訊
+	deployment, err := h.Services.GetDeploymentByID(deploymentID)
+	if err != nil {
+		h.Logger.Ctx(ctx).Error("無法從資料庫獲取部署資訊", zap.String("deploymentID", deploymentID), zap.Error(err))
+		if strings.Contains(err.Error(), "找不到") {
+			http.Error(w, "找不到部署資訊: "+err.Error(), http.StatusNotFound)
+		} else {
+			http.Error(w, "查詢部署資訊時發生錯誤", http.StatusInternalServerError)
+		}
+		return
+	}
 
-	resp, err := h.Services.SreAssistantClient.DiagnoseDeployment(ctx, deploymentID, mockServiceName, mockNamespace)
+	h.Logger.Ctx(ctx).Info("成功獲取部署資訊",
+		zap.String("serviceName", deployment.ServiceName),
+		zap.String("namespace", deployment.Namespace),
+	)
+
+	resp, err := h.Services.SreAssistantClient.DiagnoseDeployment(ctx, deploymentID, deployment.ServiceName, deployment.Namespace)
 	if err != nil {
 		h.Logger.Ctx(ctx).Error("呼叫 SRE Assistant 失敗", zap.Error(err))
 		http.Error(w, "呼叫診斷服務失敗", http.StatusInternalServerError)

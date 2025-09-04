@@ -176,6 +176,15 @@ type Maintenance struct {
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
+// Deployment 代表一個部署實例
+type Deployment struct {
+	ID          string    `gorm:"primarykey" json:"id"`
+	ServiceName string    `gorm:"not null" json:"service_name"`
+	Namespace   string    `gorm:"not null" json:"namespace"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 // JSONB 自定義 JSON 類型
 type JSONB map[string]interface{}
 
