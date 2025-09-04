@@ -38,7 +38,7 @@ setup-dev: install-deps setup-postgres start-services verify
 # 停止所有服務
 stop-services:
 	@echo "🛑 停止手動啟動的服務 (Keycloak, ChromaDB)..."
-	@pkill -f "chroma run" || true
+	@pkill -f "/opt/chroma_venv/bin/chroma run" || true
 	@pkill -f "kc.sh start-dev" || true
 	@echo "🛑 停止系統服務 (VictoriaMetrics, Grafana, etc.)..."
 	@sudo systemctl stop vmstorage vminsert vmselect vmagent snmp_exporter grafana-server redis-server postgresql || true
@@ -50,7 +50,7 @@ start-services:
 	@sudo systemctl start postgresql redis-server grafana-server vmstorage vminsert vmselect vmagent snmp_exporter
 	@echo "🚀 啟動手動服務 (ChromaDB, Keycloak)..."
 	@echo "啟動 ChromaDB..."
-	@nohup chroma run --path /tmp/chroma_db > /tmp/chroma.log 2>&1 &
+	@nohup /opt/chroma_venv/bin/chroma run --path /tmp/chroma_db > /tmp/chroma.log 2>&1 &
 	@echo "啟動 Keycloak..."
 	@nohup /opt/keycloak/bin/kc.sh start-dev > /tmp/keycloak.log 2>&1 &
 	@echo "⏳ 等待服務就緒 (約 20 秒)..."
@@ -78,7 +78,7 @@ ps:
 	@systemctl is-active postgresql redis-server grafana-server vmstorage vminsert vmselect vmagent snmp_exporter || true
 	@echo ""
 	@echo "📊 背景進程狀態 (ps):"
-	@ps aux | grep -E 'chroma run|kc.sh start-dev' | grep -v 'grep' || echo "ChromaDB 或 Keycloak 未運行"
+	@ps aux | grep -E '/opt/chroma_venv/bin/chroma run|Dkc.home.dir=/opt/keycloak' | grep -v 'grep' || echo "ChromaDB 或 Keycloak 未運行"
 
 # 執行所有測試
 test: test-go test-py

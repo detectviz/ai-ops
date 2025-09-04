@@ -48,10 +48,11 @@ echo "--- Grafana 已安裝。請至 http://localhost:3000 訪問。---"
 
 # --- 4. ChromaDB 向量資料庫 ---
 echo ">>> [步驟 4/8] 安裝 ChromaDB..."
-# ChromaDB 是一個 Python 套件，使用 pip 進行安裝
-sudo apt-get install -y python3-pip
-pip install chromadb
-echo "--- ChromaDB 已透過 pip 安裝。若需啟動伺服器，請執行: 'chroma run --path /path/to/db' ---"
+# 為符合 PEP 668，我們將在虛擬環境中安裝 ChromaDB
+sudo apt-get install -y python3-pip python3.12-venv
+sudo python3 -m venv /opt/chroma_venv
+sudo /opt/chroma_venv/bin/pip install chromadb
+echo "--- ChromaDB 已安裝至 /opt/chroma_venv。---"
 
 # --- 5. VictoriaMetrics Cluster (From local files) ---
 echo ">>> [步驟 5/8] 安裝 VictoriaMetrics Cluster..."

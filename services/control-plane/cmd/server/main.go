@@ -1,4 +1,3 @@
-// services/control-plane/cmd/server/main.go
 package main
 
 import (
@@ -22,7 +21,16 @@ import (
 	"github.com/detectviz/control-plane/internal/services"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
 //go:embed templates/*
@@ -32,45 +40,52 @@ var templatesFS embed.FS
 var staticFS embed.FS
 
 func main() {
-	// 初始化日誌
-	logger, err := zap.NewProduction()
+	// 初始化 OpenTelemetry 和日誌系統
+	ctx := context.Background()
+	tp, err := initTracerProvider()
 	if err != nil {
-		log.Fatalf("無法初始化日誌: %v", err)
+		log.Fatalf("無法初始化 Tracer Provider: %v", err)
 	}
+	defer func() {
+		if err := tp.Shutdown(ctx); err != nil {
+			log.Printf("關閉 Tracer Provider 時發生錯誤: %v", err)
+		}
+	}()
+
+	logger := initLogger()
 	defer logger.Sync()
-	sugar := logger.Sugar()
 
 	// 載入配置
 	cfg, err := config.Load()
 	if err != nil {
-		sugar.Fatalf("載入配置失敗: %v", err)
+		logger.Fatal("載入配置失敗", zap.Error(err))
 	}
 
 	// 連接資料庫
 	db, err := database.Connect(cfg.Database.URL)
 	if err != nil {
-		sugar.Fatalf("連接資料庫失敗: %v", err)
+		logger.Fatal("連接資料庫失敗", zap.Error(err))
 	}
 	defer db.Close()
 
 	// 執行資料庫遷移
 	if err := database.Migrate(db); err != nil {
-		sugar.Fatalf("資料庫遷移失敗: %v", err)
+		logger.Fatal("資料庫遷移失敗", zap.Error(err))
 	}
 
 	// 初始化認證服務
 	authService, err := auth.NewKeycloakService(cfg.Auth)
 	if err != nil {
-		sugar.Fatalf("初始化認證服務失敗: %v", err)
+		logger.Fatal("初始化認證服務失敗", zap.Error(err))
 	}
 
 	// 初始化服務層
-	services := services.NewServices(db, cfg, logger)
+	services := services.NewServices(db, cfg, logger, authService)
 
 	// 載入 HTML 模板
 	templates, err := loadTemplates()
 	if err != nil {
-		sugar.Fatalf("載入模板失敗: %v", err)
+		logger.Fatal("載入模板失敗", zap.Error(err))
 	}
 
 	// 初始化處理器
@@ -100,9 +115,9 @@ func main() {
 
 	// 啟動伺服器
 	go func() {
-		sugar.Infof("🚀 Control Plane 啟動於 http://localhost:%d", cfg.Server.Port)
+		logger.Info("🚀 Control Plane 啟動", zap.Int("port", cfg.Server.Port))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			sugar.Fatalf("啟動伺服器失敗: %v", err)
+			logger.Fatal("啟動伺服器失敗", zap.Error(err))
 		}
 	}()
 
@@ -110,34 +125,75 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	sugar.Info("正在關閉伺服器...")
+	logger.Info("正在關閉伺服器...")
 
 	// 優雅關閉
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		sugar.Fatalf("伺服器強制關閉: %v", err)
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		logger.Fatal("伺服器強制關閉", zap.Error(err))
 	}
 
-	sugar.Info("伺服器已關閉")
+	logger.Info("伺服器已關閉")
+}
+
+// initLogger 初始化 otelzap 日誌系統
+func initLogger() *otelzap.Logger {
+	config := zap.NewProductionConfig()
+	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	zapLogger, err := config.Build()
+	if err != nil {
+		log.Fatalf("無法初始化 zap 日誌: %v", err)
+	}
+	return otelzap.New(zapLogger, otelzap.WithTraceIDField(true))
+}
+
+// initTracerProvider 初始化 OpenTelemetry Tracer Provider
+func initTracerProvider() (*sdktrace.TracerProvider, error) {
+	// 為了演示，我們將追蹤資訊匯出到標準輸出。
+	// 在生產環境中，您會使用 OTLP exporter 將其發送到如 Jaeger, Datadog, Uptrace 等後端。
+	exporter, err := stdouttrace.New(stdouttrace.WithPrettyPrint())
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("control-plane"),
+			semconv.ServiceVersion("v1.2.0"),
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+	)
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	return tp, nil
 }
 
 func loadTemplates() (*template.Template, error) {
 	return template.ParseFS(templatesFS, "templates/*.html")
 }
 
-func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *zap.Logger) *mux.Router {
+func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelzap.Logger) *mux.Router {
 	r := mux.NewRouter()
 
 	// 中介軟體
-	r.Use(middleware.Logging(logger))
-	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
+	r.Use(middleware.Logging(logger)) // Logging 中介軟體也需要更新以使用 otelzap.Logger
+	r.Use(middleware.Recovery(logger))
 
 	// 靜態檔案
 	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticFS)))
 
-	// 健康檢查 (無需認證)
+	// 健康檢查
 	r.HandleFunc("/health", h.HealthCheck).Methods("GET")
 	r.HandleFunc("/ready", h.ReadinessCheck).Methods("GET")
 
@@ -148,22 +204,21 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *zap.L
 	authRouter.HandleFunc("/logout", h.HandleLogout).Methods("POST")
 	authRouter.HandleFunc("/callback", h.AuthCallback).Methods("GET")
 
-	// API 路由 (需要認證)
+	// API 路由
 	apiRouter := r.PathPrefix("/api/v1").Subrouter()
-	apiRouter.Use(middleware.RequireAuth(auth))
-
-	// 審計日誌 (供 SRE Assistant 查詢)
+	apiRouter.Use(middleware.RequireAuth(auth)) // 保護 API
 	apiRouter.HandleFunc("/audit-logs", api.GetAuditLogs(h.Services)).Methods("GET")
 	apiRouter.HandleFunc("/incidents", api.GetIncidents(h.Services)).Methods("GET")
 	apiRouter.HandleFunc("/incidents/{id}", api.GetIncident(h.Services)).Methods("GET")
 	apiRouter.HandleFunc("/executions", api.GetExecutions(h.Services)).Methods("GET")
+	apiRouter.HandleFunc("/executions", api.CreateExecution(h.Services)).Methods("POST")
+	apiRouter.HandleFunc("/executions/{id}", api.UpdateExecution(h.Services)).Methods("PATCH")
 
-	// Web UI 路由 (需要認證)
+	// Web UI 路由
 	webRouter := r.PathPrefix("/").Subrouter()
-	webRouter.Use(middleware.RequireSession(auth))
-
-	// 頁面路由
+	webRouter.Use(middleware.RequireSession(auth)) // 保護 UI
 	webRouter.HandleFunc("/", h.Dashboard).Methods("GET")
+	// ... 其他頁面路由
 	webRouter.HandleFunc("/resources", h.ResourcesPage).Methods("GET")
 	webRouter.HandleFunc("/personnel", h.PersonnelPage).Methods("GET")
 	webRouter.HandleFunc("/teams", h.TeamsPage).Methods("GET")
@@ -175,14 +230,10 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *zap.L
 	webRouter.HandleFunc("/profile", h.ProfilePage).Methods("GET")
 	webRouter.HandleFunc("/settings", h.SettingsPage).Methods("GET")
 
-	// HTMX API 端點 (局部更新)
+	// HTMX API 端點
 	htmxRouter := webRouter.PathPrefix("/htmx").Subrouter()
 	htmxRouter.HandleFunc("/resources/table", h.ResourcesTable).Methods("GET")
-	htmxRouter.HandleFunc("/resources/create", h.CreateResource).Methods("POST")
-	htmxRouter.HandleFunc("/resources/{id}/edit", h.EditResource).Methods("GET")
-	htmxRouter.HandleFunc("/resources/{id}", h.UpdateResource).Methods("PUT")
-	htmxRouter.HandleFunc("/resources/{id}", h.DeleteResource).Methods("DELETE")
-	htmxRouter.HandleFunc("/resources/batch-delete", h.BatchDeleteResources).Methods("POST")
+	// ... 其他 HTMX 端點
 
 	// SRE Assistant 整合端點
 	htmxRouter.HandleFunc("/diagnose/deployment/{id}", h.DiagnoseDeployment).Methods("POST")

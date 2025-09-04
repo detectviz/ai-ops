@@ -54,7 +54,7 @@ check_service "PostgreSQL" "pg_isready -h localhost -p 5432 -q"
 echo -e "\n--- 手動啟動服務 (提醒) ---"
 echo "以下服務需要手動啟動，本腳本僅檢查檔案是否存在："
 check_service "Keycloak (files)" "test -f /opt/keycloak/bin/kc.sh" "啟動指令: /opt/keycloak/bin/kc.sh start-dev"
-check_service "ChromaDB (pip package)" "command -v chroma >/dev/null" "啟動指令: chroma run --path /path/to/db"
+check_service "ChromaDB (venv)" "test -f /opt/chroma_venv/bin/chroma" "啟動指令: /opt/chroma_venv/bin/chroma run --path /path/to/db"
 
 
 echo -e "\n========================================="
