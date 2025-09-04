@@ -1,0 +1,554 @@
+<!-- services/control-plane/templates/resources.html -->
+{{template "base.html" .}}
+
+{{define "content"}}
+<div class="p-6">
+    <!-- 頁面標題和操作按鈕 -->
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-900">資源管理</h2>
+            <p class="mt-1 text-sm text-gray-600">管理和監控所有系統資源</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="scanNetwork()" 
+                    class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center">
+                <i data-lucide="search" class="w-4 h-4 mr-2"></i>
+                掃描網段
+            </button>
+            <button onclick="openCreateModal()" 
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center">
+                <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                新增資源
+            </button>
+        </div>
+    </div>
+    
+    <!-- 統計卡片 -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-green-100 rounded-lg">
+                    <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">正常運行</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{.Stats.Normal}}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-yellow-100 rounded-lg">
+                    <i data-lucide="alert-triangle" class="w-6 h-6 text-yellow-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">警告</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{.Stats.Warning}}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-red-100 rounded-lg">
+                    <i data-lucide="x-circle" class="w-6 h-6 text-red-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">異常</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{.Stats.Error}}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-blue-100 rounded-lg">
+                    <i data-lucide="server" class="w-6 h-6 text-blue-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">總資源數</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{.Stats.Total}}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 批次操作欄（動態顯示） -->
+    <div id="batchActions" class="hidden mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center">
+                <i data-lucide="check-square" class="w-5 h-5 text-blue-600 mr-2"></i>
+                <span class="text-sm font-medium text-blue-900">
+                    已選擇 <span id="selectedCount">0</span> 個項目
+                </span>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="batchAddToGroup()" 
+                        class="px-3 py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm">
+                    加入群組
+                </button>
+                <button onclick="batchRemoveFromGroup()" 
+                        class="px-3 py-1 bg-white border border-blue-300 text-blue-700 rounded hover:bg-blue-50 text-sm">
+                    移出群組
+                </button>
+                <button onclick="batchDelete()" 
+                        class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+                    批次刪除
+                </button>
+                <button onclick="clearSelection()" 
+                        class="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-sm">
+                    取消選擇
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Grid.js 表格容器 -->
+    <div class="bg-white rounded-lg shadow">
+        <div id="resourcesGrid"></div>
+    </div>
+</div>
+
+<!-- 新增/編輯資源 Modal -->
+<div id="resourceModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900" id="modalTitle">新增資源</h3>
+            <form id="resourceForm" class="mt-4">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">名稱</label>
+                    <input type="text" name="name" required 
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">類型</label>
+                    <select name="type" class="mt-1 block w-full rounded-md border-gray-300">
+                        <option value="server">伺服器</option>
+                        <option value="network">網路設備</option>
+                        <option value="storage">儲存設備</option>
+                        <option value="application">應用程式</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">IP 位址</label>
+                    <input type="text" name="ip" 
+                           class="mt-1 block w-full rounded-md border-gray-300">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">分支</label>
+                    <input type="text" name="branch" 
+                           class="mt-1 block w-full rounded-md border-gray-300">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">描述</label>
+                    <textarea name="description" rows="3" 
+                              class="mt-1 block w-full rounded-md border-gray-300"></textarea>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="closeModal()" 
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                        取消
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
+                        儲存
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+// 全域變數
+let selectedResources = new Set();
+let grid;
+
+// 初始化 Grid.js 表格
+document.addEventListener('DOMContentLoaded', function() {
+    grid = new gridjs.Grid({
+        columns: [
+            {
+                id: 'checkbox',
+                name: gridjs.html('<input type="checkbox" id="selectAll" />'),
+                width: '50px',
+                sort: false,
+                formatter: (cell, row) => {
+                    return gridjs.html(`<input type="checkbox" class="row-checkbox" data-id="${row.cells[1].data}" />`);
+                }
+            },
+            {
+                id: 'id',
+                name: 'ID',
+                hidden: true
+            },
+            {
+                id: 'name',
+                name: '名稱',
+                formatter: (cell, row) => {
+                    return gridjs.html(`
+                        <a href="/resources/${row.cells[1].data}" 
+                           class="text-indigo-600 hover:text-indigo-800 font-medium">
+                            ${cell}
+                        </a>
+                    `);
+                }
+            },
+            {
+                id: 'type',
+                name: '類型',
+                formatter: (cell) => {
+                    const types = {
+                        'server': '<span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">伺服器</span>',
+                        'network': '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">網路設備</span>',
+                        'storage': '<span class="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">儲存設備</span>',
+                        'application': '<span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">應用程式</span>'
+                    };
+                    return gridjs.html(types[cell] || cell);
+                }
+            },
+            {
+                id: 'ip',
+                name: 'IP 位址'
+            },
+            {
+                id: 'branch',
+                name: '分支'
+            },
+            {
+                id: 'status',
+                name: '狀態',
+                formatter: (cell) => {
+                    const statuses = {
+                        'normal': '<span class="flex items-center"><span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>正常</span>',
+                        'warning': '<span class="flex items-center"><span class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>警告</span>',
+                        'error': '<span class="flex items-center"><span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>異常</span>',
+                        'unknown': '<span class="flex items-center"><span class="w-2 h-2 bg-gray-500 rounded-full mr-2"></span>未知</span>'
+                    };
+                    return gridjs.html(statuses[cell] || cell);
+                }
+            },
+            {
+                id: 'monitored',
+                name: '監控中',
+                formatter: (cell) => {
+                    return gridjs.html(cell ? 
+                        '<i data-lucide="check" class="w-4 h-4 text-green-600"></i>' : 
+                        '<i data-lucide="x" class="w-4 h-4 text-gray-400"></i>'
+                    );
+                }
+            },
+            {
+                id: 'actions',
+                name: '操作',
+                sort: false,
+                formatter: (cell, row) => {
+                    return gridjs.html(`
+                        <div class="flex gap-2">
+                            <button onclick="diagnoseResource(${row.cells[1].data})" 
+                                    class="p-1 text-blue-600 hover:bg-blue-50 rounded" 
+                                    title="診斷">
+                                <i data-lucide="activity" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="editResource(${row.cells[1].data})" 
+                                    class="p-1 text-gray-600 hover:bg-gray-50 rounded" 
+                                    title="編輯">
+                                <i data-lucide="edit" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="deleteResource(${row.cells[1].data})" 
+                                    class="p-1 text-red-600 hover:bg-red-50 rounded" 
+                                    title="刪除">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `);
+                }
+            }
+        ],
+        server: {
+            url: '/api/v1/resources',
+            then: data => data.data.map(resource => [
+                null, // checkbox
+                resource.id,
+                resource.name,
+                resource.type,
+                resource.ip,
+                resource.branch,
+                resource.status,
+                resource.monitored,
+                null // actions
+            ]),
+            total: data => data.total
+        },
+        search: {
+            server: {
+                url: (prev, keyword) => `${prev}?search=${keyword}`
+            }
+        },
+        pagination: {
+            limit: 20,
+            server: {
+                url: (prev, page, limit) => `${prev}?page=${page}&limit=${limit}`
+            }
+        },
+        sort: {
+            multiColumn: false,
+            server: {
+                url: (prev, columns) => {
+                    if (!columns.length) return prev;
+                    const col = columns[0];
+                    const dir = col.direction === 1 ? 'asc' : 'desc';
+                    return `${prev}?sort=${col.id}&order=${dir}`;
+                }
+            }
+        },
+        language: {
+            search: {
+                placeholder: '搜尋資源...'
+            },
+            pagination: {
+                previous: '上一頁',
+                next: '下一頁',
+                showing: '顯示',
+                of: '共',
+                to: '至',
+                results: '筆結果'
+            },
+            loading: '載入中...',
+            noRecordsFound: '沒有找到資源',
+            error: '載入資料時發生錯誤'
+        }
+    }).render(document.getElementById('resourcesGrid'));
+
+    // 渲染後初始化事件
+    grid.on('ready', () => {
+        setupCheckboxEvents();
+        lucide.createIcons();
+    });
+});
+
+// 設置複選框事件
+function setupCheckboxEvents() {
+    // 全選/取消全選
+    const selectAll = document.getElementById('selectAll');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = this.checked;
+                const id = cb.getAttribute('data-id');
+                if (this.checked) {
+                    selectedResources.add(id);
+                } else {
+                    selectedResources.delete(id);
+                }
+            });
+            updateBatchActions();
+        });
+    }
+
+    // 單個複選框
+    document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const id = this.getAttribute('data-id');
+            if (this.checked) {
+                selectedResources.add(id);
+            } else {
+                selectedResources.delete(id);
+            }
+            updateBatchActions();
+        });
+    });
+}
+
+// 更新批次操作欄
+function updateBatchActions() {
+    const batchActions = document.getElementById('batchActions');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (selectedResources.size > 0) {
+        batchActions.classList.remove('hidden');
+        selectedCount.textContent = selectedResources.size;
+    } else {
+        batchActions.classList.add('hidden');
+    }
+}
+
+// 清除選擇
+function clearSelection() {
+    selectedResources.clear();
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    updateBatchActions();
+}
+
+// 開啟新增 Modal
+function openCreateModal() {
+    document.getElementById('modalTitle').textContent = '新增資源';
+    document.getElementById('resourceForm').reset();
+    document.getElementById('resourceModal').classList.remove('hidden');
+}
+
+// 關閉 Modal
+function closeModal() {
+    document.getElementById('resourceModal').classList.add('hidden');
+}
+
+// 診斷資源 (呼叫 SRE Assistant)
+async function diagnoseResource(id) {
+    const btn = event.currentTarget;
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>';
+    
+    try {
+        const response = await fetch(`/htmx/diagnose/deployment/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': getCsrfToken()
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showDiagnosisResult(result);
+        } else {
+            showNotification('診斷失敗', 'error');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="activity" class="w-4 h-4"></i>';
+        lucide.createIcons();
+    }
+}
+
+// 編輯資源
+async function editResource(id) {
+    const response = await fetch(`/api/v1/resources/${id}`);
+    const resource = await response.json();
+    
+    document.getElementById('modalTitle').textContent = '編輯資源';
+    const form = document.getElementById('resourceForm');
+    form.elements['name'].value = resource.name;
+    form.elements['type'].value = resource.type;
+    form.elements['ip'].value = resource.ip;
+    form.elements['branch'].value = resource.branch;
+    form.elements['description'].value = resource.description;
+    
+    form.dataset.resourceId = id;
+    document.getElementById('resourceModal').classList.remove('hidden');
+}
+
+// 刪除資源
+async function deleteResource(id) {
+    if (!confirm('確定要刪除此資源嗎？')) return;
+    
+    const response = await fetch(`/api/v1/resources/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-Token': getCsrfToken()
+        }
+    });
+    
+    if (response.ok) {
+        grid.forceRender();
+        showNotification('資源已刪除', 'success');
+    } else {
+        showNotification('刪除失敗', 'error');
+    }
+}
+
+// 批次刪除
+async function batchDelete() {
+    if (!confirm(`確定要刪除選中的 ${selectedResources.size} 個資源嗎？`)) return;
+    
+    const response = await fetch('/api/v1/resources/batch-delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCsrfToken()
+        },
+        body: JSON.stringify({
+            ids: Array.from(selectedResources)
+        })
+    });
+    
+    if (response.ok) {
+        clearSelection();
+        grid.forceRender();
+        showNotification('批次刪除成功', 'success');
+    } else {
+        showNotification('批次刪除失敗', 'error');
+    }
+}
+
+// 掃描網段
+async function scanNetwork() {
+    const subnet = prompt('請輸入要掃描的網段 (例如: 192.168.1.0/24)');
+    if (!subnet) return;
+    
+    showNotification('開始掃描網段...', 'info');
+    
+    const response = await fetch('/api/v1/resources/scan', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCsrfToken()
+        },
+        body: JSON.stringify({ subnet })
+    });
+    
+    if (response.ok) {
+        const result = await response.json();
+        showNotification(`掃描完成，發現 ${result.found} 個資源`, 'success');
+        grid.forceRender();
+    } else {
+        showNotification('掃描失敗', 'error');
+    }
+}
+
+// 提交表單
+document.getElementById('resourceForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData);
+    const id = this.dataset.resourceId;
+    
+    const response = await fetch(id ? `/api/v1/resources/${id}` : '/api/v1/resources', {
+        method: id ? 'PUT' : 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCsrfToken()
+        },
+        body: JSON.stringify(data)
+    });
+    
+    if (response.ok) {
+        closeModal();
+        grid.forceRender();
+        showNotification(id ? '資源已更新' : '資源已新增', 'success');
+    } else {
+        showNotification('操作失敗', 'error');
+    }
+});
+
+// 輔助函式
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+}
+
+function showNotification(message, type = 'info') {
+    // 這裡可以整合更優雅的通知系統
+    console.log(`[${type}] ${message}`);
+}
+
+function showDiagnosisResult(result) {
+    // 顯示診斷結果
+    alert(`診斷完成:\n${result.summary}\n\n建議: ${result.recommended_action}`);
+}
+</script>
+{{end}}

@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=resource-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Control Plane 維運監控平台</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -122,11 +122,38 @@
       padding-right: 0.75rem;
     }
 
+    /* 僅對未被Tom Select接管的select元素套用自定義樣式 */
+    select:not([hidden]):not(.tomselected) {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 0.5rem center;
+      background-repeat: no-repeat;
+      background-size: 1.5em 1.5em;
+      padding-right: 2.5rem;
+    }
+
+    /* 防止被Tom Select接管的元素產生任何視覺效果 */
+    .ts-wrapper+select.tomselected,
+    select.tomselected {
+      position: absolute !important;
+      left: -9999px !important;
+      width: 0 !important;
+      height: 0 !important;
+      border: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+    }
+
     input[type="text"]:focus,
     input[type="password"]:focus,
     input[type="email"]:focus,
     input[type="number"]:focus,
     input[type="date"]:focus,
+    select:focus,
     textarea:focus {
       border-color: #3b82f6;
       /* Corresponds to blue-500 */
@@ -168,7 +195,7 @@
       }
 
       #notification-dropdown {
-        width: auto;
+        width: calc(100vw - 2rem);
         left: 1rem;
         right: 1rem;
         max-width: none;
@@ -178,50 +205,60 @@
       }
     }
 
-    /* Tom Select 樣式統一 */
-    /* 基礎控制項樣式 - 這是所有 Tom Select 實例的標準外觀 */
-    .ts-control {
-      border-radius: 0.5rem; /* rounded-lg */
-      border: 1px solid #d1d5db; /* border-slate-300 */
-      background-color: #ffffff; /* bg-white */
-      padding: 0.375rem 0.75rem; /* px-3 py-1.5 */
-      font-size: 0.875rem; /* text-sm */
-      color: #334155; /* text-slate-800 */
+    /* Tom Select 樣式修復 - 統一的樣式規則 */
+    .ts-wrapper.single .ts-control {
+      border: 1px solid #d1d5db !important;
+      border-radius: 0.5rem !important;
+      background: white !important;
+      padding: 0.375rem 0.75rem !important;
+      min-height: auto !important;
+      font-size: 0.875rem !important;
       box-shadow: none !important;
-      min-height: auto;
     }
 
-    /* 聚焦狀態 */
-    .ts-wrapper.focus .ts-control {
-      border-color: #3b82f6 !important;
-      box-shadow: 0 0 0 1px #3b82f6 !important;
-      outline: none;
-    }
-    
-    /* 移除 Tom Select 內部 input 的多餘樣式 */
-    .ts-control input {
-        color: #334155; /* text-slate-800 */
-    }
-
-    /* 多選樣式微調 */
-    .ts-wrapper.multi .ts-control {
-      padding-top: 0.25rem;
-      padding-bottom: 0.25rem;
-      min-height: 2.5rem;
-    }
-    
-    /* 徹底隱藏被 Tom Select 接管的原生 select 元素，防止任何樣式衝突或視覺問題 */
-    select.tomselected {
+    /* 隱藏被 Tom Select 接管的原生 select 元素 */
+    select.tomselected,
+    .ts-wrapper select {
+      display: none !important;
+      border: none !important;
+      padding: 0 !important;
+      background: transparent !important;
       position: absolute !important;
       left: -9999px !important;
-      width: 1px !important;
-      height: 1px !important;
-      padding: 0 !important;
-      margin: -1px !important;
-      border: 0 !important;
-      clip: rect(0, 0, 0, 0) !important;
-      overflow: hidden !important;
-      white-space: nowrap !important;
+    }
+
+    /* 強制移除所有內部邊框和陰影 */
+    .ts-wrapper .ts-control,
+    .ts-wrapper .ts-control *,
+    .ts-wrapper .ts-control input,
+    .ts-wrapper .ts-control div {
+      border: none !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+
+    /* 確保 Tom Select 包裝器沒有額外邊框 */
+    .ts-wrapper {
+      border: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Tom Select 焦點狀態 - 統一規則 */
+    .ts-wrapper.single .ts-control:focus,
+    .ts-wrapper.multi .ts-control:focus {
+      border-color: #3b82f6 !important;
+      box-shadow: 0 0 0 1px #3b82f6 !important;
+      outline: none !important;
+    }
+
+    /* 多選 Tom Select 樣式 */
+    .ts-wrapper.multi .ts-control {
+      border: 1px solid #d1d5db !important;
+      border-radius: 0.5rem !important;
+      background: white !important;
+      padding: 0.25rem 0.5rem !important;
+      min-height: 2.5rem !important;
+      box-shadow: none !important;
     }
 
     /* Tom Select 下拉選單樣式 */
@@ -266,7 +303,7 @@
             帳號
           </label>
           <input
-            class="shadow-sm appearance-none border rounded w-full py-2 px-3 text-slate-700 leading-tight focus:outline-none focus:shadow-outline"
+            class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
             id="username" type="text" placeholder="請輸入帳號" value="admin">
         </div>
         <div class="mb-6">
@@ -274,7 +311,7 @@
             密碼
           </label>
           <input
-            class="shadow-sm appearance-none border rounded w-full py-2 px-3 text-slate-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
+            class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
             id="password" type="password" placeholder="******************" value="admin">
         </div>
         <div class="flex items-center justify-between">
@@ -297,7 +334,7 @@
   <div id="app" class="hidden h-screen bg-slate-800 text-white relative lg:flex">
 
     <aside id="sidebar"
-      class="w-64 h-full flex-shrink-0 bg-slate-800 flex flex-col transition-all duration-300 ease-in-out -ml-64 lg:relative absolute lg:z-auto z-40">
+      class="w-64 h-full flex-shrink-0 bg-slate-800 flex flex-col transition-all duration-300 ease-in-out -ml-64 lg:relative lg:z-auto z-40 absolute lg:absolute">
       <!-- Sidebar header with logo (Grafana style) -->
       <div class="h-16 flex items-center justify-between px-4 border-b border-slate-700">
         <div id="sidebar-header-toggle"
@@ -901,7 +938,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                       <label for="grafana-url" class="text-sm font-medium text-slate-700">Grafana URL</label>
                       <input type="text" id="grafana-url"
-                        class="md:col-span-2 mt-1 block w-full rounded-md border-slate-400 bg-slate-50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                        class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                         placeholder="https://grafana.example.com">
                     </div>
                   </div>
@@ -915,25 +952,25 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="smtp-server" class="text-sm font-medium text-slate-700">SMTP 伺服器</label>
                           <input type="text" id="smtp-server"
-                            class="md:col-span-2 mt-1 block w-full rounded-md border-slate-400 bg-slate-50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="smtp.example.com">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="smtp-port" class="text-sm font-medium text-slate-700">端口 (Port)</label>
                           <input type="number" id="smtp-port"
-                            class="md:col-span-2 mt-1 block w-full rounded-md border-slate-400 bg-slate-50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="587">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="smtp-user" class="text-sm font-medium text-slate-700">使用者名稱</label>
                           <input type="text" id="smtp-user"
-                            class="md:col-span-2 mt-1 block w-full rounded-md border-slate-400 bg-slate-50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="user@example.com">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="smtp-pass" class="text-sm font-medium text-slate-700">密碼</label>
                           <input type="password" id="smtp-pass"
-                            class="md:col-span-2 mt-1 block w-full rounded-md border-slate-400 bg-slate-50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
                         </div>
                       </div>
                     </div>
@@ -954,18 +991,18 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="sms-sid" class="text-sm font-medium text-slate-700">帳號 SID (Account SID)</label>
                           <input type="text" id="sms-sid"
-                            class="md:col-span-2 mt-1 block w-full rounded-md border-slate-400 bg-slate-50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="sms-token" class="text-sm font-medium text-slate-700">認證權杖 (Auth Token)</label>
                           <input type="password" id="sms-token"
-                            class="md:col-span-2 mt-1 block w-full rounded-md border-slate-400 bg-slate-50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="sms-from" class="text-sm font-medium text-slate-700">發送號碼 (From Number)</label>
                           <input type="text" id="sms-from"
-                            class="md:col-span-2 mt-1 block w-full rounded-md border-slate-400 bg-slate-50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="+15017122661">
                         </div>
                       </div>
@@ -985,30 +1022,30 @@
           <div class="bg-white p-6 rounded-xl shadow-md">
             <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
               <div class="w-full md:w-auto"></div>
-              <div class="flex items-center space-x-2 w-full md:w-auto flex-wrap gap-2 justify-end">
+              <div class="flex items-center space-x-2 w-full md:w-auto justify-end flex-nowrap overflow-x-auto">
                 <input type="date" id="logs-start-date"
-                  class="px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
-                <span class="text-slate-500">至</span>
+                  class="flex-shrink-0 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
+                <span class="flex-shrink-0 text-slate-500">至</span>
                 <input type="date" id="logs-end-date"
-                  class="px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
+                  class="flex-shrink-0 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
                 <select id="logs-level-filter"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
+                  class="flex-shrink-0 mt-1 block w-32 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
                   <option value="">所有等級</option>
                   <option value="error">高 (錯誤)</option>
                   <option value="warning">中 (警告)</option>
                   <option value="info">低 (資訊)</option>
                 </select>
                 <select id="logs-status-filter"
-                  class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
+                  class="flex-shrink-0 mt-1 block w-32 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
                   <option value="">所有狀態</option>
                   <option value="new">新告警</option>
                   <option value="ack">處理中</option>
                   <option value="resolved">已解決</option>
                 </select>
                 <button id="query-logs-btn"
-                  class="px-3 py-1.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 font-semibold transition-colors text-sm">查詢</button>
+                  class="flex-shrink-0 px-3 py-1.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 font-semibold transition-colors text-sm">查詢</button>
                 <button id="generate-report-btn" disabled
-                  class="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold disabled:bg-purple-300 disabled:cursor-not-allowed flex items-center gap-2 transition-colors text-sm">
+                  class="flex-shrink-0 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold disabled:bg-purple-300 disabled:cursor-not-allowed flex items-center gap-2 transition-colors text-sm">
                   ✨ 生成事件報告
                 </button>
               </div>
@@ -1077,20 +1114,20 @@
             <!-- Execution Logs Tab -->
             <div id="execution-logs-content" class="automation-content hidden">
               <div class="flex flex-col md:flex-row justify-end items-center mb-6 gap-4">
-                <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-2 flex-nowrap overflow-x-auto">
                   <input type="date" id="log-start-date"
-                    class="px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
-                  <span class="text-slate-500">至</span>
+                    class="flex-shrink-0 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
+                  <span class="flex-shrink-0 text-slate-500">至</span>
                   <input type="date" id="log-end-date"
-                    class="px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    class="flex-shrink-0 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
                   <select id="log-status-filter"
-                    class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
+                    class="flex-shrink-0 mt-1 block w-32 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
                     <option value="">所有狀態</option>
                     <option value="success">成功</option>
                     <option value="failed">失敗</option>
                   </select>
                   <button id="filter-logs-btn"
-                    class="px-3 py-1.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 font-semibold transition-colors text-sm">篩選</button>
+                    class="flex-shrink-0 px-3 py-1.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 font-semibold transition-colors text-sm">篩選</button>
                 </div>
               </div>
               <div class="overflow-x-auto">
@@ -1244,7 +1281,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
                       <label for="profile-name-input" class="font-medium text-slate-700">姓名</label>
                       <input type="text" id="profile-name-input"
-                        class="md:col-span-3 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        class="md:col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
                       <label class="font-medium text-slate-700">角色</label>
@@ -1275,17 +1312,17 @@
                     <div class="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
                       <label for="current-password" class="text-sm font-medium text-slate-700">目前密碼</label>
                       <input type="password" id="current-password"
-                        class="md:col-span-3 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        class="md:col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
                       <label for="new-password" class="text-sm font-medium text-slate-700">新密碼</label>
                       <input type="password" id="new-password"
-                        class="md:col-span-3 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        class="md:col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
                       <label for="confirm-password" class="text-sm font-medium text-slate-700">確認新密碼</label>
                       <input type="password" id="confirm-password"
-                        class="md:col-span-3 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        class="md:col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
                     </div>
                   </div>
                   <div class="flex justify-end mt-6">
@@ -1302,7 +1339,7 @@
                       <label for="profile-email" class="text-sm font-medium text-slate-700">Email</label>
                       <div class="md:col-span-3 flex items-center gap-x-3">
                         <input type="email" id="profile-email"
-                          class="flex-grow block w-full rounded-md border-slate-300 shadow-sm sm:text-sm"
+                          class="flex-grow block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                           placeholder="用於接收 Email 通知">
                         <span id="email-status" class="text-sm font-medium w-20 text-center flex-shrink-0"></span>
                         <button id="email-action-btn" data-method="email" data-action="save"
@@ -1315,7 +1352,7 @@
                         Token</label>
                       <div class="md:col-span-3 flex items-center gap-x-3">
                         <input type="text" id="profile-line-token"
-                          class="flex-grow block w-full rounded-md border-slate-300 shadow-sm sm:text-sm"
+                          class="flex-grow block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                           placeholder="用於接收 LINE 通知">
                         <span id="line-token-status" class="text-sm font-medium w-20 text-center flex-shrink-0"></span>
                         <button id="line-token-action-btn" data-method="line-token" data-action="save"
@@ -1328,7 +1365,7 @@
                       <div class="md:col-span-3 space-y-2">
                         <div class="flex items-center gap-x-3">
                           <input type="text" id="profile-sms"
-                            class="flex-grow block w-full rounded-md border-slate-300 shadow-sm sm:text-sm"
+                            class="flex-grow block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="用於接收個人簡訊通知">
                           <span id="sms-status" class="text-sm font-medium w-20 text-center flex-shrink-0"></span>
                           <button id="sms-action-btn" data-method="sms" data-action="save"
@@ -1336,7 +1373,7 @@
                         </div>
                         <div id="sms-verify-container" class="hidden flex items-center gap-x-3">
                           <input type="text" id="sms-verify-code"
-                            class="flex-grow block w-full rounded-md border-slate-300 shadow-sm sm:text-sm"
+                            class="flex-grow block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="請輸入收到的 6 位數驗證碼">
                           <button id="sms-verify-btn"
                             class="w-28 justify-center px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm flex-shrink-0">確認驗證碼</button>
@@ -1399,7 +1436,7 @@
   <div id="form-modal"
     class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 transition-opacity duration-300 opacity-0">
     <div
-      class="bg-white rounded-xl shadow-2xl w-11/12 md:w-1/2 max-w-lg flex flex-col transform transition-all duration-300 scale-95">
+      class="bg-white rounded-xl shadow-2xl w-11/12 md:w-2/3 lg:w-1/2 max-w-2xl flex flex-col transform transition-all duration-300 scale-95">
       <div class="flex justify-between items-center p-4 border-b">
         <h3 id="form-modal-title" class="text-lg font-bold text-slate-800">Modal Title</h3>
         <button class="close-modal-btn text-slate-500 hover:text-slate-800 text-2xl leading-none">&times;</button>
@@ -1615,31 +1652,55 @@
     }
 
     // --- Tom Select Initialization ---
-    function initializeTomSelect(container = document) {
-      const selectElements = container.querySelectorAll('select:not([data-tom-select-initialized])');
-      
-      selectElements.forEach(select => {
-        if (select.tomselect) { // Check if already initialized by the library
-          select.dataset.tomSelectInitialized = 'true';
-          return;
-        }
+    function initializeTomSelect(selectors = 'select:not([data-tom-select-initialized])') {
+      const selectElements = document.querySelectorAll(selectors);
 
-        const config = {
-          plugins: select.multiple ? ['remove_button'] : [],
-          create: false,
-          allowEmptyOption: true,
-        };
-        
-        new TomSelect(select, config);
-        select.dataset.tomSelectInitialized = 'true';
+      selectElements.forEach(select => {
+        // Skip if already initialized or inside Tom Select wrapper
+        if (select.dataset.tomSelectInitialized || select.closest('.ts-wrapper')) return;
+
+        // Skip invisible elements
+        if (select.offsetParent === null && !select.closest('#form-modal-body')) return;
+
+        try {
+          const config = {
+            plugins: select.multiple ? ['remove_button', 'checkbox_options'] : ['remove_button'],
+            create: false,
+            allowEmptyOption: true,
+            searchField: ['text'],
+            maxOptions: null,
+            closeAfterSelect: !select.multiple,
+          };
+
+          // Add dropdown header for selects with many options
+          if (select.options.length > 5) {
+            config.plugins.push('dropdown_header');
+          }
+
+          new TomSelect(select, config);
+          select.dataset.tomSelectInitialized = 'true';
+          console.log(`Tom Select initialized for: ${select.id || 'unnamed'}`);
+        } catch (error) {
+          console.warn('Failed to initialize Tom Select for element:', select.id || 'unnamed', error);
+        }
       });
+    }
+
+    // Reinitialize Tom Select in modals with delay to ensure DOM is ready
+    function initializeTomSelectInModal() {
+      setTimeout(() => {
+        initializeTomSelect('#form-modal select:not([data-tom-select-initialized])');
+      }, 100);
     }
 
     // --- Navigation Logic ---
     document.addEventListener('DOMContentLoaded', function () {
-      // Initializing all selects on page load
+      // Initialize Tom Select for all select elements
       initializeTomSelect();
-      
+
+      // Initialize Tom Select again after a delay for any dynamically created elements
+      setTimeout(() => initializeTomSelect(), 500);
+
       const links = document.querySelectorAll('.sidebar-link');
       const breadcrumb = document.getElementById('breadcrumb');
       const sidebar = document.getElementById('sidebar');
@@ -1804,13 +1865,17 @@
         return overlay;
       }
 
-      // Handle window resize to update header title and remove overlay on desktop
+      // Handle window resize to update header title and remove overlay on desktop (debounced)
+      let resizeTimeout;
       window.addEventListener('resize', () => {
-        // Remove overlay if switching to desktop
-        if (window.innerWidth >= 1024) {
-          removeOverlay();
-        }
-        updateHeaderTitle();
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          // Remove overlay if switching to desktop
+          if (window.innerWidth >= 1024) {
+            removeOverlay();
+          }
+          updateHeaderTitle();
+        }, 150);
       });
 
       // Function to remove overlay
@@ -2374,10 +2439,9 @@
         currentAction = action;
         currentEditIndex = index;
         formModal.classList.remove('hidden', 'opacity-0');
-        
-        // Initialize Tom Select for any select elements in the new modal content
-        initializeTomSelect(formModalBody);
 
+        // Initialize Tom Select for any select elements in the modal
+        initializeTomSelectInModal();
         formModal.classList.add('flex');
         setTimeout(() => {
           formModal.querySelector('div').classList.remove('scale-95');
@@ -2448,8 +2512,8 @@
         const groupCheckboxes = mockData.resourceGroups.map(g => `<div class="relative flex items-start"><div class="flex h-6 items-center"><input id="group-${g.id}" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></div><div class="ml-3 text-sm leading-6"><label for="group-${g.id}" class="font-medium text-gray-900">${g.name}</label></div></div>`).join('');
         const formHtml = `
                     <div class="space-y-4">
-                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">資源名稱</label><input type="text" class="col-span-2 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></div>
-                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">IP 位址</label><input type="text" class="col-span-2 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></div>
+                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">資源名稱</label><input type="text" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
+                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">IP 位址</label><input type="text" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
                         <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">資源群組</legend><div class="space-y-2 mt-2">${groupCheckboxes}</div></fieldset>
                     </div>`;
         openFormModal('新增資源', formHtml, 'add-resource');
@@ -2469,8 +2533,8 @@
           }).join('');
           const formHtml = `
                         <div class="space-y-4">
-                            <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">資源名稱</label><input type="text" value="${resource.name}" class="col-span-2 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></div>
-                            <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">IP 位址</label><input type="text" value="${resource.ip}" class="col-span-2 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></div>
+                            <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">資源名稱</label><input type="text" value="${resource.name}" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
+                            <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">IP 位址</label><input type="text" value="${resource.ip}" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
                             <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">資源群組</legend><div class="space-y-2 mt-2">${groupCheckboxes}</div></fieldset>
                         </div>`;
           openFormModal('編輯資源', formHtml, 'edit-resource', index);
@@ -2485,8 +2549,8 @@
         const resourceCheckboxes = mockData.resources.map(d => `<div class="relative flex items-start"><div class="flex h-6 items-center"><input id="resource-${d.id}" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></div><div class="ml-3 text-sm leading-6"><label for="resource-${d.id}" class="font-medium text-gray-900">${d.name} (${d.ip})</label></div></div>`).join('');
         const formHtml = `
                     <div class="space-y-4">
-                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">群組名稱</label><input type="text" class="col-span-2 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></div>
-                        <div class="grid grid-cols-3 items-start gap-4"><label class="text-sm font-medium text-slate-700 pt-1">說明</label><textarea rows="3" class="col-span-2 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></textarea></div>
+                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">群組名稱</label><input type="text" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
+                        <div class="grid grid-cols-3 items-start gap-4"><label class="text-sm font-medium text-slate-700 pt-1">說明</label><textarea rows="3" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></textarea></div>
                         <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">群組資源</legend><div class="space-y-2 mt-2 max-h-40 overflow-y-auto">${resourceCheckboxes}</div></fieldset>
                     </div>`;
         openFormModal('新增群組', formHtml, 'add-group');
@@ -2514,7 +2578,7 @@
       document.getElementById('add-rule-btn').addEventListener('click', () => {
         const groupOptions = mockData.resourceGroups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
         const formHtml = `
-          <div class="max-h-[65vh] overflow-y-auto p-1 pr-2">
+          <div class="max-h-[75vh] overflow-y-auto p-1 pr-2">
             <div class="space-y-2">
                 <!-- Accordion Item 1: Basic Settings (Expanded by default) -->
                 <div class="border border-slate-200 rounded-lg overflow-hidden">
@@ -2524,7 +2588,7 @@
                     </div>
                     <div class="accordion-content p-4 border-t border-slate-200">
                         <div class="space-y-4 text-sm">
-                            <div><label class="font-medium text-slate-700">規則名稱</label><input type="text" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-1.5"></div>
+                            <div><label class="font-medium text-slate-700">規則名稱</label><input type="text" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
                             <div class="flex items-center justify-between"><label class="font-medium text-slate-700">啟用規則</label><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" checked class="sr-only peer"><div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label></div>
                             <div><label class="font-medium text-slate-700">監控目標</label><select id="add-rule-target-group" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>選擇資源群組</option>${groupOptions}</select></div>
                             <div><label class="font-medium text-slate-700">指標</label><select id="add-rule-metric" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>CPU 使用率</option><option>網路流量</option><option>網路延遲 (Ping)</option></select></div>
@@ -2532,11 +2596,11 @@
                                 <div class="space-y-2" id="alert-conditions">
                                     <div class="grid grid-cols-12 gap-2 items-center">
                                         <span class="col-span-1 text-center">&gt;</span>
-                                        <input type="number" placeholder="閾值" class="col-span-3 px-3 py-1.5 border rounded-md">
+                                        <input type="number" placeholder="閾值" class="col-span-3 px-3 py-1.5 border border-slate-300 rounded-lg bg-white focus:border-blue-500 focus:ring-blue-500 text-sm text-slate-800">
                                         <span class="col-span-1 text-center">持續</span>
-                                        <select id="add-rule-duration" class="col-span-3 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>5 分鐘</option><option>10 分鐘</option></select>
+                                        <select id="add-rule-duration" class="col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>5 分鐘</option><option>10 分鐘</option></select>
                                         <span class="col-span-1 text-center">為</span>
-                                        <select id="add-rule-severity" class="col-span-3 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select>
+                                        <select id="add-rule-severity" class="col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option value="high">高</option><option value="medium">中</option><option value="low">低</option></select>
                                     </div>
                                 </div>
                                 <button id="add-condition-btn" type="button" class="mt-2 text-blue-600 text-sm font-semibold hover:underline">+ 新增條件</button>
@@ -2574,8 +2638,8 @@
                     </div>
                     <div class="accordion-content p-4 border-t border-slate-200 hidden">
                          <div class="space-y-2 text-sm">
-                            <div><label class="font-medium text-slate-700">自訂標題</label><input type="text" placeholder="[告警] {{ .ResourceName }} 發生問題" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm"></div>
-                            <div><label class="font-medium text-slate-700">自訂內容</label><textarea rows="4" placeholder="資源 {{ .ResourceName }} ({{ .ResourceIP }}) 的 {{ .MetricName }} 指標目前數值為 {{ .MetricValue }}，已觸發告警。" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm"></textarea></div>
+                            <div><label class="font-medium text-slate-700">自訂標題</label><input type="text" placeholder="[告警] {{ .ResourceName }} 發生問題" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
+                            <div><label class="font-medium text-slate-700">自訂內容</label><textarea rows="4" placeholder="資源 {{ .ResourceName }} ({{ .ResourceIP }}) 的 {{ .MetricName }} 指標目前數值為 {{ .MetricValue }}，已觸發告警。" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></textarea></div>
                             <p class="text-xs text-slate-500 mt-2">如果留空，將使用預設的通知範本。您可以使用變數，如 {{ .ResourceName }}。</p>
                         </div>
                     </div>
@@ -2590,7 +2654,7 @@
           const rule = mockData.alertRules[index];
           const groupOptions = mockData.resourceGroups.map(g => `<option value="${g.id}" ${rule.target.includes(g.name) ? 'selected' : ''}>${g.name}</option>`).join('');
           const formHtml = `
-            <div class="max-h-[65vh] overflow-y-auto p-1 pr-2">
+            <div class="max-h-[75vh] overflow-y-auto p-1 pr-2">
               <div class="space-y-2">
                   <!-- Accordion Item 1: Basic Settings (Expanded by default) -->
                   <div class="border border-slate-200 rounded-lg overflow-hidden">
@@ -2600,19 +2664,19 @@
                       </div>
                       <div class="accordion-content p-4 border-t border-slate-200">
                           <div class="space-y-4 text-sm">
-                              <div><label class="font-medium text-slate-700">規則名稱</label><input type="text" value="${rule.name}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-1.5"></div>
+                              <div><label class="font-medium text-slate-700">規則名稱</label><input type="text" value="${rule.name}" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
                               <div class="flex items-center justify-between"><label class="font-medium text-slate-700">啟用規則</label><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" ${rule.enabled ? 'checked' : ''} class="sr-only peer"><div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label></div>
-                              <div><label class="font-medium text-slate-700">監控目標</label><select class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-1.5"><option>選擇資源群組</option>${groupOptions}</select></div>
-                              <div><label class="font-medium text-slate-700">指標</label><select class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-1.5"><option>CPU 使用率</option><option>網路流量</option><option>網路延遲 (Ping)</option></select></div>
+                              <div><label class="font-medium text-slate-700">監控目標</label><select id="edit-rule-target-group" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>選擇資源群組</option>${groupOptions}</select></div>
+                              <div><label class="font-medium text-slate-700">指標</label><select id="edit-rule-metric" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>CPU 使用率</option><option>網路流量</option><option>網路延遲 (Ping)</option></select></div>
                               <fieldset class="mt-4 border-t pt-4"><legend class="font-medium text-slate-700 mb-2">告警條件</legend>
                                   <div class="space-y-2" id="alert-conditions">
                                       <div class="grid grid-cols-12 gap-2 items-center">
                                           <span class="col-span-1 text-center">&gt;</span>
-                                          <input type="number" placeholder="閾值" value="90" class="col-span-3 px-3 py-1.5 border rounded-md">
+                                          <input type="number" placeholder="閾值" value="90" class="col-span-3 px-3 py-1.5 border border-slate-300 rounded-lg bg-white focus:border-blue-500 focus:ring-blue-500 text-sm text-slate-800">
                                           <span class="col-span-1 text-center">持續</span>
-                                          <select id="edit-rule-duration" class="col-span-3 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>5 分鐘</option><option selected>10 分鐘</option></select>
+                                          <select id="edit-rule-duration" class="col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>5 分鐘</option><option selected>10 分鐘</option></select>
                                           <span class="col-span-1 text-center">為</span>
-                                          <select id="edit-rule-severity" class="col-span-3 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option value="high" selected>高</option><option value="medium">中</option><option value="low">低</option></select>
+                                          <select id="edit-rule-severity" class="col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option value="high" selected>高</option><option value="medium">中</option><option value="low">低</option></select>
                                       </div>
                                   </div>
                                   <button id="add-condition-btn" type="button" class="mt-2 text-blue-600 text-sm font-semibold hover:underline">+ 新增條件</button>
@@ -2650,8 +2714,8 @@
                       </div>
                       <div class="accordion-content p-4 border-t border-slate-200 hidden">
                            <div class="space-y-2 text-sm">
-                              <div><label class="font-medium text-slate-700">自訂標題</label><input type="text" placeholder="[告警] {{ .ResourceName }} 發生問題" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm"></div>
-                              <div><label class="font-medium text-slate-700">自訂內容</label><textarea rows="4" placeholder="資源 {{ .ResourceName }} ({{ .ResourceIP }}) 的 {{ .MetricName }} 指標目前數值為 {{ .MetricValue }}，已觸發告警。" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm"></textarea></div>
+                              <div><label class="font-medium text-slate-700">自訂標題</label><input type="text" placeholder="[告警] {{ .ResourceName }} 發生問題" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
+                              <div><label class="font-medium text-slate-700">自訂內容</label><textarea rows="4" placeholder="資源 {{ .ResourceName }} ({{ .ResourceIP }}) 的 {{ .MetricName }} 指標目前數值為 {{ .MetricValue }}，已觸發告警。" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></textarea></div>
                               <p class="text-xs text-slate-500 mt-2">如果留空，將使用預設的通知範本。您可以使用變數，如 {{ .ResourceName }}。</p>
                           </div>
                       </div>
@@ -2661,30 +2725,41 @@
           openFormModal('編輯告警規則', formHtml, 'edit-rule', index);
         }
         if (e.target.classList.contains('delete-rule-btn')) openConfirmModal('您確定要刪除此規則嗎？', 'delete-rule', index);
-        if (e.target.classList.contains('silence-rule-btn')) openFormModal('靜默告警規則', `<div class="space-y-2"><label class="text-sm font-medium text-slate-700">靜默時間</label><select class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"><option>1 小時</option><option>2 小時</option><option>8 小時</option><option>24 小時</option></select></div>`, 'silence-rule');
+        if (e.target.classList.contains('silence-rule-btn')) openFormModal('靜默告警規則', `<div class="space-y-2"><label class="text-sm font-medium text-slate-700">靜默時間</label><select id="silence-duration-select" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>1 小時</option><option>2 小時</option><option>8 小時</option><option>24 小時</option></select></div>`, 'silence-rule');
       });
+      // Unified click handler for form modal body
       document.getElementById('form-modal-body').addEventListener('click', e => {
+        // Handle add condition button
         if (e.target.id === 'add-condition-btn') {
           const container = document.getElementById('alert-conditions');
           const newCondition = container.firstElementChild.cloneNode(true);
-          newCondition.querySelectorAll('input, select').forEach(el => el.value = '');
+          newCondition.querySelectorAll('input, select').forEach(el => {
+            el.value = '';
+            // 確保動態生成的 input 和 select 元素有正確的樣式
+            if (el.tagName === 'SELECT' && !el.id) {
+              el.className = 'col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500';
+            } else if (el.tagName === 'INPUT' && !el.id) {
+              el.className = 'col-span-3 px-3 py-1.5 border border-slate-300 rounded-lg bg-white focus:border-blue-500 focus:ring-blue-500 text-sm text-slate-800';
+            }
+          });
           container.appendChild(newCondition);
+          return;
         }
-      });
 
-      // Handle accordion toggle
-      document.getElementById('form-modal-body').addEventListener('click', e => {
+        // Handle accordion toggle
         const header = e.target.closest('.accordion-header');
-        if (!header) return;
+        if (header) {
+          const content = header.nextElementSibling;
+          const icon = header.querySelector('svg');
 
-        const content = header.nextElementSibling;
-        const icon = header.querySelector('svg');
-
-        if (content && content.classList.contains('accordion-content')) {
-          content.classList.toggle('hidden');
-          icon.classList.toggle('rotate-180');
+          if (content && content.classList.contains('accordion-content')) {
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+          }
         }
       });
+
+      // Accordion toggle is now handled in the unified click handler above
 
       // Handle automation script selection
       document.getElementById('form-modal-body').addEventListener('change', e => {
@@ -2700,7 +2775,7 @@
               mappingsDiv.innerHTML = script.parameters.map(param => `
                 <div class="grid grid-cols-3 gap-2 items-center">
                   <label class="text-sm text-slate-600">${param}:</label>
-                  <select class="col-span-2 text-sm rounded-md border-slate-300">
+                  <select id="add-user-subscribers" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
                     <option value="instance">資源 IP (instance)</option>
                     <option value="alertname">告警名稱 (alertname)</option>
                     <option value="severity">嚴重程度 (severity)</option>
@@ -2727,7 +2802,7 @@
                 </div>
                 <fieldset class="mt-4">
                     <legend class="text-sm font-medium text-slate-700 mb-2">通知訂閱者</legend>
-                    <select id="add-team-subscribers" multiple></select>
+                    <select id="add-team-subscribers" multiple class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></select>
                 </fieldset>
             </div>`;
         openFormModal('新增團隊', formHtml, 'add-team');
@@ -2759,7 +2834,7 @@
                     </div>
                     <fieldset class="mt-4">
                         <legend class="text-sm font-medium text-slate-700 mb-2">通知訂閱者</legend>
-                        <select id="edit-team-subscribers" multiple></select>
+                        <select id="edit-team-subscribers" multiple class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></select>
                     </fieldset>
                 </div>`;
           openFormModal('編輯團隊', formHtml, 'edit-team', index);
@@ -2830,7 +2905,7 @@
                             <option value="Team Member">一般使用者</option>
                           </select>
                         </div>
-                        <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">團隊歸屬</legend><select id="add-user-teams" multiple></select></fieldset>
+                        <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">團隊歸屬</legend><select id="add-user-teams" multiple class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></select></fieldset>
                     </div>`;
         openFormModal('新增人員', formHtml, 'add-user');
         formModal.tomSelectInstances = {
@@ -2861,7 +2936,7 @@
                                 <option value="Team Member" ${user.role === 'Team Member' ? 'selected' : ''}>一般使用者</option>
                               </select>
                             </div>
-                            <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">團隊歸屬</legend><select id="edit-user-teams" multiple></select></fieldset>
+                            <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">團隊歸屬</legend><select id="edit-user-teams" multiple class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></select></fieldset>
                         </div>`;
           openFormModal('編輯人員', formHtml, 'edit-user', index);
           formModal.tomSelectInstances = {
@@ -2903,7 +2978,7 @@
             <div class="space-y-4">
                 <div>
                     <label class="text-sm font-medium text-slate-700">管道名稱</label>
-                    <input id="channel-name" type="text" value="${channel.name || ''}" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm">
+                    <input id="channel-name" type="text" value="${channel.name || ''}" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
                 </div>
                 <div>
                     <label class="text-sm font-medium text-slate-700">管道類型</label>
@@ -3321,7 +3396,7 @@
                       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div><span class="font-semibold text-slate-600">處理狀態:</span> ${statusMap[log.status]}</div>
                           <div><span class="font-semibold text-slate-600">確認人員:</span> ${log.acknowledgedBy || '-'}</div>
-                          <div><label for="incident-assignee-select" class="font-semibold text-slate-600">指派給:</label> <select id="incident-assignee-select" class="ml-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option value="">未指派</option>${personnelOptions}</select></div>
+                          <div><label for="incident-assignee-select" class="font-semibold text-slate-600">指派給:</label> <select id="incident-assignee-select" class="ml-2 mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option value="">未指派</option>${personnelOptions}</select></div>
                       </div>
                       <div class="flex gap-2 flex-wrap">
                            ${actionButtonsHtml}
@@ -3590,7 +3665,7 @@
           <div class="space-y-4">
             <div><label class="text-sm font-medium text-slate-700">腳本名稱</label><input type="text" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></div>
             <div><label class="text-sm font-medium text-slate-700">腳本類型</label>
-              <select class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
+              <select id="add-script-type-select" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
                 <option>Shell Script</option>
                 <option>Ansible Playbook</option>
                 <option>Python Script</option>
@@ -3654,7 +3729,7 @@
             <div class="space-y-4">
               <div><label class="text-sm font-medium text-slate-700">腳本名稱</label><input type="text" value="${script.name}" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></div>
               <div><label class="text-sm font-medium text-slate-700">腳本類型</label>
-                <select class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
+                <select id="edit-script-type-select" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
                   <option ${script.type === 'Shell Script' ? 'selected' : ''}>Shell Script</option>
                   <option ${script.type === 'Ansible Playbook' ? 'selected' : ''}>Ansible Playbook</option>
                   <option ${script.type === 'Python Script' ? 'selected' : ''}>Python Script</option>
@@ -3817,7 +3892,7 @@
                 metricSelect.value = metricSelect.dataset.lastSelection;
               }
               metricSelect.disabled = false;
-              
+
               // Reinitialize Tom Select for the updated metric dropdown
               if (metricSelect && !metricSelect.dataset.tomSelectInitialized && !metricSelect.closest('.ts-wrapper')) {
                 try {
@@ -3969,7 +4044,7 @@
         const selected = currentSelection === group.id.toString() ? 'selected' : '';
         targetGroupSelect.innerHTML += `<option value="${group.id}" ${selected}>${group.name}</option>`;
       });
-      
+
       // Reinitialize Tom Select for the updated dropdown
       if (targetGroupSelect && !targetGroupSelect.dataset.tomSelectInitialized && !targetGroupSelect.closest('.ts-wrapper')) {
         try {

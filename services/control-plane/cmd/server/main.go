@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"embed"
 	"fmt"
 	"html/template"
 	"log"
@@ -32,12 +31,6 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
-
-//go:embed templates/*
-var templatesFS embed.FS
-
-//go:embed static/*
-var staticFS embed.FS
 
 func main() {
 	// 初始化 OpenTelemetry 和日誌系統
@@ -145,7 +138,7 @@ func initLogger() *otelzap.Logger {
 	if err != nil {
 		log.Fatalf("無法初始化 zap 日誌: %v", err)
 	}
-	return otelzap.New(zapLogger, otelzap.WithTraceIDField(true))
+	return otelzap.New(zapLogger)
 }
 
 // initTracerProvider 初始化 OpenTelemetry Tracer Provider
@@ -179,7 +172,7 @@ func initTracerProvider() (*sdktrace.TracerProvider, error) {
 }
 
 func loadTemplates() (*template.Template, error) {
-	return template.ParseFS(templatesFS, "templates/*.html")
+	return template.ParseGlob("templates/*.html")
 }
 
 func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelzap.Logger) *mux.Router {
@@ -191,7 +184,7 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 	r.Use(middleware.Recovery(logger))
 
 	// 靜態檔案
-	r.PathPrefix("/static/").Handler(http.FileServer(http.FS(staticFS)))
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 
 	// 健康檢查
 	r.HandleFunc("/health", h.HealthCheck).Methods("GET")

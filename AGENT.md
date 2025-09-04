@@ -33,11 +33,7 @@ SRE Platform 是一個採用 **Monorepo** 架構的現代化維運平台，整�
 git clone https://github.com/detectviz/sre-platform
 cd sre-platform
 
-# 啟動所有服務 (包含資料庫、Keycloak、Grafana 等)
-make setup-dev
-
-# 驗證服務狀態
-make verify
+# 按照 local/install.md 說明，把開發環境搭建起來，驗證腳本無誤、服務運行正常
 ```
 
 啟動後可訪問：
@@ -227,10 +223,12 @@ sudo -u postgres psql -d sre_dev
 - 錯誤處理明確，避免 panic
 - 測試覆蓋率 > 70%
 
-#### 日誌記錄規範 (Logging)
-所有後端服務的日誌記錄都應使用 `otelzap.Logger`。關鍵原則如下：
-- **結構化日誌**: 使用 `zap.String()`, `zap.Error()` 等欄位來記錄，而非簡單的字串拼接。
-- **關聯追蹤**: 在處理 HTTP 請求的程式碼中，務必使用 `logger.Ctx(r.Context())` 來記錄，以確保日誌能與 OpenTelemetry 的追蹤 (Trace) 資訊自動關聯。
+### 日誌記錄規範
+
+所有後端服務的日誌記錄都應使用 `otelzap.Logger`。關鍵原則如下：
+
+- **結構化日誌**: 使用 `zap.String()`, `zap.Error()` 等欄位來記錄，而非簡單的字串拼接。
+- **關聯追蹤**: 在處理 HTTP 請求的程式碼中，務必使用 `logger.Ctx(r.Context())` 來記錄，以確保日誌能與 OpenTelemetry 的追蹤 (Trace) 資訊自動關聯。 』
 
 ### Python (SRE Assistant)
 
