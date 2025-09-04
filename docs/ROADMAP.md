@@ -18,17 +18,21 @@
 
 - **[✅] 1.2. 服務對服務認證 (M2M Authentication)**:
     - **任務**: 完整實現基於 Keycloak 和 Client Credentials Flow 的認證機制。
+    - **參考**: `docs/reference-adk-examples.md` (oauth_calendar_agent)
 
 - **[✅] 1.3. 核心工具開發 (`Prometheus`, `Loki`, `ControlPlane`)**:
     - **任務**: 實現 `PrometheusQueryTool`、`LokiLogQueryTool` 和 `ControlPlaneTool`，為診斷流程提供數據來源。
     - **對應 API**: 這些工具是 `/diagnostics/deployment` 端點的基礎。
+    - **參考**: `docs/reference-adk-examples.md` (jira_agent, bigquery)
 
 - **[✅] 1.4. 端到端流程實作與測試**:
     - **任務**: 在 `SREWorkflow` 中整合所有核心工具，並建立一個完整的整合測試，以驗證 `/diagnostics/deployment` 的端到端流程。
     - **對應 API**: `/diagnostics/deployment`。
+    - **參考**: `docs/reference-adk-examples.md` (parallel_functions, workflow_agent_seq)
 
 - **[✅] 1.5. 核心服務本地化與持久化**:
     - **任務**: 確保開發環境使用 PostgreSQL 作為會話後端，ChromaDB 作為記憶體後端，並能穩定啟動與互動。
+    - **參考**: `docs/reference-adk-examples.md` (history_management, session_state_agent)
 
 ---
 
@@ -42,14 +46,17 @@
 - **[ ] 2.1. 實現告警診斷後端邏輯**:
     - **任務**: 完整實現 `SREWorkflow` 中的 `_diagnose_alerts` 方法，使其能夠處理來自 UI 的告警分析請求。
     - **對應 API**: `/diagnostics/alerts`
+    - **參考**: `docs/reference-adk-examples.md` (workflow_triage)
 
 - **[ ] 2.2. 實現容量分析後端邏輯**:
     - **任務**: 為 `SREWorkflow` 新增容量分析的邏輯，使其能夠根據請求執行容量規劃計算。
     - **對應 API**: `/capacity/analyze`
+    - **參考**: `docs/references/snippets/salvaged_code.md` (SLO 錯誤預算計算邏輯)
 
 - **[ ] 2.3. 實現通用查詢後端邏輯**:
     - **任務**: 整合語言模型，使 `/execute` 端點能夠理解更廣泛的自然語言查詢。
     - **對應 API**: `/execute`
+    - **參考**: `docs/reference-adk-examples.md` (adk_triaging_agent)
 
 - **[ ] 2.4. Control Plane UI 開發**:
     - **任務**: 在 Control Plane (Go 服務) 的前端頁面中，為上述三個端點提供對應的觸發介面（例如，按鈕、表單）。
@@ -66,11 +73,18 @@
 
 ### 主要交付物 (Key Deliverables):
 
-- **[ ] 3.1. 第一個專業化子代理**:
+- **[ ] 3.1. 實現增強型 SRE 工作流程**:
+    - **任務**: 根據 `salvaged_code.md` 中的 `EnhancedSREWorkflow` 範例，重構現有的 `SREWorkflow`，引入 `SequentialAgent`, `ParallelAgent` 等 ADK 標準模式。
+    - **參考**: `docs/references/snippets/salvaged_code.md` (增強型 SRE 工作流程)
+
+- **[ ] 3.2. 第一個專業化子代理**:
     - **任務**: 將一項核心功能（如覆盤報告生成）重構為一個獨立的、可透過 A2A (Agent-to-Agent) 協議呼叫的 `PostmortemAgent`。
+    - **參考**: `docs/reference-adk-examples.md` (a2a_basic, a2a_auth)
 
-- **[ ] 3.2. 主動預防能力**:
+- **[ ] 3.3. 主動預防能力**:
     - **任務**: 整合機器學習模型，用於異常檢測和趨勢預測。
+    - **參考**: `docs/reference-adk-examples.md` (machine-learning-engineering)
 
-- **[ ] 3.3. 代理可觀測性**:
+- **[ ] 3.4. 代理可觀測性**:
     - **任務**: 建立一個完善的 LLM 可觀測性儀表板，用於追蹤代理的決策過程、成本和性能。
+    - **參考**: `docs/reference-adk-examples.md` (callbacks)
