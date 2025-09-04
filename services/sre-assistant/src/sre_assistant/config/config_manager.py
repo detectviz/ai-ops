@@ -18,6 +18,50 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
+class DotDict(dict):
+    """
+    支援點號訪問的字典
+
+    允許使用 config.auth.provider 而不是 config["auth"]["provider"]
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for key, value in self.items():
+            if isinstance(value, dict):
+                self[key] = DotDict(value)
+
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError:
+            # 返回空的 DotDict 而不是拋出異常
+            return DotDict()
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
+    def get(self, key, default=None):
+        """
+        安全獲取值
+
+        支援點號分隔的鍵
+        """
+        if "." in key:
+            keys = key.split(".")
+            value = self
+            for k in keys:
+                if isinstance(value, dict):
+                    value = value.get(k)
+                    if value is None:
+                        return default
+                else:
+                    return default
+            return value
+        else:
+            return super().get(key, default)
+
+
 class ConfigManager:
     """
     配置管理器
@@ -196,47 +240,3 @@ class ConfigManager:
         """重新載入配置"""
         self.config = self._load_config()
         logger.info("✅ 配置已重新載入")
-
-
-class DotDict(dict):
-    """
-    支援點號訪問的字典
-    
-    允許使用 config.auth.provider 而不是 config["auth"]["provider"]
-    """
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for key, value in self.items():
-            if isinstance(value, dict):
-                self[key] = DotDict(value)
-    
-    def __getattr__(self, key):
-        try:
-            return self[key]
-        except KeyError:
-            # 返回空的 DotDict 而不是拋出異常
-            return DotDict()
-    
-    def __setattr__(self, key, value):
-        self[key] = value
-    
-    def get(self, key, default=None):
-        """
-        安全獲取值
-        
-        支援點號分隔的鍵
-        """
-        if "." in key:
-            keys = key.split(".")
-            value = self
-            for k in keys:
-                if isinstance(value, dict):
-                    value = value.get(k)
-                    if value is None:
-                        return default
-                else:
-                    return default
-            return value
-        else:
-            return super().get(key, default)

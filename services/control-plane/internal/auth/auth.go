@@ -13,10 +13,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/detectviz/control-plane/internal/config"
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/detectviz/control-plane/internal/config"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )

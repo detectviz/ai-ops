@@ -35,4 +35,5 @@ class ControlPlaneTool:
         # M2M 認證設定
         self.client_id = config.control_plane.get("client_id", "sre-assistant")
         self.client_secret = config.control_plane.get("client_secret", "")
-        self.token
+        self.token = None  # JWT token 快取
+        self.token_expires_at = None  # token 到期時間

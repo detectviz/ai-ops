@@ -4,7 +4,7 @@ SRE Assistant 主程式入口
 提供 REST API 端點供 Control Plane 呼叫
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Security
+from fastapi import FastAPI, HTTPException, Depends, Security, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -90,19 +90,34 @@ app.add_middleware(
 # 安全性設定
 security = HTTPBearer()
 
-async def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)) -> Dict[str, Any]:
+async def verify_token(request: Request) -> Dict[str, Any]:
     """驗證 JWT Token"""
-    token = credentials.credentials
-    
+    # 從請求頭中提取 Authorization
+    auth_header = request.headers.get("Authorization")
+
+    # 如果沒有提供認證頭，在開發模式下允許
+    if not auth_header:
+        if not jwks_client:
+            logger.warning("⚠️ JWT 驗證已停用 (開發模式)")
+            return {"sub": "dev-user", "roles": ["admin"]}
+        else:
+            raise HTTPException(status_code=401, detail="缺少認證憑證")
+
+    # 檢查 Authorization 頭格式
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="無效的認證格式")
+
+    token = auth_header[7:]  # 移除 "Bearer " 前綴
+
     # 開發模式：如果沒有設定 JWKS，跳過驗證
     if not jwks_client:
         logger.warning("⚠️ JWT 驗證已停用 (開發模式)")
         return {"sub": "dev-user", "roles": ["admin"]}
-    
+
     try:
         # 從 JWKS 獲取簽名金鑰
         signing_key = jwks_client.get_signing_key_from_jwt(token)
-        
+
         # 驗證 token
         payload = jwt.decode(
             token,
@@ -111,10 +126,10 @@ async def verify_token(credentials: HTTPAuthorizationCredentials = Security(secu
             audience=os.getenv("OAUTH_CLIENT_ID", "sre-assistant"),
             options={"verify_exp": True}
         )
-        
+
         logger.info(f"✅ Token 驗證成功: {payload.get('sub')}")
         return payload
-        
+
     except jwt.ExpiredSignatureError:
         logger.error("Token 已過期")
         raise HTTPException(status_code=401, detail="Token 已過期")
@@ -155,26 +170,29 @@ async def readiness_check():
 
 @app.post("/diagnostics/deployment", response_model=SREResponse)
 async def diagnose_deployment(
-    request: DeploymentDiagnosticRequest,
-    token_payload: Dict = Depends(verify_token)
+    request_data: DeploymentDiagnosticRequest,
+    req: Request
 ):
     """
     診斷部署健康狀況
-    
+
     當部署失敗或異常時，執行端到端的診斷流程
     """
-    logger.info(f"📊 開始診斷部署: {request.service_name} (ID: {request.deployment_id})")
-    
+    # 驗證 token
+    token_payload = await verify_token(req)
+
+    logger.info(f"📊 開始診斷部署: {request_data.service_name} (ID: {request_data.deployment_id})")
+
     try:
         # 建構 SRE 請求
         sre_request = SRERequest(
-            incident_id=f"deploy-diag-{request.deployment_id}",
+            incident_id=f"deploy-diag-{request_data.deployment_id}",
             severity="P2",
-            input=f"診斷部署失敗: {request.service_name}",
-            affected_services=[request.service_name],
+            input=f"診斷部署失敗: {request_data.service_name}",
+            affected_services=[request_data.service_name],
             context={
-                "deployment_id": request.deployment_id,
-                "namespace": request.namespace,
+                "deployment_id": request_data.deployment_id,
+                "namespace": request_data.namespace,
                 "triggered_by": token_payload.get("sub", "unknown"),
                 "type": "deployment_diagnosis"
             }
@@ -197,24 +215,27 @@ async def diagnose_deployment(
 
 @app.post("/diagnostics/alerts", response_model=SREResponse)
 async def diagnose_alerts(
-    request: AlertDiagnosticRequest,
-    token_payload: Dict = Depends(verify_token)
+    request_data: AlertDiagnosticRequest,
+    req: Request
 ):
     """
     分析告警事件
-    
+
     將多個告警關聯分析，找出共同模式
     """
-    logger.info(f"🚨 開始分析告警: {request.incident_ids}")
-    
+    # 驗證 token
+    token_payload = await verify_token(req)
+
+    logger.info(f"🚨 開始分析告警: {request_data.incident_ids}")
+
     try:
         sre_request = SRERequest(
-            incident_id=f"alert-diag-{'-'.join(map(str, request.incident_ids))}",
-            severity="P1" if len(request.incident_ids) > 5 else "P2",
-            input=f"分析告警事件: {request.service_name or 'multiple services'}",
-            affected_services=[request.service_name] if request.service_name else [],
+            incident_id=f"alert-diag-{'-'.join(map(str, request_data.incident_ids))}",
+            severity="P1" if len(request_data.incident_ids) > 5 else "P2",
+            input=f"分析告警事件: {request_data.service_name or 'multiple services'}",
+            affected_services=[request_data.service_name] if request_data.service_name else [],
             context={
-                "incident_ids": request.incident_ids,
+                "incident_ids": request_data.incident_ids,
                 "triggered_by": token_payload.get("sub", "unknown"),
                 "type": "alert_diagnosis"
             }
@@ -236,24 +257,27 @@ async def diagnose_alerts(
 
 @app.post("/execute", response_model=SREResponse)
 async def execute_query(
-    request: Dict[str, Any],
-    token_payload: Dict = Depends(verify_token)
+    request_data: Dict[str, Any],
+    req: Request
 ):
     """
     通用查詢執行端點
-    
+
     處理自然語言查詢和臨機任務
     """
-    logger.info(f"💬 執行通用查詢: {request.get('user_query', '')[:100]}")
-    
+    # 驗證 token
+    token_payload = await verify_token(req)
+
+    logger.info(f"💬 執行通用查詢: {request_data.get('user_query', '')[:100]}")
+
     try:
         sre_request = SRERequest(
             incident_id=f"query-{datetime.now(timezone.utc).timestamp()}",
             severity="P3",
-            input=request.get("user_query", ""),
-            affected_services=request.get("context", {}).get("services", []),
+            input=request_data.get("user_query", ""),
+            affected_services=request_data.get("context", {}).get("services", []),
             context={
-                **request.get("context", {}),
+                **request_data.get("context", {}),
                 "triggered_by": token_payload.get("sub", "unknown"),
                 "type": "ad_hoc_query"
             }
@@ -308,9 +332,22 @@ async def check_keycloak() -> str:
 
 if __name__ == "__main__":
     import uvicorn
+
+    # 從環境變數或配置中獲取端口
+    port = int(os.getenv("PORT", "8000"))
+
+    # 如果沒有指定環境變數，嘗試從配置文件讀取
+    if os.getenv("PORT") is None:
+        try:
+            temp_config_manager = ConfigManager()
+            config = temp_config_manager.get_config()
+            port = config.deployment.get("port", port)
+        except Exception as e:
+            logger.warning(f"無法從配置讀取端口: {e}，使用預設端口 {port}")
+
     uvicorn.run(
         "src.sre_assistant.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=True
     )

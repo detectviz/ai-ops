@@ -5,7 +5,7 @@ deployment:
   platform: "local"
   debug: true
   host: "0.0.0.0"
-  port: 8000
+  port: ${PORT:-8000}
 
 # SRE Assistant 自身的 URL (容器內部網路)
 sre_assistant:

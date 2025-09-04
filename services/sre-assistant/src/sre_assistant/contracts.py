@@ -36,22 +36,47 @@ class AuthProvider(str, Enum):
 
 class DeploymentDiagnosticRequest(BaseModel):
     """部署診斷請求"""
-    deployment_id: str = Field(..., description="部署的唯一標識符")
-    service_name: str = Field(..., description="服務名稱")
-    namespace: str = Field(default="default", description="Kubernetes 命名空間")
-    image_tag: Optional[str] = Field(None, description="部署的映像標籤")
+    context: Dict[str, Any] = Field(..., description="診斷上下文")
+
+    @property
+    def deployment_id(self) -> str:
+        return self.context.get("deployment_id", "")
+
+    @property
+    def service_name(self) -> str:
+        return self.context.get("service_name", "")
+
+    @property
+    def namespace(self) -> str:
+        return self.context.get("namespace", "default")
+
+    @property
+    def image_tag(self) -> Optional[str]:
+        return self.context.get("image_tag")
     
 class AlertDiagnosticRequest(BaseModel):
     """告警診斷請求"""
-    incident_ids: List[int] = Field(..., description="告警事件 ID 列表")
-    service_name: Optional[str] = Field(None, description="相關服務名稱")
-    time_range: Optional[Dict[str, str]] = Field(None, description="分析時間範圍")
+    context: Dict[str, Any] = Field(..., description="診斷上下文")
+
+    @property
+    def incident_ids(self) -> List[int]:
+        return self.context.get("incident_ids", [])
+
+    @property
+    def service_name(self) -> Optional[str]:
+        return self.context.get("service_name")
 
 class CapacityAnalysisRequest(BaseModel):
     """容量分析請求"""
-    resource_group: str = Field(..., description="資源群組名稱")
-    metric: str = Field(..., description="要分析的指標")
-    prediction_days: int = Field(default=30, description="預測天數")
+    context: Dict[str, Any] = Field(..., description="分析上下文")
+
+    @property
+    def device_group_id(self) -> int:
+        return self.context.get("device_group_id", 0)
+
+    @property
+    def metric_name(self) -> str:
+        return self.context.get("metric_name", "")
 
 # === API 回應模型 ===
 
