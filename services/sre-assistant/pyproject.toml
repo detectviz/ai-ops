@@ -142,10 +142,6 @@ addopts = [
     "-ra",
     "-q",
     "--strict-markers",
-    "--cov=sre_assistant",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
 ]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]

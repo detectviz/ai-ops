@@ -8,8 +8,8 @@ import asyncio
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
 
-from src.sre_assistant.workflow import SREWorkflow
-from src.sre_assistant.contracts import (
+from sre_assistant.workflow import SREWorkflow
+from sre_assistant.contracts import (
     SRERequest,
     ToolResult,
     ToolError,
