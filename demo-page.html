@@ -14,6 +14,8 @@
     rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
+  <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
   <style>
     body {
       font-family: 'Inter', 'Noto Sans TC', sans-serif;
@@ -280,6 +282,70 @@
     .ts-dropdown .option.active {
       background-color: #3b82f6 !important;
       color: white !important;
+    }
+
+    /* 使用 Grid.js 顯示資料，隱藏舊的表格標記 */
+    .rwd-table {
+      display: none;
+    }
+
+    /* Grid.js soft border overrides */
+    .gridjs-table {
+      border: none !important;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .gridjs-th,
+    .gridjs-td {
+      border: none !important;
+    }
+
+    .gridjs-thead .gridjs-tr {
+      border-bottom: 1px solid #edf2f7 !important;
+    }
+
+    .gridjs-tr:not(.gridjs-head) {
+      border-bottom: 1px solid #f1f5f9 !important;
+    }
+
+    .gridjs-tr:hover .gridjs-td {
+      background-color: #f8fafc !important;
+    }
+
+    .gridjs-footer {
+      border-top: 1px solid #f1f5f9 !important;
+    }
+
+    /* Top tabs (Settings / Profile / Automation) - keep in one row with horizontal scroll */
+    nav[aria-label="Tabs"] {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      align-items: center;
+      gap: 2rem;
+      /* match Tailwind space-x-8 */
+    }
+
+    nav[aria-label="Tabs"]>* {
+      flex: 0 0 auto;
+      /* prevent shrinking/wrapping */
+      white-space: nowrap;
+    }
+
+    nav[aria-label="Tabs"]::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    nav[aria-label="Tabs"]::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      /* slate-300 */
+      border-radius: 8px;
+    }
+
+    nav[aria-label="Tabs"]::-webkit-scrollbar-track {
+      background: transparent;
     }
   </style>
 </head>
@@ -719,7 +785,7 @@
 
         <section id="page-resources" class="page hidden">
           <div class="bg-white p-6 rounded-xl shadow-md">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
               <div class="w-full md:w-auto">
                 <!-- 批次操作欄 -->
                 <div id="batch-operations-bar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
@@ -739,13 +805,16 @@
                   </div>
                 </div>
               </div>
-              <div class="flex items-center space-x-2 w-full md:w-auto">
+              <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
                 <input type="text" id="resource-search-input" placeholder="搜尋資源名稱或 IP..."
-                  class="w-full md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
+                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
                 <button id="scan-network-btn"
-                  class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm">掃描網段</button>
+                  class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm flex-shrink-0">掃描網段</button>
                 <button id="add-resource-btn"
-                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors text-sm">新增資源</button>
+                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors text-sm flex-shrink-0">新增資源</button>
+                <label class="flex items-center gap-2 ml-2 text-slate-600 text-sm flex-shrink-0"><input type="checkbox"
+                    id="select-all-resources-grid"
+                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">全選</label>
               </div>
             </div>
             <div class="overflow-x-auto">
@@ -764,6 +833,7 @@
                 <tbody id="resources-table-body">
                 </tbody>
               </table>
+              <div id="resources-grid" class="mt-4"></div>
             </div>
             <div id="resources-pagination" class="mt-6 flex justify-end items-center space-x-2 text-sm">
             </div>
@@ -772,10 +842,14 @@
 
         <section id="page-groups" class="page hidden">
           <div class="bg-white p-6 rounded-xl shadow-md">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
               <div class="w-full md:w-auto"></div>
-              <button id="add-group-btn"
-                class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm">新增群組</button>
+              <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
+                <input type="text" id="groups-search-input" placeholder="搜尋群組名稱或說明..."
+                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                <button id="add-group-btn"
+                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增群組</button>
+              </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
@@ -790,16 +864,21 @@
                 <tbody id="groups-table-body">
                 </tbody>
               </table>
+              <div id="groups-grid" class="mt-4"></div>
             </div>
           </div>
         </section>
 
         <section id="page-teams" class="page hidden">
           <div class="bg-white p-6 rounded-xl shadow-md">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
               <div class="w-full md:w-auto"></div>
-              <button id="add-team-btn"
-                class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm">新增團隊</button>
+              <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
+                <input type="text" id="teams-search-input" placeholder="搜尋團隊名稱..."
+                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                <button id="add-team-btn"
+                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增團隊</button>
+              </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
@@ -815,16 +894,21 @@
                 <tbody id="teams-table-body">
                 </tbody>
               </table>
+              <div id="teams-grid" class="mt-4"></div>
             </div>
           </div>
         </section>
 
         <section id="page-rules" class="page hidden">
           <div class="bg-white p-6 rounded-xl shadow-md">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
               <div class="w-full md:w-auto"></div>
-              <button id="add-rule-btn"
-                class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm">新增告警規則</button>
+              <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
+                <input type="text" id="rules-search-input" placeholder="搜尋規則名稱、目標或指標..."
+                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                <button id="add-rule-btn"
+                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增告警規則</button>
+              </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
@@ -840,16 +924,21 @@
                 <tbody id="rules-table-body">
                 </tbody>
               </table>
+              <div id="rules-grid" class="mt-4"></div>
             </div>
           </div>
         </section>
 
         <section id="page-personnel" class="page hidden">
           <div class="bg-white p-6 rounded-xl shadow-md">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
               <div class="w-full md:w-auto"></div>
-              <button id="add-user-btn"
-                class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm">新增人員</button>
+              <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
+                <input type="text" id="personnel-search-input" placeholder="搜尋姓名或團隊..."
+                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                <button id="add-user-btn"
+                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增人員</button>
+              </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
@@ -865,15 +954,21 @@
                 <tbody id="personnel-table-body">
                 </tbody>
               </table>
+              <div id="personnel-grid" class="mt-4"></div>
             </div>
           </div>
         </section>
 
         <section id="page-channels" class="page hidden">
           <div class="bg-white p-6 rounded-xl shadow-md">
-            <div class="flex flex-col md:flex-row justify-end items-center mb-6 gap-4">
-              <button id="add-channel-btn"
-                class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm">新增管道</button>
+            <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
+              <div class="w-full md:w-auto"></div>
+              <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
+                <input type="text" id="channels-search-input" placeholder="搜尋管道名稱..."
+                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                <button id="add-channel-btn"
+                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增管道</button>
+              </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
@@ -887,6 +982,7 @@
                 <tbody id="channels-table-body">
                 </tbody>
               </table>
+              <div id="channels-grid" class="mt-4"></div>
             </div>
           </div>
         </section>
@@ -894,10 +990,14 @@
 
         <section id="page-maintenance" class="page hidden">
           <div class="bg-white p-6 rounded-xl shadow-md">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
               <div class="w-full md:w-auto"></div>
-              <button id="add-maintenance-btn"
-                class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm">新增維護時段</button>
+              <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
+                <input type="text" id="maintenance-search-input" placeholder="搜尋說明或群組..."
+                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                <button id="add-maintenance-btn"
+                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增維護時段</button>
+              </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
@@ -914,6 +1014,7 @@
                 <tbody id="maintenance-table-body">
                 </tbody>
               </table>
+              <div id="maintenance-grid" class="mt-4"></div>
             </div>
           </div>
         </section>
@@ -1020,7 +1121,7 @@
 
         <section id="page-logs" class="page hidden">
           <div class="bg-white p-6 rounded-xl shadow-md">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
               <div class="w-full md:w-auto"></div>
               <div class="flex items-center space-x-2 w-full md:w-auto justify-end flex-nowrap overflow-x-auto">
                 <input type="date" id="logs-start-date"
@@ -1054,7 +1155,6 @@
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
                 <thead class="text-sm text-slate-700 uppercase bg-slate-50">
                   <tr>
-                    <th scope="col" class="px-2 py-3"><input type="checkbox" id="select-all-logs"></th>
                     <th scope="col" class="px-6 py-3">狀態</th>
                     <th scope="col" class="px-6 py-3">時間</th>
                     <th scope="col" class="px-6 py-3">等級</th>
@@ -1067,6 +1167,8 @@
                 <tbody id="logs-table-body">
                 </tbody>
               </table>
+
+              <div id="logs-grid" class="mt-2"></div>
             </div>
           </div>
         </section>
@@ -1090,7 +1192,7 @@
 
             <!-- Scripts Library Tab -->
             <div id="scripts-content" class="automation-content">
-              <div class="flex flex-col md:flex-row justify-end items-center mb-6 gap-4">
+              <div class="flex flex-col md:flex-row justify-end items-center mb-2 gap-4">
                 <button id="add-script-btn"
                   class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm">新增腳本</button>
               </div>
@@ -1108,12 +1210,13 @@
                   <tbody id="scripts-table-body">
                   </tbody>
                 </table>
+                <div id="scripts-grid" class="mt-4"></div>
               </div>
             </div>
 
             <!-- Execution Logs Tab -->
             <div id="execution-logs-content" class="automation-content hidden">
-              <div class="flex flex-col md:flex-row justify-end items-center mb-6 gap-4">
+              <div class="flex flex-col md:flex-row justify-end items-center mb-2 gap-4">
                 <div class="flex items-center space-x-2 flex-nowrap overflow-x-auto">
                   <input type="date" id="log-start-date"
                     class="flex-shrink-0 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
@@ -1145,6 +1248,7 @@
                   <tbody id="execution-logs-table-body">
                   </tbody>
                 </table>
+                <div id="execution-logs-grid" class="mt-4"></div>
               </div>
             </div>
           </div>
@@ -2038,6 +2142,8 @@
 
       populateDashboard();
       populateTables();
+      renderAllGrids();
+      initializeGridBridges();
       initializeGeminiFeatures();
       initializeActionModals();
       initializeIncidentManagement();
@@ -2418,6 +2524,9 @@
 
       // Update Capacity Planning Dropdowns
       updateCapacityDropdowns();
+
+      // After tables are rebuilt, re-render Grid.js views to stay in sync
+      try { renderAllGrids(); } catch (e) { /* noop */ }
 
       return visibleGroups;
     }
@@ -3156,6 +3265,7 @@
       const generateReportBtn = document.getElementById('generate-report-btn');
       const copyReportBtn = document.getElementById('copy-report-btn');
       const logsBody = document.getElementById('logs-table-body');
+      const logsGrid = document.getElementById('logs-grid');
       const selectAllCheckbox = document.getElementById('select-all-logs');
 
       function openModal() {
@@ -3172,23 +3282,39 @@
       modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
       function updateReportButtonState() {
-        const checkedLogs = document.querySelectorAll('.log-checkbox:checked');
-        generateReportBtn.disabled = checkedLogs.length === 0;
+        // 若仍存在舊的勾選框，沿用；否則允許直接點擊按鈕（由點選列觸發詳情/報告）
+        const checkboxes = document.querySelectorAll('.log-checkbox');
+        if (checkboxes.length > 0) {
+          const checkedLogs = document.querySelectorAll('.log-checkbox:checked');
+          generateReportBtn.disabled = checkedLogs.length === 0;
+        } else {
+          generateReportBtn.disabled = false;
+        }
       }
 
-      selectAllCheckbox.addEventListener('change', (e) => {
-        document.querySelectorAll('.log-checkbox').forEach(cb => cb.checked = e.target.checked);
-        updateReportButtonState();
-      });
-
-      logsBody.addEventListener('change', (e) => {
-        if (e.target.classList.contains('log-checkbox')) {
+      // 可能不存在 selectAllCheckbox（已移除全選），需保護性檢查
+      if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+          document.querySelectorAll('.log-checkbox').forEach(cb => cb.checked = e.target.checked);
           updateReportButtonState();
-          selectAllCheckbox.checked = document.querySelectorAll('.log-checkbox:checked').length === document.querySelectorAll('.log-checkbox').length;
+        });
+      }
+
+      // 支援 Grid.js 事件委派（logs-grid）與舊表格（logs-table-body）
+      const onLogCheckboxChange = (e) => {
+        if (e.target && e.target.classList && e.target.classList.contains('log-checkbox')) {
+          updateReportButtonState();
+          if (selectAllCheckbox) {
+            selectAllCheckbox.checked = document.querySelectorAll('.log-checkbox:checked').length === document.querySelectorAll('.log-checkbox').length;
+          }
         }
-      });
+      };
+      if (logsGrid) logsGrid.addEventListener('change', onLogCheckboxChange, true);
+      if (logsBody) logsBody.addEventListener('change', onLogCheckboxChange, true);
 
       generateReportBtn.addEventListener('click', handleGenerateReport);
+      // 初始化按鈕狀態（Grid.js 重新渲染後也請再次呼叫）
+      updateReportButtonState();
 
       copyReportBtn.addEventListener('click', () => {
         const reportText = modalContent.innerText;
@@ -4373,6 +4499,359 @@
         });
       }
     }
+
+    // --- Grid.js Rendering ---
+    const _gridInstances = {};
+
+    function _ensureGrid(containerId, config) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      if (_gridInstances[containerId]) {
+        try { _gridInstances[containerId].destroy(); } catch (e) { /* noop */ }
+      }
+      _gridInstances[containerId] = new gridjs.Grid(config).render(container);
+    }
+
+    function _rowsFromHiddenTable(tbodyId, mapper) {
+      const tbody = document.getElementById(tbodyId);
+      if (!tbody) return [];
+      const rows = [];
+      tbody.querySelectorAll('tr').forEach((tr, i) => {
+        const mapped = mapper(tr, i);
+        if (mapped) rows.push(mapped);
+      });
+      return rows;
+    }
+
+    function renderResourcesGrid() {
+      const rows = _rowsFromHiddenTable('resources-table-body', (tr) => {
+        const idx = tr.dataset.index;
+        const checkbox = tr.querySelector('input.resource-checkbox');
+        const statusCell = tr.querySelector('[data-label="狀態"]')?.innerHTML || '';
+        const name = tr.querySelector('[data-label="資源名稱"]')?.textContent.trim() || '';
+        const ip = tr.querySelector('[data-label="IP 位址"]')?.textContent.trim() || '';
+        const groupsHtml = tr.querySelector('[data-label="所屬群組"]')?.innerHTML || '無';
+        const canEdit = !!tr.querySelector('.edit-resource-btn');
+        const canDelete = !!tr.querySelector('.delete-resource-btn');
+        const actions = `
+          ${canEdit ? `<button class="edit-resource-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">編輯</button>` : ''}
+          ${canDelete ? `<button class="delete-resource-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : ''}`;
+        const checkboxHtml = checkbox ? `<input type="checkbox" class="resource-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" data-resource-id="${checkbox.dataset.resourceId || ''}" ${checkbox.checked ? 'checked' : ''}>` : '';
+        return [gridjs.html(checkboxHtml), gridjs.html(statusCell), name, ip, gridjs.html(groupsHtml), gridjs.html(actions)];
+      });
+      _ensureGrid('resources-grid', {
+        columns: [{ name: '選取', width: '70px' }, { name: '狀態', width: '70px' }, '資源名稱', 'IP 位址', '所屬群組', { name: '操作', width: '160px' }],
+        data: rows,
+        pagination: true,
+        search: false,
+        sort: true
+      });
+    }
+
+    function renderGroupsGrid() {
+      const rows = _rowsFromHiddenTable('groups-table-body', (tr) => {
+        const idx = tr.dataset.index;
+        const name = tr.querySelector('[data-label="群組名稱"]')?.textContent.trim() || '';
+        const count = tr.querySelector('[data-label="資源數量"]')?.textContent.trim() || '';
+        const desc = tr.querySelector('[data-label="說明"]')?.textContent.trim() || '';
+        const canEdit = !!tr.querySelector('.edit-group-btn');
+        const canDelete = !!tr.querySelector('.delete-group-btn');
+        const actions = `
+          ${canEdit ? `<button class="edit-group-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">編輯</button>` : ''}
+          ${canDelete ? `<button class="delete-group-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : ''}`;
+        return [name, count, desc, gridjs.html(actions)];
+      });
+      _ensureGrid('groups-grid', {
+        columns: ['群組名稱', '資源數量', '說明', { name: '操作', width: '160px' }],
+        data: rows,
+        pagination: true,
+        search: false,
+        sort: true
+      });
+    }
+
+    function renderTeamsGrid() {
+      const rows = _rowsFromHiddenTable('teams-table-body', (tr) => {
+        const idx = tr.dataset.index;
+        const name = tr.querySelector('[data-label="團隊名稱"]')?.textContent.trim() || '';
+        const manager = tr.querySelector('[data-label="團隊管理員"]')?.innerHTML || '';
+        const members = tr.querySelector('[data-label="成員數量"]')?.textContent.trim() || '';
+        const subscribers = tr.querySelector('[data-label="通知訂閱者"]')?.innerHTML || '';
+        const actions = `
+          <button class="edit-team-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">編輯</button>
+          ${tr.querySelector('.delete-team-btn') ? `<button class="delete-team-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : ''}`;
+        return [name, gridjs.html(manager), members, gridjs.html(subscribers), gridjs.html(actions)];
+      });
+      _ensureGrid('teams-grid', {
+        columns: ['團隊名稱', '團隊管理員', '成員數量', '通知訂閱者', { name: '操作', width: '160px' }],
+        data: rows,
+        pagination: true,
+        search: false,
+        sort: true
+      });
+    }
+
+    function renderPersonnelGrid() {
+      const rows = _rowsFromHiddenTable('personnel-table-body', (tr) => {
+        const idx = tr.dataset.index;
+        const name = tr.querySelector('[data-label="姓名"]')?.textContent.trim() || '';
+        const role = tr.querySelector('[data-label="角色"]')?.innerHTML || '';
+        const teams = tr.querySelector('[data-label="所屬團隊"]')?.innerHTML || '';
+        const levels = tr.querySelector('[data-label="接收等級"]')?.innerHTML || '';
+        const actions = `
+          <button class="edit-user-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">編輯</button>
+          ${tr.querySelector('.delete-user-btn') ? `<button class="delete-user-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : ''}`;
+        return [name, gridjs.html(role), gridjs.html(teams), gridjs.html(levels), gridjs.html(actions)];
+      });
+      _ensureGrid('personnel-grid', {
+        columns: ['姓名', '角色', '所屬團隊', '接收等級', { name: '操作', width: '160px' }],
+        data: rows,
+        pagination: true,
+        search: false,
+        sort: true
+      });
+    }
+
+    function renderRulesGrid() {
+      const rows = _rowsFromHiddenTable('rules-table-body', (tr) => {
+        const idx = tr.dataset.index;
+        const name = tr.querySelector('[data-label="規則名稱"]')?.textContent.trim() || '';
+        const target = tr.querySelector('[data-label="監控目標"]')?.textContent.trim() || '';
+        const metric = tr.querySelector('[data-label="指標"]')?.textContent.trim() || '';
+        const status = tr.querySelector('[data-label="啟用狀態"]')?.innerHTML || '';
+        const edit = tr.querySelector('.edit-rule-btn') ? `<button class="edit-rule-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">編輯</button>` : '';
+        const silence = tr.querySelector('.silence-rule-btn') ? `<button class="silence-rule-btn text-slate-500 hover:text-slate-800 font-medium ml-4" data-index="${idx}">靜默</button>` : '';
+        const del = tr.querySelector('.delete-rule-btn') ? `<button class="delete-rule-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : '';
+        return [name, target, metric, gridjs.html(status), gridjs.html(`${edit}${silence}${del}`)];
+      });
+      _ensureGrid('rules-grid', {
+        columns: ['規則名稱', '監控目標', '指標', '啟用狀態', { name: '操作', width: '200px' }],
+        data: rows,
+        pagination: true,
+        search: false,
+        sort: true
+      });
+    }
+
+    function renderChannelsGrid() {
+      const rows = _rowsFromHiddenTable('channels-table-body', (tr) => {
+        const idx = tr.dataset.index;
+        const name = tr.querySelector('[data-label="管道名稱"]')?.textContent.trim() || '';
+        const type = tr.querySelector('[data-label="管道類型"]')?.innerHTML || '';
+        const actions = `
+          <button class="test-channel-btn text-green-600 hover:text-green-800 font-medium" data-index="${idx}">測試</button>
+          <button class="edit-channel-btn text-blue-600 hover:text-blue-800 font-medium ml-4" data-index="${idx}">編輯</button>
+          <button class="delete-channel-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>`;
+        return [name, gridjs.html(type), gridjs.html(actions)];
+      });
+      _ensureGrid('channels-grid', {
+        columns: ['管道名稱', '管道類型', { name: '操作', width: '220px' }],
+        data: rows,
+        pagination: true,
+        search: false,
+        sort: true
+      });
+    }
+
+    function renderMaintenanceGrid() {
+      const rows = _rowsFromHiddenTable('maintenance-table-body', (tr) => {
+        const idx = tr.dataset.index;
+        const name = tr.querySelector('[data-label="說明"]')?.textContent.trim() || '';
+        const groups = tr.querySelector('[data-label="影響群組"]')?.innerHTML || '';
+        const start = tr.querySelector('[data-label="開始時間"]')?.textContent.trim() || '';
+        const end = tr.querySelector('[data-label="結束時間"]')?.textContent.trim() || '';
+        const status = tr.querySelector('[data-label="狀態"]')?.innerHTML || '';
+        const actions = `
+          ${tr.querySelector('.edit-maintenance-btn') ? `<button class="edit-maintenance-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">編輯</button>` : ''}
+          ${tr.querySelector('.delete-maintenance-btn') ? `<button class="delete-maintenance-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : ''}`;
+        return [name, gridjs.html(groups), start, end, gridjs.html(status), gridjs.html(actions)];
+      });
+      _ensureGrid('maintenance-grid', {
+        columns: ['說明', '影響群組', '開始時間', '結束時間', '狀態', { name: '操作', width: '160px' }],
+        data: rows,
+        pagination: true,
+        search: false,
+        sort: true
+      });
+    }
+
+    function getFilteredLogs() {
+      const start = document.getElementById('logs-start-date')?.value || '';
+      const end = document.getElementById('logs-end-date')?.value || '';
+      const lvl = document.getElementById('logs-level-filter')?.value || '';
+      const st = document.getElementById('logs-status-filter')?.value || '';
+      let logs = [...mockData.logs];
+      if (lvl) logs = logs.filter(l => l.level === lvl);
+      if (st) logs = logs.filter(l => l.status === st);
+      if (start) logs = logs.filter(l => (l.time.slice(0, 10) >= start));
+      if (end) logs = logs.filter(l => (l.time.slice(0, 10) <= end));
+      return logs;
+    }
+
+    function renderLogsGrid() {
+      const filtered = getFilteredLogs();
+      const rows = filtered.map((l, index) => {
+        let levelBadge;
+        if (l.level === 'error') levelBadge = '<span class="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">高</span>';
+        else if (l.level === 'warning') levelBadge = '<span class="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">中</span>';
+        else levelBadge = '<span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">低</span>';
+        const statusMap = {
+          'new': '<span class="text-red-600 font-semibold">新告警</span>',
+          'ack': '<span class="text-yellow-600 font-semibold">處理中</span>',
+          'resolved': '<span class="text-green-600 font-semibold">已解決</span>'
+        };
+        const hasAck = l.status === 'new';
+        const actions = `${hasAck ? `<button class=\"ack-log-btn text-yellow-600 hover:text-yellow-800 font-medium\" data-index=\"${index}\">Ack</button>` : ''}
+          <button class=\"view-incident-btn text-blue-600 hover:text-blue-800 font-medium ml-4\" data-index=\"${index}\">詳情</button>`;
+        const checkboxHtml = `<input type=\"checkbox\" class=\"log-checkbox\" data-index=\"${mockData.logs.indexOf(l)}\">`;
+        return [gridjs.html(checkboxHtml), gridjs.html(statusMap[l.status]), l.time, gridjs.html(levelBadge), (l.assignee || '-'), l.name, l.desc, gridjs.html(actions)];
+      });
+      _ensureGrid('logs-grid', {
+        columns: [{ name: '選取', width: '70px' }, '狀態', '時間', '等級', '處理人員', '資源名稱', '說明', { name: '操作', width: '160px' }],
+        data: rows,
+        pagination: true,
+        search: false,
+        sort: true
+      });
+    }
+
+    function initializeLogsFilters() {
+      const els = ['logs-start-date', 'logs-end-date', 'logs-level-filter', 'logs-status-filter'];
+      els.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el.hasAttribute('data-grid-filter-bound')) {
+          el.setAttribute('data-grid-filter-bound', 'true');
+          el.addEventListener('change', () => renderLogsGrid());
+        }
+      });
+      const queryBtn = document.getElementById('query-logs-btn');
+      if (queryBtn && !queryBtn.hasAttribute('data-grid-filter-bound')) {
+        queryBtn.setAttribute('data-grid-filter-bound', 'true');
+        queryBtn.addEventListener('click', (e) => { e.preventDefault(); renderLogsGrid(); });
+      }
+    }
+
+    function renderScriptsGrid() {
+      const rows = _rowsFromHiddenTable('scripts-table-body', (tr) => {
+        const idx = tr.dataset.index;
+        const name = tr.querySelector('[data-label="腳本名稱"]')?.textContent.trim() || '';
+        const type = tr.querySelector('[data-label="類型"]')?.innerHTML || '';
+        const desc = tr.querySelector('[data-label="描述"]')?.textContent.trim() || '';
+        const updated = tr.querySelector('[data-label="最後更新"]')?.textContent.trim() || '';
+        const actions = `
+          <button class="test-script-btn text-green-600 hover:text-green-800 font-medium" data-index="${idx}">測試</button>
+          <button class="edit-script-btn text-blue-600 hover:text-blue-800 font-medium ml-4" data-index="${idx}">編輯</button>
+          ${tr.querySelector('.delete-script-btn') ? `<button class="delete-script-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : ''}`;
+        return [name, gridjs.html(type), desc, updated, gridjs.html(actions)];
+      });
+      _ensureGrid('scripts-grid', {
+        columns: ['腳本名稱', '類型', '描述', '最後更新', { name: '操作', width: '220px' }],
+        data: rows,
+        pagination: true,
+        search: false,
+        sort: true
+      });
+    }
+
+    function renderExecutionLogsGrid() {
+      const rows = _rowsFromHiddenTable('execution-logs-table-body', (tr) => {
+        const idx = tr.dataset.index;
+        const time = tr.querySelector('[data-label="執行時間"]')?.textContent.trim() || '';
+        const script = tr.querySelector('[data-label="腳本名稱"]')?.textContent.trim() || '';
+        const trigger = tr.querySelector('[data-label="觸發告警"]')?.textContent.trim() || '';
+        const status = tr.querySelector('[data-label="執行狀態"]')?.innerHTML || '';
+        const duration = tr.querySelector('[data-label="執行時長"]')?.textContent.trim() || '';
+        const actions = `<button class="view-output-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">查看輸出</button>`;
+        return [time, script, trigger, gridjs.html(status), duration, gridjs.html(actions)];
+      });
+      _ensureGrid('execution-logs-grid', {
+        columns: ['執行時間', '腳本名稱', '觸發告警', '執行狀態', '執行時長', { name: '操作', width: '120px' }],
+        data: rows,
+        pagination: true,
+        search: false,
+        sort: true
+      });
+    }
+
+    function renderAllGrids() {
+      renderResourcesGrid();
+      renderGroupsGrid();
+      renderTeamsGrid();
+      renderPersonnelGrid();
+      renderRulesGrid();
+      renderChannelsGrid();
+      renderMaintenanceGrid();
+      renderLogsGrid();
+      renderScriptsGrid();
+      renderExecutionLogsGrid();
+    }
+
+    // Bridge events from Grid.js buttons/checkboxes to existing hidden tables' handlers
+    function initializeGridBridges() {
+      if (document.body.dataset.gridBridgesInitialized === 'true') return;
+      document.body.dataset.gridBridgesInitialized = 'true';
+
+      document.addEventListener('click', (e) => {
+        const t = e.target;
+        const relay = (tbodyId, idx, selector) => {
+          const btn = document.querySelector(`#${tbodyId} tr[data-index="${idx}"] ${selector}`);
+          if (btn) btn.click();
+        };
+
+        if (t.classList.contains('edit-resource-btn')) relay('resources-table-body', t.dataset.index, '.edit-resource-btn');
+        if (t.classList.contains('delete-resource-btn')) relay('resources-table-body', t.dataset.index, '.delete-resource-btn');
+
+        if (t.classList.contains('edit-group-btn')) relay('groups-table-body', t.dataset.index, '.edit-group-btn');
+        if (t.classList.contains('delete-group-btn')) relay('groups-table-body', t.dataset.index, '.delete-group-btn');
+
+        if (t.classList.contains('edit-team-btn')) relay('teams-table-body', t.dataset.index, '.edit-team-btn');
+        if (t.classList.contains('delete-team-btn')) relay('teams-table-body', t.dataset.index, '.delete-team-btn');
+
+        if (t.classList.contains('edit-user-btn')) relay('personnel-table-body', t.dataset.index, '.edit-user-btn');
+        if (t.classList.contains('delete-user-btn')) relay('personnel-table-body', t.dataset.index, '.delete-user-btn');
+
+        if (t.classList.contains('edit-rule-btn')) relay('rules-table-body', t.dataset.index, '.edit-rule-btn');
+        if (t.classList.contains('silence-rule-btn')) relay('rules-table-body', t.dataset.index, '.silence-rule-btn');
+        if (t.classList.contains('delete-rule-btn')) relay('rules-table-body', t.dataset.index, '.delete-rule-btn');
+
+        if (t.classList.contains('test-channel-btn')) relay('channels-table-body', t.dataset.index, '.test-channel-btn');
+        if (t.classList.contains('edit-channel-btn')) relay('channels-table-body', t.dataset.index, '.edit-channel-btn');
+        if (t.classList.contains('delete-channel-btn')) relay('channels-table-body', t.dataset.index, '.delete-channel-btn');
+
+        if (t.classList.contains('edit-maintenance-btn')) relay('maintenance-table-body', t.dataset.index, '.edit-maintenance-btn');
+        if (t.classList.contains('delete-maintenance-btn')) relay('maintenance-table-body', t.dataset.index, '.delete-maintenance-btn');
+
+        if (t.classList.contains('ack-log-btn')) relay('logs-table-body', t.dataset.index, `.ack-log-btn[data-index="${t.dataset.index}"]`);
+        if (t.classList.contains('view-incident-btn')) {
+          const row = document.querySelector(`#logs-table-body tr[data-index="${t.dataset.index}"]`);
+          if (row) row.click();
+        }
+
+        if (t.classList.contains('test-script-btn')) relay('scripts-table-body', t.dataset.index, '.test-script-btn');
+        if (t.classList.contains('edit-script-btn')) relay('scripts-table-body', t.dataset.index, '.edit-script-btn');
+        if (t.classList.contains('delete-script-btn')) relay('scripts-table-body', t.dataset.index, '.delete-script-btn');
+
+        if (t.classList.contains('view-output-btn')) relay('execution-logs-table-body', t.dataset.index, '.view-output-btn');
+      });
+
+      document.addEventListener('change', (e) => {
+        if (e.target && e.target.id === 'select-all-resources-grid') {
+          const master = document.getElementById('select-all-resources');
+          if (master) {
+            master.checked = e.target.checked;
+            master.dispatchEvent(new Event('change'));
+          }
+        }
+        if (e.target && e.target.id === 'select-all-logs-grid') {
+          const master = document.getElementById('select-all-logs');
+          if (master) {
+            master.checked = e.target.checked;
+            master.dispatchEvent(new Event('change'));
+          }
+        }
+      });
+    }
+
 
   </script>
 </body>

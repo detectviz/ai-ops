@@ -12,6 +12,12 @@ SRE Platform 是一個採用 Monorepo 架構的現代化維運平台，旨在將
 - **Control Plane (指揮官)**: 提供 Web UI 的指揮中心，負責應用管理、資源操作與任務發起。後端採用 Go，前端使用 HTMX 驅動，實現輕量、高效的互動體驗。
 - **SRE Assistant (專家代理)**: 無介面的 (headless) 專家代理，基於 Google Agent Development Kit (ADK) 和 Python 构建，負責執行複雜的診斷、分析與自動化任務。
 
+## 功能操作展示 (GIF)
+
+下方為本平台核心功能的操作展示動畫：
+
+![Demo](demo.gif)
+
 ## 2. 核心架構
 
 本平台的核心理念是將複雜性集中在 Go 後端的 `Control Plane`，並利用一個無介面的 `SRE Assistant` 來執行專家級的診斷任務。
@@ -23,15 +29,15 @@ graph TD
     end
 
     subgraph "指揮中心 (Control Plane)"
-        ControlPlaneUI[Control Plane UI<br/>(HTMX, Go Backend)]
+        ControlPlaneUI[Control Plane UI<br/>HTMX, Go Backend]
     end
 
     subgraph "專家代理 (SRE Assistant)"
-        SREAssistantAPI[SRE Assistant API<br/>(Python, Google ADK)]
+        SREAssistantAPI[SRE Assistant API<br/>Python, Google ADK]
     end
 
     subgraph "外部系統"
-        Observability[可觀測性平台<br/>(Prometheus, Loki)]
+        Observability[可觀測性平台<br/>Prometheus, Loki]
         AuditLogs[Control Plane Audit API]
     end
 
