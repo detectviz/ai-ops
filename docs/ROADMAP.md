@@ -19,38 +19,43 @@
 - **[✅] 1.2. 服務對服務認證 (M2M Authentication)**:
     - **任務**: 完整實現基於 Keycloak 和 Client Credentials Flow 的認證機制。
 
-- **[ ] 1.3. 開發 `ControlPlaneTool`**:
-    - **任務**: 開發一個新的工具，專門用於回頭呼叫 `control-plane` 的 API，以獲取必要的上下文資訊 (如審計日誌)。
+- **[✅] 1.3. 核心工具開發 (`Prometheus`, `Loki`, `ControlPlane`)**:
+    - **任務**: 實現 `PrometheusQueryTool`、`LokiLogQueryTool` 和 `ControlPlaneTool`，為診斷流程提供數據來源。
+    - **對應 API**: 這些工具是 `/diagnostics/deployment` 端點的基礎。
 
-- **[ ] 1.4. 端到端流程測試**:
-    - **任務**: 建立一個整合測試，模擬從 `control-plane` 觸發一個部署診斷，到 `sre-assistant` 執行、回調 `control-plane` API，並最終返回結果的完整流程。
+- **[✅] 1.4. 端到端流程實作與測試**:
+    - **任務**: 在 `SREWorkflow` 中整合所有核心工具，並建立一個完整的整合測試，以驗證 `/diagnostics/deployment` 的端到端流程。
+    - **對應 API**: `/diagnostics/deployment`。
 
 - **[✅] 1.5. 核心服務本地化與持久化**:
     - **任務**: 確保開發環境使用 PostgreSQL 作為會話後端，ChromaDB 作為記憶體後端，並能穩定啟動與互動。
 
-- **[ ] 1.6. 核心工具開發**:
-    - **任務**: 實現 `PrometheusQueryTool` 和 `LokiLogQueryTool`，用於查詢監控與日誌數據。
-
 ---
 
-## Phase 2: 功能擴展與遷移 (Feature Expansion & Migration)
+## Phase 2: Control Plane 功能擴展與 UI 整合
 
-- **主題**: 在完成核心整合的基礎上，將有價值的核心功能遷移並適應到新的 `control-plane` 指揮模式下。
-- **關鍵目標**: 豐富 `sre-assistant` 的診斷與分析能力，使其能夠處理更多元的任務。
+- **主題**: 專注於擴充 `sre-assistant` 的後端能力，並為這些能力在 `control-plane` 上提供對應的 UI 操作介面。
+- **關鍵目標**: 讓使用者能夠透過 UI 觸發 `sre-assistant` 的各項核心診斷功能。
 
 ### 主要交付物 (Key Deliverables):
 
-- **[ ] 2.1. 增強診斷能力**:
-    - **任務**: 完善 `deployment` 和 `alert` 診斷流程的內部邏輯，確保其能夠利用 `ControlPlaneTool` 獲取上下文。
+- **[ ] 2.1. 實現告警診斷後端邏輯**:
+    - **任務**: 完整實現 `SREWorkflow` 中的 `_diagnose_alerts` 方法，使其能夠處理來自 UI 的告警分析請求。
+    - **對應 API**: `/diagnostics/alerts`
 
-- **[ ] 2.2. 結構化報告生成**:
-    - **任務**: 重構覆盤報告 (Postmortem) 的生成功能，使其能夠根據 `control-plane` 傳遞的事件 ID，自動生成結構化的分析報告。
+- **[ ] 2.2. 實現容量分析後端邏輯**:
+    - **任務**: 為 `SREWorkflow` 新增容量分析的邏輯，使其能夠根據請求執行容量規劃計算。
+    - **對應 API**: `/capacity/analyze`
 
-- **[ ] 2.3. 人類介入流程 (Human-in-the-Loop)**:
-    - **任務**: 改造 `HumanApprovalTool`，將審批請求導向 `control-plane` 的 UI 介面。
+- **[ ] 2.3. 實現通用查詢後端邏輯**:
+    - **任務**: 整合語言模型，使 `/execute` 端點能夠理解更廣泛的自然語言查詢。
+    - **對應 API**: `/execute`
 
-- **[ ] 2.4. 測試覆蓋率提升**:
-    - **任務**: 為所有核心模組與工具增加單元測試與整合測試，目標覆蓋率 > 80%。
+- **[ ] 2.4. Control Plane UI 開發**:
+    - **任務**: 在 Control Plane (Go 服務) 的前端頁面中，為上述三個端點提供對應的觸發介面（例如，按鈕、表單）。
+
+- **[ ] 2.5. 測試覆蓋率提升**:
+    - **任務**: 為所有在 Phase 1 和 Phase 2 中實現的核心模組與工具增加單元測試與整合測試，目標覆蓋率 > 80%。
 
 ---
 

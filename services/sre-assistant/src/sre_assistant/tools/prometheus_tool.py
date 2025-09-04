@@ -92,17 +92,17 @@ class PrometheusQueryTool:
                 )
             )
     
-    async def _query_golden_signals(self, service: str, namespace: str, time_range: int) -> Dict[str, Any]:
+    async def query_golden_signals(self, service_name: str, namespace: str, duration: str) -> Dict[str, Any]:
         """查詢四大黃金訊號"""
         results = {}
         
         # 並行查詢所有指標
         import asyncio
         tasks = [
-            self._query_latency(service, namespace, time_range),
-            self._query_traffic(service, namespace, time_range),
-            self._query_errors(service, namespace, time_range),
-            self._query_saturation(service, namespace, time_range)
+            self._query_latency(service_name, namespace, duration),
+            self._query_traffic(service_name, namespace, duration),
+            self._query_errors(service_name, namespace, duration),
+            self._query_saturation(service_name, namespace, duration)
         ]
         
         latency, traffic, errors, saturation = await asyncio.gather(*tasks, return_exceptions=True)

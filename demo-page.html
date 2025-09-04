@@ -317,6 +317,36 @@
       border-top: 1px solid #f1f5f9 !important;
     }
 
+    /* Grid.js mobile responsiveness: allow horizontal scroll and reasonable min-widths */
+    .gridjs-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Ensure cells don't collapse too small on mobile */
+    @media (max-width: 768px) {
+
+      #resources-grid .gridjs-table,
+      #groups-grid .gridjs-table,
+      #teams-grid .gridjs-table,
+      #personnel-grid .gridjs-table,
+      #rules-grid .gridjs-table,
+      #channels-grid .gridjs-table,
+      #maintenance-grid .gridjs-table,
+      #logs-grid .gridjs-table,
+      #scripts-grid .gridjs-table,
+      #execution-logs-grid .gridjs-table {
+        min-width: 720px;
+      }
+
+      /* tighter padding on mobile to gain space */
+      .gridjs-th,
+      .gridjs-td {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.9rem;
+      }
+    }
+
     /* Top tabs (Settings / Profile / Automation) - keep in one row with horizontal scroll */
     nav[aria-label="Tabs"] {
       display: flex;
@@ -1152,22 +1182,6 @@
               </div>
             </div>
             <div class="overflow-x-auto">
-              <table class="w-full text-sm text-left text-slate-500 rwd-table">
-                <thead class="text-sm text-slate-700 uppercase bg-slate-50">
-                  <tr>
-                    <th scope="col" class="px-6 py-3">狀態</th>
-                    <th scope="col" class="px-6 py-3">時間</th>
-                    <th scope="col" class="px-6 py-3">等級</th>
-                    <th scope="col" class="px-6 py-3">處理人員</th>
-                    <th scope="col" class="px-6 py-3">資源名稱</th>
-                    <th scope="col" class="px-6 py-3">說明</th>
-                    <th scope="col" class="px-6 py-3 text-center">操作</th>
-                  </tr>
-                </thead>
-                <tbody id="logs-table-body">
-                </tbody>
-              </table>
-
               <div id="logs-grid" class="mt-2"></div>
             </div>
           </div>
@@ -2144,6 +2158,7 @@
       populateTables();
       renderAllGrids();
       initializeGridBridges();
+      initializeLogsFilters();
       initializeGeminiFeatures();
       initializeActionModals();
       initializeIncidentManagement();
@@ -2451,34 +2466,8 @@
       });
 
 
-      // Logs Table
-      const logsBody = document.getElementById('logs-table-body');
-      logsBody.innerHTML = '';
-      mockData.logs.forEach((l, index) => {
-        let levelBadge;
-        if (l.level === 'error') levelBadge = '<span class="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">高</span>';
-        else if (l.level === 'warning') levelBadge = '<span class="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">中</span>';
-        else levelBadge = '<span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">低</span>';
-
-        const statusMap = {
-          'new': '<span class="text-red-600 font-semibold">新告警</span>',
-          'ack': '<span class="text-yellow-600 font-semibold">處理中</span>',
-          'resolved': '<span class="text-green-600 font-semibold">已解決</span>'
-        };
-
-        const row = `<tr class="bg-white cursor-pointer hover:bg-slate-50 log-row" data-index="${index}">
-                        <td data-label="選取" class="px-2 py-4"><input type="checkbox" class="log-checkbox" data-index="${index}" onclick="event.stopPropagation()"></td>
-                        <td data-label="狀態" class="px-6 py-4">${statusMap[l.status]}</td>
-                        <td data-label="時間" class="px-6 py-4">${l.time}</td>
-                        <td data-label="等級" class="px-6 py-4">${levelBadge}</td>
-                        <td data-label="處理人員" class="px-6 py-4">${l.assignee || '-'}</td>
-                        <td data-label="資源名稱" class="px-6 py-4 font-medium text-slate-900">${l.name}</td>
-                        <td data-label="說明" class="px-6 py-4">${l.desc}</td>
-                        <td data-label="操作" class="px-6 py-4 text-left md:text-center">
-                             <button class="ack-log-btn text-yellow-600 hover:text-yellow-800 font-medium ${l.status !== 'new' ? 'hidden' : ''}" data-index="${index}">Ack</button>
-                        </td></tr>`;
-        logsBody.innerHTML += row;
-      });
+      // Logs Table 已移除，若舊節點仍存在則略過渲染避免錯誤
+      // Logs 舊表格節點已不使用
 
       // Populate Automation Scripts Table
       const scriptsBody = document.getElementById('scripts-table-body');
@@ -3282,14 +3271,8 @@
       modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
       function updateReportButtonState() {
-        // 若仍存在舊的勾選框，沿用；否則允許直接點擊按鈕（由點選列觸發詳情/報告）
-        const checkboxes = document.querySelectorAll('.log-checkbox');
-        if (checkboxes.length > 0) {
-          const checkedLogs = document.querySelectorAll('.log-checkbox:checked');
-          generateReportBtn.disabled = checkedLogs.length === 0;
-        } else {
-          generateReportBtn.disabled = false;
-        }
+        // logs 不再使用勾選框，預設可點擊
+        generateReportBtn.disabled = false;
       }
 
       // 可能不存在 selectAllCheckbox（已移除全選），需保護性檢查
@@ -3301,16 +3284,7 @@
       }
 
       // 支援 Grid.js 事件委派（logs-grid）與舊表格（logs-table-body）
-      const onLogCheckboxChange = (e) => {
-        if (e.target && e.target.classList && e.target.classList.contains('log-checkbox')) {
-          updateReportButtonState();
-          if (selectAllCheckbox) {
-            selectAllCheckbox.checked = document.querySelectorAll('.log-checkbox:checked').length === document.querySelectorAll('.log-checkbox').length;
-          }
-        }
-      };
-      if (logsGrid) logsGrid.addEventListener('change', onLogCheckboxChange, true);
-      if (logsBody) logsBody.addEventListener('change', onLogCheckboxChange, true);
+      // 不再監聽勾選框
 
       generateReportBtn.addEventListener('click', handleGenerateReport);
       // 初始化按鈕狀態（Grid.js 重新渲染後也請再次呼叫）
@@ -3325,7 +3299,8 @@
       });
 
       async function handleGenerateReport() {
-        const selectedLogs = Array.from(document.querySelectorAll('.log-checkbox:checked')).map(cb => mockData.logs[cb.dataset.index]);
+        // 無勾選框：以目前篩選後的告警作為輸入
+        const selectedLogs = getFilteredLogs();
         if (selectedLogs.length === 0) return;
         const logsString = selectedLogs.map(log => `- 時間: ${log.time}, 分行: ${log.branch}, 資源: ${log.name} (${log.ip}), 等級: ${log.level}, 描述: ${log.desc}`).join('\n');
         const prompt = `你是一位資深的IT部門經理，請根據以下多筆維運系統的告警紀錄，撰寫一份專業、結構化的事件報告(Incident Report)。報告需使用繁體中文，並包含以下段落：\n\n1.  **事件摘要 (Summary):** 簡要說明事件的核心問題、影響範圍。\n2.  **事件時間軸 (Timeline):** 依時序整理關鍵的告警事件。\n3.  **影響評估 (Impact Assessment):** 分析此事件可能對業務造成的影響。\n4.  **根本原因分析 (Root Cause Analysis):** 根據紀錄推測最可能的問題根源。\n5.  **後續處理建議 (Recommended Actions):** 提出具體的解決方案與長期改善建議。\n\n原始告警紀錄如下：\n${logsString}`;
@@ -3379,13 +3354,13 @@
 
     // --- Incident Management Logic ---
     function initializeIncidentManagement() {
-      const logsBody = document.getElementById('logs-table-body');
+      // const logsBody = document.getElementById('logs-table-body'); // 已不使用隱藏表格
       const incidentModal = document.getElementById('incident-modal');
       const incidentModalBody = document.getElementById('incident-modal-body');
       let currentLogIndex = null;
 
-      // Combined event listener for the logs table using event delegation
-      logsBody.addEventListener('click', (e) => {
+      // Combined event listener for the logs grid using event delegation
+      document.getElementById('logs-grid')?.addEventListener('click', (e) => {
         const target = e.target;
 
         // Case 1: The "Ack" button is clicked
@@ -3404,11 +3379,10 @@
             populateDashboard();
           }, 1500);
         }
-        // Case 2: The row itself is clicked (but not the Ack button or checkbox)
-        else if (target.closest('.log-row') && !target.classList.contains('log-checkbox')) {
-          const row = target.closest('.log-row');
-          currentLogIndex = parseInt(row.dataset.index, 10);
-          openIncidentModal(currentLogIndex);
+        // 詳情
+        if (target.classList.contains('view-incident-btn')) {
+          const idx = parseInt(target.dataset.index, 10);
+          if (!Number.isNaN(idx)) openIncidentModal(idx);
         }
       });
 
@@ -4703,15 +4677,60 @@
         const hasAck = l.status === 'new';
         const actions = `${hasAck ? `<button class=\"ack-log-btn text-yellow-600 hover:text-yellow-800 font-medium\" data-index=\"${index}\">Ack</button>` : ''}
           <button class=\"view-incident-btn text-blue-600 hover:text-blue-800 font-medium ml-4\" data-index=\"${index}\">詳情</button>`;
-        const checkboxHtml = `<input type=\"checkbox\" class=\"log-checkbox\" data-index=\"${mockData.logs.indexOf(l)}\">`;
-        return [gridjs.html(checkboxHtml), gridjs.html(statusMap[l.status]), l.time, gridjs.html(levelBadge), (l.assignee || '-'), l.name, l.desc, gridjs.html(actions)];
+        return [gridjs.html(statusMap[l.status]), l.time, gridjs.html(levelBadge), (l.assignee || '-'), l.name, l.desc, gridjs.html(actions)];
       });
+      // 自訂排序比較器
+      const statusOrder = { 'new': 3, 'ack': 2, 'resolved': 1 };
+      const levelOrder = { 'error': 3, 'warning': 2, 'info': 1 };
+
       _ensureGrid('logs-grid', {
-        columns: [{ name: '選取', width: '70px' }, '狀態', '時間', '等級', '處理人員', '資源名稱', '說明', { name: '操作', width: '160px' }],
+        columns: ['狀態', '時間', '等級', '處理人員', '資源名稱', '說明', { name: '操作', width: '160px' }],
         data: rows,
         pagination: true,
         search: false,
-        sort: true
+        sort: {
+          multiColumn: false,
+          compare: (a, b, column) => {
+            // column index: 0狀態 1時間 2等級 3處理人員 4資源 5說明
+            if (column === 0) {
+              // 狀態：new > ack > resolved
+              const va = statusOrder[filtered[a.index]?.status] || 0;
+              const vb = statusOrder[filtered[b.index]?.status] || 0;
+              return va - vb;
+            }
+            if (column === 2) {
+              // 等級：error > warning > info
+              const va = levelOrder[filtered[a.index]?.level] || 0;
+              const vb = levelOrder[filtered[b.index]?.level] || 0;
+              return va - vb;
+            }
+            if (column === 1) {
+              // 時間：字串比較足夠（格式固定 yyyy-mm-dd HH:MM）
+              const ta = filtered[a.index]?.time || '';
+              const tb = filtered[b.index]?.time || '';
+              return ta.localeCompare(tb);
+            }
+            return gridjs.compare(a, b, column);
+          }
+        },
+        language: {
+          'search': { 'placeholder': '輸入關鍵字...' },
+          'pagination': {
+            'previous': '上一頁', 'next': '下一頁', 'showing': '顯示', 'results': () => '筆'
+          },
+          'loading': '載入中...',
+          'noRecordsFound': '沒有符合條件的資料',
+          'error': '載入發生錯誤'
+        },
+        dataLoaded: () => {
+          // 預設依「時間」欄位倒序顯示（最新在上）
+          const table = document.querySelector('#logs-grid table');
+          if (!table) return;
+          const ths = table.querySelectorAll('th');
+          // 欄位順序：0狀態 1時間 2等級 ...
+          ths[1]?.click(); // 第一次點擊 → 升序
+          ths[1]?.click(); // 第二次點擊 → 降序
+        }
       });
     }
 
@@ -4821,10 +4840,23 @@
         if (t.classList.contains('edit-maintenance-btn')) relay('maintenance-table-body', t.dataset.index, '.edit-maintenance-btn');
         if (t.classList.contains('delete-maintenance-btn')) relay('maintenance-table-body', t.dataset.index, '.delete-maintenance-btn');
 
-        if (t.classList.contains('ack-log-btn')) relay('logs-table-body', t.dataset.index, `.ack-log-btn[data-index="${t.dataset.index}"]`);
+        // logs: 直接呼叫對應處理，不再透過隱藏表格橋接
+        if (t.classList.contains('ack-log-btn')) {
+          const index = parseInt(t.dataset.index, 10);
+          if (!Number.isNaN(index)) {
+            const log = mockData.logs[index];
+            if (log && log.status === 'new') {
+              log.status = 'ack';
+              log.acknowledgedBy = loggedInUser.name;
+              log.assignee = loggedInUser.name;
+              showFeedbackModal('告警已確認，狀態更新為「處理中」');
+              setTimeout(() => { closeFeedbackModal(); populateTables(); populateDashboard(); }, 1200);
+            }
+          }
+        }
         if (t.classList.contains('view-incident-btn')) {
-          const row = document.querySelector(`#logs-table-body tr[data-index="${t.dataset.index}"]`);
-          if (row) row.click();
+          const index = parseInt(t.dataset.index, 10);
+          if (!Number.isNaN(index)) openIncidentModal(index);
         }
 
         if (t.classList.contains('test-script-btn')) relay('scripts-table-body', t.dataset.index, '.test-script-btn');
@@ -4842,13 +4874,7 @@
             master.dispatchEvent(new Event('change'));
           }
         }
-        if (e.target && e.target.id === 'select-all-logs-grid') {
-          const master = document.getElementById('select-all-logs');
-          if (master) {
-            master.checked = e.target.checked;
-            master.dispatchEvent(new Event('change'));
-          }
-        }
+        // logs 不再提供全選/勾選框
       });
     }
 

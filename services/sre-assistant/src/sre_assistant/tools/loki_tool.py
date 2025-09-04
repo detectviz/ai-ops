@@ -105,6 +105,48 @@ class LokiLogQueryTool:
                 )
             )
     
+    async def query_logs_by_service(
+        self,
+        service_name: str,
+        namespace: str,
+        level: str,
+        duration: str
+    ) -> Dict[str, Any]:
+        """
+        根據服務查詢和分析日誌
+        
+        Args:
+            service_name: 服務名稱
+            namespace: 命名空間
+            level: 日誌級別
+            duration: 時間範圍 (e.g., "5m", "1h")
+            
+        Returns:
+            日誌分析結果
+        """
+        # 解析時間範圍
+        import re
+        time_value = int(re.search(r'\d+', duration).group())
+        time_unit = re.search(r'[a-zA-Z]+', duration).group()
+        
+        if time_unit == "m":
+            time_range_minutes = time_value
+        elif time_unit == "h":
+            time_range_minutes = time_value * 60
+        else:
+            time_range_minutes = 5 # 預設
+
+        logs = await self._query_logs(
+            service=service_name,
+            namespace=namespace,
+            log_level=level,
+            pattern="", # 暫不使用
+            time_range=time_range_minutes,
+            limit=self.default_limit
+        )
+        
+        return self._analyze_logs(logs)
+
     async def _query_logs(
         self,
         service: str,
