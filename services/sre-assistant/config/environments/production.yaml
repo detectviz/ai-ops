@@ -1,0 +1,232 @@
+# services/sre-assistant/config/environments/production.yaml
+# 生產環境配置
+
+deployment:
+  platform: "gke"  # 或 "agent_engine"
+  project_id: "${GCP_PROJECT_ID}"
+  region: "${GCP_REGION}"
+  cluster_name: "${GKE_CLUSTER_NAME}"
+  namespace: "production"
+  debug: false
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4  # Gunicorn workers
+
+# SRE Assistant 服務設定
+sre_assistant:
+  base_url: "${SRE_ASSISTANT_BASE_URL}"
+  version: "3.0.0"
+
+# 記憶體後端配置 (生產環境使用 Cloud SQL)
+memory:
+  backend: "postgresql"
+  postgres_connection_string: "${DATABASE_URL}"
+  postgres_pool_size: 20
+  postgres_pool_recycle: 1800
+  postgres_pool_pre_ping: true
+  use_pgvector: true
+
+# 向量資料庫 (生產環境可考慮使用 Vertex AI)
+vector_db:
+  backend: "${VECTOR_DB_BACKEND}"  # "vertex_ai" 或 "weaviate"
+  # Vertex AI 配置
+  vertex_index_endpoint: "${VERTEX_INDEX_ENDPOINT}"
+  vertex_deployed_index_id: "${VERTEX_DEPLOYED_INDEX_ID}"
+  # Weaviate 配置 (備選)
+  weaviate_url: "${WEAVIATE_URL}"
+  weaviate_api_key: "${WEAVIATE_API_KEY}"
+  collection_name: "sre_knowledge_prod"
+
+# 會話後端 (使用 Redis 叢集)
+session_backend: "redis"
+redis:
+  url: "${REDIS_URL}"
+  ttl_seconds: 7200
+  sentinel_enabled: true
+  sentinel_hosts: "${REDIS_SENTINEL_HOSTS}"
+  sentinel_service_name: "redis-master"
+
+# 認證配置 (生產環境強制啟用)
+auth:
+  provider: "jwt"
+  enable_rbac: true
+  enable_rate_limiting: true
+  enable_audit_logging: true
+  # Keycloak 設定
+  jwks_url: "${KEYCLOAK_JWKS_URL}"
+  jwt_algorithm: "RS256"
+  jwt_issuer: "${KEYCLOAK_ISSUER}"
+  oauth_client_id: "${OAUTH_CLIENT_ID}"
+  # 速率限制
+  max_requests_per_minute: 100
+  rate_limit_burst: 20
+
+# Control Plane API
+control_plane:
+  base_url: "${CONTROL_PLANE_URL}"
+  timeout_seconds: 30
+  retry_attempts: 3
+  retry_backoff: 2
+  # M2M 認證
+  client_id: "${CONTROL_PLANE_CLIENT_ID}"
+  client_secret: "${CONTROL_PLANE_CLIENT_SECRET}"
+  token_endpoint: "${KEYCLOAK_TOKEN_ENDPOINT}"
+
+# 監控工具配置
+prometheus:
+  base_url: "${PROMETHEUS_URL}"
+  timeout_seconds: 30
+  # 查詢優化
+  default_step: "5m"
+  max_points: 5000
+  query_cache_ttl: 300
+
+loki:
+  base_url: "${LOKI_URL}"
+  timeout_seconds: 30
+  # 查詢限制
+  default_limit: 5000
+  max_time_range: "7d"
+  query_cache_ttl: 600
+
+grafana:
+  base_url: "${GRAFANA_URL}"
+  api_key: "${GRAFANA_API_KEY}"
+  timeout_seconds: 20
+  org_id: "${GRAFANA_ORG_ID}"
+
+victoria_metrics:
+  base_url: "${VICTORIA_METRICS_URL}"
+  timeout_seconds: 30
+  retention_days: 90
+
+# 日誌設定 (生產環境使用結構化日誌)
+logging:
+  level: "INFO"
+  format: "json"
+  # 輸出到 stdout，由 K8s 收集
+  handlers:
+    - type: "console"
+      level: "INFO"
+      format: "json"
+    # 可選：輸出到 Cloud Logging
+    - type: "cloud_logging"
+      level: "WARNING"
+      project_id: "${GCP_PROJECT_ID}"
+      resource_type: "k8s_container"
+
+# LLM 配置 (生產環境使用企業級 API)
+llm:
+  provider: "${LLM_PROVIDER}"  # "google" 或 "openai"
+  # Google Gemini
+  google:
+    model: "gemini-1.5-pro"
+    api_key: "${GOOGLE_API_KEY}"
+    location: "${GCP_REGION}"
+    temperature: 0.5  # 生產環境降低隨機性
+    max_tokens: 4096
+    safety_settings: "strict"
+  # OpenAI (備選)
+  openai:
+    model: "gpt-4-turbo"
+    api_key: "${OPENAI_API_KEY}"
+    organization: "${OPENAI_ORG}"
+    temperature: 0.5
+    max_tokens: 4096
+
+# 工作流程設定
+workflow:
+  parallel_diagnosis: true
+  diagnosis_timeout_seconds: 120
+  max_retries: 5
+  retry_delay_seconds: 10
+  # 熔斷器設定
+  circuit_breaker:
+    enabled: true
+    failure_threshold: 5
+    recovery_timeout: 60
+    expected_exception_types:
+      - "TimeoutError"
+      - "ConnectionError"
+
+# 快取設定
+cache:
+  backend: "redis"
+  default_ttl: 600
+  metrics_cache_ttl: 300
+  logs_cache_ttl: 600
+  # 快取鍵前綴
+  key_prefix: "sre_assistant:prod:"
+  # 快取大小限制
+  max_cache_size_mb: 1024
+
+# 功能開關
+features:
+  auto_remediation: true
+  ai_analysis: true
+  capacity_prediction: true
+  root_cause_analysis: true
+  # 生產環境特有功能
+  audit_trail: true
+  compliance_check: true
+  cost_analysis: true
+
+# 效能設定
+performance:
+  # 連接池
+  connection_pool_size: 50
+  connection_timeout: 30
+  # 請求限制
+  max_request_size_mb: 10
+  request_timeout: 60
+  # 背景任務
+  background_workers: 4
+  task_queue_size: 1000
+
+# 安全設定
+security:
+  # TLS
+  tls_enabled: true
+  tls_cert_path: "/tls/cert.pem"
+  tls_key_path: "/tls/key.pem"
+  # 資料加密
+  encryption_enabled: true
+  encryption_key: "${ENCRYPTION_KEY}"
+  # IP 白名單
+  ip_whitelist_enabled: false
+  ip_whitelist: []
+
+# 監控與追蹤
+observability:
+  # Prometheus 指標
+  metrics:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+  # OpenTelemetry
+  tracing:
+    enabled: true
+    provider: "google_cloud_trace"
+    sampling_rate: 0.1
+    exporter_endpoint: "${OTEL_EXPORTER_ENDPOINT}"
+  # 健康檢查
+  health_check:
+    liveness_path: "/health"
+    readiness_path: "/ready"
+    startup_probe_delay: 10
+    liveness_probe_interval: 30
+    readiness_probe_interval: 10
+
+# 備份與恢復
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # 每天凌晨 2 點
+  retention_days: 30
+  storage_bucket: "${BACKUP_BUCKET}"
+
+# 合規性設定
+compliance:
+  data_retention_days: 90
+  pii_detection: true
+  audit_log_retention: 365
+  gdpr_compliant: true
