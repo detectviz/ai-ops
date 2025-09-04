@@ -46,23 +46,25 @@
 - **[ ] 2.1. 實現告警診斷後端邏輯**:
     - **任務**: 完整實現 `SREWorkflow` 中的 `_diagnose_alerts` 方法，使其能夠處理來自 UI 的告警分析請求。
     - **對應 API**: `/diagnostics/alerts`
-    - **參考**: `docs/reference-adk-examples.md` (workflow_triage)
+    - **參考**: [`adk-examples/workflow_triage/agent.py`](./references/adk-examples/workflow_triage/agent.py)
 
 - **[ ] 2.2. 實現容量分析後端邏輯**:
     - **任務**: 為 `SREWorkflow` 新增容量分析的邏輯，使其能夠根據請求執行容量規劃計算。
     - **對應 API**: `/capacity/analyze`
-    - **參考**: `docs/references/snippets/salvaged_code.md` (SLO 錯誤預算計算邏輯)
+    - **參考**: [`snippets/salvaged_code.md`](./references/snippets/salvaged_code.md) (SLO 錯誤預算計算邏輯)
 
 - **[ ] 2.3. 實現通用查詢後端邏輯**:
     - **任務**: 整合語言模型，使 `/execute` 端點能夠理解更廣泛的自然語言查詢。
     - **對應 API**: `/execute`
-    - **參考**: `docs/reference-adk-examples.md` (adk_triaging_agent)
+    - **參考**: [`adk-examples/adk_triaging_agent/agent.py`](./references/adk-examples/adk_triaging_agent/agent.py)
 
 - **[ ] 2.4. Control Plane UI 開發**:
     - **任務**: 在 Control Plane (Go 服務) 的前端頁面中，為上述三個端點提供對應的觸發介面（例如，按鈕、表單）。
+    - **參考**: [`adk-agent-samples/gemini-fullstack/frontend/`](./references/adk-agent-samples/gemini-fullstack/frontend/)
 
 - **[ ] 2.5. 測試覆蓋率提升**:
     - **任務**: 為所有在 Phase 1 和 Phase 2 中實現的核心模組與工具增加單元測試與整合測試，目標覆蓋率 > 80%。
+    - **參考**: [`agent-starter-pack/tests/`](./references/agent-starter-pack/tests/)
 
 ---
 
@@ -75,16 +77,24 @@
 
 - **[ ] 3.1. 實現增強型 SRE 工作流程**:
     - **任務**: 根據 `salvaged_code.md` 中的 `EnhancedSREWorkflow` 範例，重構現有的 `SREWorkflow`，引入 `SequentialAgent`, `ParallelAgent` 等 ADK 標準模式。
-    - **參考**: `docs/references/snippets/salvaged_code.md` (增強型 SRE 工作流程)
+    - **參考**:
+        - **設計模式**: [`snippets/salvaged_code.md`](./references/snippets/salvaged_code.md) (增強型 SRE 工作流程)
+        - **序列工作流**: [`adk-examples/workflow_agent_seq/agent.py`](./references/adk-examples/workflow_agent_seq/agent.py)
+        - **官方文件**: [`adk-docs/agents-workflow-agents.md`](./references/adk-docs/agents-workflow-agents.md)
 
 - **[ ] 3.2. 第一個專業化子代理**:
     - **任務**: 將一項核心功能（如覆盤報告生成）重構為一個獨立的、可透過 A2A (Agent-to-Agent) 協議呼叫的 `PostmortemAgent`。
-    - **參考**: `docs/reference-adk-examples.md` (a2a_basic, a2a_auth)
+    - **參考**:
+        - **基本 A2A**: [`adk-examples/a2a_basic/`](./references/adk-examples/a2a_basic/)
+        - **A2A 安全性**: [`adk-examples/a2a_auth/`](./references/adk-examples/a2a_auth/)
 
 - **[ ] 3.3. 主動預防能力**:
     - **任務**: 整合機器學習模型，用於異常檢測和趨勢預測。
-    - **參考**: `docs/reference-adk-examples.md` (machine-learning-engineering)
+    - **參考**: [`adk-agent-samples/machine-learning-engineering/`](./references/adk-agent-samples/machine-learning-engineering/)
 
 - **[ ] 3.4. 代理可觀測性**:
     - **任務**: 建立一個完善的 LLM 可觀測性儀表板，用於追蹤代理的決策過程、成本和性能。
-    - **參考**: `docs/reference-adk-examples.md` (callbacks)
+    - **參考**:
+        - **基本回呼**: [`adk-examples/callbacks/`](./references/adk-examples/callbacks/)
+        - **日誌與追蹤**: [`adk-docs/observability-logging.md`](./references/adk-docs/observability-logging.md)
+        - **整合 Phoenix**: [`adk-docs/observability-phoenix.md`](./references/adk-docs/observability-phoenix.md)
