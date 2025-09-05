@@ -377,6 +377,110 @@
     nav[aria-label="Tabs"]::-webkit-scrollbar-track {
       background: transparent;
     }
+
+    /* Mobile responsiveness for overall layout */
+    @media (max-width: 1023px) {
+
+      /* Sidebar overlay for mobile */
+      #sidebar {
+        position: fixed !important;
+        z-index: 50 !important;
+        width: 280px !important;
+      }
+
+      /* Main content area adjusts for mobile */
+      main {
+        margin-left: 0 !important;
+        padding: 1rem !important;
+      }
+
+      /* Hide sidebar on mobile by default */
+      #app:not(.sidebar-open) #sidebar {
+        transform: translateX(-100%) !important;
+      }
+
+      /* Mobile header adjustments */
+      #header {
+        padding: 0.75rem 1rem !important;
+      }
+
+      /* Mobile header logo area - ensure hamburger menu is visible */
+      #header-logo-area {
+        display: flex !important;
+      }
+
+      #header-logo-toggle {
+        display: flex !important;
+        cursor: pointer !important;
+      }
+
+      /* Mobile breadcrumb */
+      #breadcrumb {
+        font-size: 1rem !important;
+      }
+
+      /* Mobile buttons and controls */
+      .flex.items-center.space-x-2.w-full.md\:w-auto {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.5rem !important;
+      }
+
+      .flex.items-center.space-x-2.w-full.md\:w-auto>* {
+        width: 100% !important;
+        flex-shrink: 0 !important;
+      }
+
+      /* Mobile form elements */
+      input[type="date"],
+      input[type="text"],
+      select,
+      button:not(.sidebar-link) {
+        font-size: 16px !important;
+        /* Prevent zoom on iOS */
+      }
+
+      /* Mobile modal adjustments */
+      #form-modal .modal-content,
+      #incident-modal .modal-content,
+      #gemini-modal .modal-content {
+        width: 95vw !important;
+        max-width: none !important;
+        margin: 10px !important;
+      }
+
+      /* Mobile notification dropdown */
+      #notification-dropdown {
+        width: 90vw !important;
+        right: 1rem !important;
+        left: 1rem !important;
+      }
+    }
+
+    @media (max-width: 640px) {
+
+      /* Extra small screens */
+      #sidebar {
+        width: 100% !important;
+        max-width: 320px !important;
+      }
+
+      /* Compact mobile header */
+      #header {
+        padding: 0.5rem !important;
+      }
+
+      /* Smaller mobile text */
+      h1 {
+        font-size: 1.25rem !important;
+      }
+
+      /* Mobile cards and spacing */
+      .bg-white.p-6.rounded-xl.shadow-md {
+        padding: 1rem !important;
+        margin: 0.5rem !important;
+      }
+    }
   </style>
 </head>
 
@@ -427,7 +531,7 @@
     </div>
   </div>
 
-  <div id="app" class="hidden h-screen bg-slate-800 text-white relative lg:flex">
+  <div id="app" class="hidden h-screen bg-slate-800 text-white relative flex">
 
     <aside id="sidebar"
       class="w-64 h-full flex-shrink-0 bg-slate-800 flex flex-col transition-all duration-300 ease-in-out -ml-64 lg:relative lg:z-auto z-40 absolute lg:absolute">
@@ -631,7 +735,16 @@
           <div class="flex items-center gap-2" id="header-logo-area">
             <div class="cursor-pointer hover:bg-slate-700 p-2 rounded transition-colors" id="header-logo-toggle"
               title="Open menu">
-              <img src="LOGO.png" alt="Control Plane Logo" class="h-8 w-auto">
+              <!-- Hamburger menu icon for mobile -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="h-6 w-6 text-white md:hidden">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+              <!-- Logo for desktop -->
+              <img src="LOGO.png" alt="Control Plane Logo" class="h-8 w-auto hidden md:block">
             </div>
           </div>
           <div id="breadcrumb"
@@ -1152,7 +1265,24 @@
         <section id="page-logs" class="page hidden">
           <div class="bg-white p-6 rounded-xl shadow-md">
             <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
-              <div class="w-full md:w-auto"></div>
+              <div class="w-full md:w-auto">
+                <!-- 告警批量操作欄 -->
+                <div id="logs-batch-operations-bar"
+                  class="hidden bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                  <div class="flex items-center justify-between">
+                    <span class="px-1.5 text-sm font-medium text-purple-800">已選取 <span id="logs-selected-count">0</span>
+                      個告警</span>
+                    <div class="flex items-center space-x-2">
+                      <button id="logs-batch-ack-btn"
+                        class="px-3 py-1.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-semibold transition-colors text-sm">批次確認</button>
+                      <button id="logs-batch-resolve-btn"
+                        class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm">批次解決</button>
+                      <button id="logs-clear-selection-btn"
+                        class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="flex items-center space-x-2 w-full md:w-auto justify-end flex-nowrap overflow-x-auto">
                 <input type="date" id="logs-start-date"
                   class="flex-shrink-0 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm">
@@ -1179,10 +1309,15 @@
                   class="flex-shrink-0 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold disabled:bg-purple-300 disabled:cursor-not-allowed flex items-center gap-2 transition-colors text-sm">
                   ✨ 生成事件報告
                 </button>
+                <label class="flex items-center gap-2 ml-2 text-slate-600 text-sm flex-shrink-0"><input type="checkbox"
+                    id="select-all-logs-grid"
+                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">全選</label>
               </div>
             </div>
             <div class="overflow-x-auto">
               <div id="logs-grid" class="mt-2"></div>
+              <!-- Hidden master checkbox for select all functionality -->
+              <input type="checkbox" id="select-all-logs" style="display: none;">
             </div>
           </div>
         </section>
@@ -1861,11 +1996,43 @@
           headerLogoArea.style.display = 'flex';
           headerLogoToggle.title = isSidebarOpen ? 'Close menu' : 'Open menu';
         }
+
+        // Update body class for mobile sidebar state
+        if (window.innerWidth < 1024) {
+          document.body.classList.toggle('sidebar-open', isSidebarOpen);
+        }
+
         updateHeaderTitle();
       }
 
       // Initialize on page load
       initializeSidebarState();
+
+      // Mobile sidebar functionality
+      const sidebarHeaderToggle = document.getElementById('sidebar-header-toggle');
+
+      if (sidebarHeaderToggle) {
+        sidebarHeaderToggle.addEventListener('click', () => {
+          const isOpen = !sidebar.classList.contains('-ml-64');
+          if (isOpen) {
+            sidebar.classList.add('-ml-64');
+          } else {
+            sidebar.classList.remove('-ml-64');
+          }
+          updateMenuState();
+        });
+      }
+
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener('click', (e) => {
+        if (window.innerWidth < 1024 && !sidebar.contains(e.target) && !headerLogoToggle.contains(e.target)) {
+          sidebar.classList.add('-ml-64');
+          updateMenuState();
+        }
+      });
+
+      // Handle window resize
+      window.addEventListener('resize', initializeSidebarState);
 
       const accordionToggles = document.querySelectorAll('.submenu-toggle');
 
@@ -1961,7 +2128,6 @@
 
       // Add event listeners for menu controls
       headerLogoToggle.addEventListener('click', toggleSidebar);
-      const sidebarHeaderToggle = document.getElementById('sidebar-header-toggle');
       if (sidebarHeaderToggle) {
         sidebarHeaderToggle.addEventListener('click', toggleSidebar);
       }
@@ -2159,6 +2325,7 @@
       renderAllGrids();
       initializeGridBridges();
       initializeLogsFilters();
+      initializeLogsBatchOperations();
       initializeGeminiFeatures();
       initializeActionModals();
       initializeIncidentManagement();
@@ -3271,8 +3438,10 @@
       modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
       function updateReportButtonState() {
-        // logs 不再使用勾選框，預設可點擊
-        generateReportBtn.disabled = false;
+        // 有選中項目或有篩選後的告警時可點擊
+        const selectedCount = document.querySelectorAll('.log-checkbox:checked').length;
+        const filteredCount = getFilteredLogs().length;
+        generateReportBtn.disabled = selectedCount === 0 && filteredCount === 0;
       }
 
       // 可能不存在 selectAllCheckbox（已移除全選），需保護性檢查
@@ -3299,11 +3468,26 @@
       });
 
       async function handleGenerateReport() {
-        // 無勾選框：以目前篩選後的告警作為輸入
-        const selectedLogs = getFilteredLogs();
+        // 優先處理選中的告警，若無選中則使用目前篩選後的告警
+        const selectedCheckboxes = document.querySelectorAll('.log-checkbox:checked');
+        let selectedLogs;
+
+        if (selectedCheckboxes.length > 0) {
+          // 使用選中的告警
+          const filtered = getFilteredLogs();
+          selectedLogs = Array.from(selectedCheckboxes).map(cb => {
+            const index = parseInt(cb.dataset.logIndex);
+            return filtered[index];
+          }).filter(log => log);
+        } else {
+          // 使用目前篩選後的所有告警
+          selectedLogs = getFilteredLogs();
+        }
+
         if (selectedLogs.length === 0) return;
+
         const logsString = selectedLogs.map(log => `- 時間: ${log.time}, 分行: ${log.branch}, 資源: ${log.name} (${log.ip}), 等級: ${log.level}, 描述: ${log.desc}`).join('\n');
-        const prompt = `你是一位資深的IT部門經理，請根據以下多筆維運系統的告警紀錄，撰寫一份專業、結構化的事件報告(Incident Report)。報告需使用繁體中文，並包含以下段落：\n\n1.  **事件摘要 (Summary):** 簡要說明事件的核心問題、影響範圍。\n2.  **事件時間軸 (Timeline):** 依時序整理關鍵的告警事件。\n3.  **影響評估 (Impact Assessment):** 分析此事件可能對業務造成的影響。\n4.  **根本原因分析 (Root Cause Analysis):** 根據紀錄推測最可能的問題根源。\n5.  **後續處理建議 (Recommended Actions):** 提出具體的解決方案與長期改善建議。\n\n原始告警紀錄如下：\n${logsString}`;
+        const prompt = `你是一位資深的IT部門經理，請根據以下${selectedCheckboxes.length > 0 ? '選取的' : ''}多筆維運系統的告警紀錄，撰寫一份專業、結構化的事件報告(Incident Report)。報告需使用繁體中文，並包含以下段落：\n\n1.  **事件摘要 (Summary):** 簡要說明事件的核心問題、影響範圍。\n2.  **事件時間軸 (Timeline):** 依時序整理關鍵的告警事件。\n3.  **影響評估 (Impact Assessment):** 分析此事件可能對業務造成的影響。\n4.  **根本原因分析 (Root Cause Analysis):** 根據紀錄推測最可能的問題根源。\n5.  **後續處理建議 (Recommended Actions):** 提出具體的解決方案與長期改善建議。\n\n原始告警紀錄如下：\n${logsString}`;
         openModal();
         setModalLoading();
         const result = await callGeminiAPI(prompt);
@@ -4514,7 +4698,7 @@
         return [gridjs.html(checkboxHtml), gridjs.html(statusCell), name, ip, gridjs.html(groupsHtml), gridjs.html(actions)];
       });
       _ensureGrid('resources-grid', {
-        columns: [{ name: '選取', width: '70px' }, { name: '狀態', width: '70px' }, '資源名稱', 'IP 位址', '所屬群組', { name: '操作', width: '160px' }],
+        columns: [{ width: '70px' }, { name: '狀態', width: '100px' }, '資源名稱', 'IP 位址', '所屬群組', { name: '操作', width: '160px' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4599,7 +4783,7 @@
         return [name, target, metric, gridjs.html(status), gridjs.html(`${edit}${silence}${del}`)];
       });
       _ensureGrid('rules-grid', {
-        columns: ['規則名稱', '監控目標', '指標', '啟用狀態', { name: '操作', width: '200px' }],
+        columns: ['規則名稱', '監控目標', '指標', { name: '啟用狀態', width: '90px' }, { name: '操作', width: '200px' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4641,7 +4825,7 @@
         return [name, gridjs.html(groups), start, end, gridjs.html(status), gridjs.html(actions)];
       });
       _ensureGrid('maintenance-grid', {
-        columns: ['說明', '影響群組', '開始時間', '結束時間', '狀態', { name: '操作', width: '160px' }],
+        columns: ['說明', '影響群組', '開始時間', '結束時間', { name: '狀態', width: '90px' }, { name: '操作', width: '160px' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4675,36 +4859,37 @@
           'resolved': '<span class="text-green-600 font-semibold">已解決</span>'
         };
         const hasAck = l.status === 'new';
+        const checkbox = `<input type="checkbox" class="log-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" data-log-index="${index}">`;
         const actions = `${hasAck ? `<button class=\"ack-log-btn text-yellow-600 hover:text-yellow-800 font-medium\" data-index=\"${index}\">Ack</button>` : ''}
           <button class=\"view-incident-btn text-blue-600 hover:text-blue-800 font-medium ml-4\" data-index=\"${index}\">詳情</button>`;
-        return [gridjs.html(statusMap[l.status]), l.time, gridjs.html(levelBadge), (l.assignee || '-'), l.name, l.desc, gridjs.html(actions)];
+        return [gridjs.html(checkbox), gridjs.html(statusMap[l.status]), l.time, gridjs.html(levelBadge), (l.assignee || '-'), l.name, l.desc, gridjs.html(actions)];
       });
       // 自訂排序比較器
       const statusOrder = { 'new': 3, 'ack': 2, 'resolved': 1 };
       const levelOrder = { 'error': 3, 'warning': 2, 'info': 1 };
 
       _ensureGrid('logs-grid', {
-        columns: ['狀態', '時間', '等級', '處理人員', '資源名稱', '說明', { name: '操作', width: '160px' }],
+        columns: [{ width: '60px' }, { name: '狀態', width: '100px' }, '時間', { name: '等級', width: '100px' }, '處理人員', '資源名稱', '說明', { name: '操作', width: '160px' }],
         data: rows,
         pagination: true,
         search: false,
         sort: {
           multiColumn: false,
           compare: (a, b, column) => {
-            // column index: 0狀態 1時間 2等級 3處理人員 4資源 5說明
-            if (column === 0) {
+            // column index: 0選取 1狀態 2時間 3等級 4處理人員 5資源 6說明
+            if (column === 1) {
               // 狀態：new > ack > resolved
               const va = statusOrder[filtered[a.index]?.status] || 0;
               const vb = statusOrder[filtered[b.index]?.status] || 0;
               return va - vb;
             }
-            if (column === 2) {
+            if (column === 3) {
               // 等級：error > warning > info
               const va = levelOrder[filtered[a.index]?.level] || 0;
               const vb = levelOrder[filtered[b.index]?.level] || 0;
               return va - vb;
             }
-            if (column === 1) {
+            if (column === 2) {
               // 時間：字串比較足夠（格式固定 yyyy-mm-dd HH:MM）
               const ta = filtered[a.index]?.time || '';
               const tb = filtered[b.index]?.time || '';
@@ -4727,9 +4912,9 @@
           const table = document.querySelector('#logs-grid table');
           if (!table) return;
           const ths = table.querySelectorAll('th');
-          // 欄位順序：0狀態 1時間 2等級 ...
-          ths[1]?.click(); // 第一次點擊 → 升序
-          ths[1]?.click(); // 第二次點擊 → 降序
+          // 欄位順序：0選取 1狀態 2時間 3等級 ...
+          ths[2]?.click(); // 第一次點擊 → 升序
+          ths[2]?.click(); // 第二次點擊 → 降序
         }
       });
     }
@@ -4748,6 +4933,106 @@
         queryBtn.setAttribute('data-grid-filter-bound', 'true');
         queryBtn.addEventListener('click', (e) => { e.preventDefault(); renderLogsGrid(); });
       }
+    }
+
+    // --- Logs Batch Operations ---
+    function initializeLogsBatchOperations() {
+      const selectAllLogs = document.getElementById('select-all-logs-grid');
+      const batchOperationsBar = document.getElementById('logs-batch-operations-bar');
+      const selectedCount = document.getElementById('logs-selected-count');
+      const clearSelectionBtn = document.getElementById('logs-clear-selection-btn');
+      const batchAckBtn = document.getElementById('logs-batch-ack-btn');
+      const batchResolveBtn = document.getElementById('logs-batch-resolve-btn');
+
+      function updateLogsBatchOperationsBar() {
+        const checkedBoxes = document.querySelectorAll('.log-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedCount.textContent = count;
+
+        if (count > 0) {
+          batchOperationsBar.classList.remove('hidden');
+        } else {
+          batchOperationsBar.classList.add('hidden');
+        }
+
+        // Update select all checkbox state
+        const allCheckboxes = document.querySelectorAll('.log-checkbox');
+        selectAllLogs.checked = count === allCheckboxes.length;
+        selectAllLogs.indeterminate = count > 0 && count < allCheckboxes.length;
+
+        // Update generate report button state
+        updateReportButtonState();
+      }
+
+      // Select all logs
+      selectAllLogs.addEventListener('change', (e) => {
+        document.querySelectorAll('.log-checkbox').forEach(cb => {
+          cb.checked = e.target.checked;
+        });
+        updateLogsBatchOperationsBar();
+      });
+
+      // Individual log selection
+      document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('log-checkbox')) {
+          updateLogsBatchOperationsBar();
+        }
+      });
+
+      // Clear selection
+      clearSelectionBtn.addEventListener('click', () => {
+        document.querySelectorAll('.log-checkbox').forEach(cb => cb.checked = false);
+        selectAllLogs.checked = false;
+        updateLogsBatchOperationsBar();
+      });
+
+      // Batch acknowledge
+      batchAckBtn.addEventListener('click', () => {
+        const selectedLogs = Array.from(document.querySelectorAll('.log-checkbox:checked'));
+        const filtered = getFilteredLogs();
+
+        selectedLogs.forEach(cb => {
+          const index = parseInt(cb.dataset.logIndex);
+          if (!isNaN(index) && index < filtered.length) {
+            const originalIndex = mockData.logs.indexOf(filtered[index]);
+            if (originalIndex !== -1) {
+              mockData.logs[originalIndex].status = 'ack';
+              mockData.logs[originalIndex].acknowledgedBy = loggedInUser.name;
+              mockData.logs[originalIndex].assignee = loggedInUser.name;
+            }
+          }
+        });
+
+        showFeedbackModal(`已批次確認 ${selectedLogs.length} 個告警`);
+        setTimeout(() => {
+          closeFeedbackModal();
+          populateTables();
+          populateDashboard();
+        }, 1500);
+      });
+
+      // Batch resolve
+      batchResolveBtn.addEventListener('click', () => {
+        const selectedLogs = Array.from(document.querySelectorAll('.log-checkbox:checked'));
+        const filtered = getFilteredLogs();
+
+        selectedLogs.forEach(cb => {
+          const index = parseInt(cb.dataset.logIndex);
+          if (!isNaN(index) && index < filtered.length) {
+            const originalIndex = mockData.logs.indexOf(filtered[index]);
+            if (originalIndex !== -1) {
+              mockData.logs[originalIndex].status = 'resolved';
+            }
+          }
+        });
+
+        showFeedbackModal(`已批次解決 ${selectedLogs.length} 個告警`);
+        setTimeout(() => {
+          closeFeedbackModal();
+          populateTables();
+          populateDashboard();
+        }, 1500);
+      });
     }
 
     function renderScriptsGrid() {
@@ -4784,7 +5069,7 @@
         return [time, script, trigger, gridjs.html(status), duration, gridjs.html(actions)];
       });
       _ensureGrid('execution-logs-grid', {
-        columns: ['執行時間', '腳本名稱', '觸發告警', '執行狀態', '執行時長', { name: '操作', width: '120px' }],
+        columns: ['執行時間', '腳本名稱', '觸發告警', { name: '執行狀態', width: '90px' }, '執行時長', { name: '操作', width: '120px' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4869,6 +5154,13 @@
       document.addEventListener('change', (e) => {
         if (e.target && e.target.id === 'select-all-resources-grid') {
           const master = document.getElementById('select-all-resources');
+          if (master) {
+            master.checked = e.target.checked;
+            master.dispatchEvent(new Event('change'));
+          }
+        }
+        if (e.target && e.target.id === 'select-all-logs-grid') {
+          const master = document.getElementById('select-all-logs');
           if (master) {
             master.checked = e.target.checked;
             master.dispatchEvent(new Event('change'));
