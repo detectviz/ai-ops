@@ -81,24 +81,55 @@
       color: #0f172a;
     }
 
+    /* Sidebar Styling */
+    #sidebar {
+      /* 右側陰影效果，創造層次感 */
+      box-shadow: 4px 0 24px -8px rgba(0, 0, 0, 0.3),
+        2px 0 8px -2px rgba(0, 0, 0, 0.1);
+    }
+
+    /* 手機版時的陰影加強 */
+    @media (max-width: 1023px) {
+      #sidebar {
+        box-shadow: 8px 0 32px -8px rgba(0, 0, 0, 0.4),
+          4px 0 16px -4px rgba(0, 0, 0, 0.2);
+      }
+    }
+
+    /* 收合狀態時的陰影調整 */
+    #sidebar.-ml-64 {
+      box-shadow: none;
+    }
+
     /* Accordion Menu Styles */
     .submenu {
       max-height: 0;
       overflow: hidden;
-      transition: max-height 0.3s ease-in-out;
+      transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+      opacity: 0;
     }
 
     .submenu-toggle.open+.submenu {
-      max-height: 500px;
-      /* Adjust as needed */
+      max-height: 300px;
+      /* 調整為適合的高度 */
+      opacity: 1;
     }
 
     .chevron-icon {
-      transition: transform 0.3s ease-in-out;
+      transition: transform 0.3s ease-out;
     }
 
     .submenu-toggle.open .chevron-icon {
       transform: rotate(180deg);
+    }
+
+    /* 確保選單項目在展開時是可見的 */
+    .submenu .sidebar-link {
+      transition: opacity 0.2s ease-out 0.1s;
+    }
+
+    .submenu-toggle:not(.open)+.submenu .sidebar-link {
+      opacity: 0;
     }
 
 
@@ -299,6 +330,8 @@
     .gridjs-th,
     .gridjs-td {
       border: none !important;
+      font-size: 0.875rem !important;
+      /* 14px - consistent with text-sm */
     }
 
     .gridjs-thead .gridjs-tr {
@@ -343,7 +376,7 @@
       .gridjs-th,
       .gridjs-td {
         padding: 0.5rem 0.75rem !important;
-        font-size: 0.9rem;
+        font-size: 0.875rem !important;
       }
     }
 
@@ -468,7 +501,7 @@
       input[type="text"],
       select,
       button:not(.sidebar-link) {
-        font-size: 16px !important;
+        font-size: 14px !important;
         /* Prevent zoom on iOS */
       }
 
@@ -566,14 +599,14 @@
   <div id="app" class="hidden h-screen bg-slate-800 text-white relative flex">
 
     <aside id="sidebar"
-      class="w-64 h-full flex-shrink-0 bg-slate-800 flex flex-col transition-all duration-300 ease-in-out lg:relative lg:z-auto z-40 absolute lg:absolute">
+      class="w-64 h-full flex-shrink-0 bg-slate-800 flex flex-col transition-all duration-300 ease-in-out lg:relative lg:z-auto z-40 absolute lg:absolute shadow-lg lg:shadow-2xl lg:shadow-slate-900/20">
       <!-- Sidebar header with logo (Grafana style) -->
       <div class="h-16 flex items-center justify-between px-4 border-b border-slate-700">
         <div id="sidebar-header-toggle"
           class="flex items-center gap-3 cursor-pointer hover:bg-slate-700 -ml-2 p-2 rounded-lg transition-colors"
           title="Close menu">
           <img src="LOGO.png" alt="Control Plane Logo" class="h-8 w-auto">
-          <span class="text-lg font-semibold text-white">Control Plane</span>
+          <span class="text-sm font-semibold text-white">Control Plane</span>
         </div>
         <div class="flex items-center gap-2">
           <!-- Dock/Undock Menu Button -->
@@ -763,35 +796,29 @@
     <main class="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out">
       <header class="h-16 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-6">
         <div class="flex items-center gap-4">
-          <!-- Logo shows when sidebar is closed (Grafana style) -->
+          <!-- Mobile hamburger menu button -->
+          <button id="header-logo-toggle" class="md:hidden hover:bg-slate-700 p-2 rounded transition-colors text-white"
+            title="Toggle sidebar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+
+          <!-- Logo area (shows when sidebar is closed, clickable to open menu) -->
           <div class="flex items-center gap-2" id="header-logo-area">
-            <div class="md:pointer-events-none hover:bg-slate-700 p-2 rounded transition-colors"
-              id="header-logo-toggle">
-              <!-- Hamburger menu icon for mobile -->
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="h-6 w-6 text-white md:hidden block">
-                <line x1="3" y1="12" x2="21" y2="12"></line>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <line x1="3" y1="18" x2="21" y2="18"></line>
-              </svg>
-              <!-- Logo for desktop -->
-              <img src="LOGO.png" alt="Control Plane Logo" class="h-8 w-auto hidden md:block">
-            </div>
-            <!-- Pin menu button -->
-            <button id="header-pin-menu-btn"
-              class="text-slate-400 hover:text-white p-2 rounded hover:bg-slate-700 transition-colors"
-              title="Toggle sidebar">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect width="18" height="18" x="3" y="3" rx="2" />
-                <path d="M9 3v18" />
-                <path d="m16 15-3-3 3-3" />
-              </svg>
+            <button id="header-logo-btn"
+              class="flex items-center gap-2 hover:bg-slate-700 p-2 rounded transition-colors" title="Open sidebar">
+              <img src="LOGO.png" alt="Control Plane Logo" class="h-8 w-auto">
+              <span class="text-sm font-semibold text-white hidden md:block">Control Plane</span>
             </button>
           </div>
+
           <div id="breadcrumb"
-            class="text-lg font-semibold text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis">總覽儀表板</div>
+            class="text-xl font-normal tracking-wide text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis">
+            總覽儀表板</div>
         </div>
         <div class="flex items-center space-x-4">
           <div class="relative">
@@ -955,13 +982,13 @@
 
           <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
-              <h3 class="text-lg font-semibold text-slate-800 mb-4">資源群組狀態總覽</h3>
+              <h3 class="text-sm font-semibold text-slate-800 mb-4">資源群組狀態總覽</h3>
               <div class="relative h-80">
                 <canvas id="groupStatusChart"></canvas>
               </div>
             </div>
             <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-md">
-              <h3 class="text-lg font-semibold text-slate-800 mb-4">資源狀態分佈</h3>
+              <h3 class="text-sm font-semibold text-slate-800 mb-4">資源狀態分佈</h3>
               <div class="relative h-80">
                 <canvas id="statusChart"></canvas>
               </div>
@@ -973,23 +1000,6 @@
           <div class="bg-white p-6 rounded-xl shadow-md">
             <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
               <div class="w-full md:w-auto">
-                <!-- 批次操作欄 -->
-                <div id="batch-operations-bar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                  <div class="flex items-center justify-between">
-                    <span class="px-1.5 text-sm font-medium text-blue-800">已選取 <span id="selected-count">0</span>
-                      個資源</span>
-                    <div class="flex items-center space-x-2">
-                      <button id="batch-add-to-group-btn"
-                        class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm">批次加入群組</button>
-                      <button id="batch-remove-from-group-btn"
-                        class="px-3 py-1.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-semibold transition-colors text-sm">批次移出群組</button>
-                      <button id="batch-delete-btn"
-                        class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors text-sm">批次刪除</button>
-                      <button id="clear-selection-btn"
-                        class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
-                    </div>
-                  </div>
-                </div>
               </div>
               <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
                 <input type="text" id="resource-search-input" placeholder="搜尋資源名稱或 IP..."
@@ -1001,6 +1011,23 @@
                 <label class="flex items-center gap-2 ml-2 text-slate-600 text-sm flex-shrink-0"><input type="checkbox"
                     id="select-all-resources-grid"
                     class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">全選</label>
+              </div>
+            </div>
+            <!-- 批次操作欄 - 位於控制項目下方、表格上方 -->
+            <div id="batch-operations-bar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <span class="px-1.5 text-sm font-medium text-blue-800">已選取 <span id="selected-count">0</span>
+                  個資源</span>
+                <div class="flex items-center space-x-2">
+                  <button id="batch-add-to-group-btn"
+                    class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm">批次加入群組</button>
+                  <button id="batch-remove-from-group-btn"
+                    class="px-3 py-1.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-semibold transition-colors text-sm">批次移出群組</button>
+                  <button id="batch-delete-btn"
+                    class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors text-sm">批次刪除</button>
+                  <button id="clear-selection-btn"
+                    class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
+                </div>
               </div>
             </div>
             <div class="overflow-x-auto">
@@ -1035,12 +1062,30 @@
                   class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
                 <button id="add-group-btn"
                   class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增群組</button>
+                <label class="flex items-center gap-2 ml-2 text-slate-600 text-sm flex-shrink-0"><input type="checkbox"
+                    id="select-all-groups-grid"
+                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">全選</label>
+              </div>
+            </div>
+            <!-- 資源群組批次操作欄 - 位於控制項目下方、表格上方 -->
+            <div id="groups-batch-operations-bar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <span class="px-1.5 text-sm font-medium text-blue-800">已選取 <span id="groups-selected-count">0</span>
+                  個群組</span>
+                <div class="flex items-center space-x-2">
+                  <button id="groups-batch-delete-btn"
+                    class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors text-sm">批次刪除</button>
+                  <button id="groups-clear-selection-btn"
+                    class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
+                </div>
               </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
                 <thead class="text-sm text-slate-700 uppercase bg-slate-50">
                   <tr>
+                    <th scope="col" class="px-2 py-3"><input type="checkbox" id="select-all-groups"
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></th>
                     <th scope="col" class="px-6 py-3">群組名稱</th>
                     <th scope="col" class="px-6 py-3">資源數量</th>
                     <th scope="col" class="px-6 py-3">說明</th>
@@ -1064,12 +1109,30 @@
                   class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
                 <button id="add-team-btn"
                   class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增團隊</button>
+                <label class="flex items-center gap-2 ml-2 text-slate-600 text-sm flex-shrink-0"><input type="checkbox"
+                    id="select-all-teams-grid"
+                    class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">全選</label>
+              </div>
+            </div>
+            <!-- 團隊管理批次操作欄 - 位於控制項目下方、表格上方 -->
+            <div id="teams-batch-operations-bar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <span class="px-1.5 text-sm font-medium text-blue-800">已選取 <span id="teams-selected-count">0</span>
+                  個團隊</span>
+                <div class="flex items-center space-x-2">
+                  <button id="teams-batch-delete-btn"
+                    class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors text-sm">批次刪除</button>
+                  <button id="teams-clear-selection-btn"
+                    class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
+                </div>
               </div>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
                 <thead class="text-sm text-slate-700 uppercase bg-slate-50">
                   <tr>
+                    <th scope="col" class="px-2 py-3"><input type="checkbox" id="select-all-teams"
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></th>
                     <th scope="col" class="px-6 py-3">團隊名稱</th>
                     <th scope="col" class="px-6 py-3">團隊管理員</th>
                     <th scope="col" class="px-6 py-3">成員數量</th>
@@ -1096,14 +1159,35 @@
                   class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增告警規則</button>
               </div>
             </div>
+            <!-- 告警規則批次操作欄 - 位於控制項目下方、表格上方 -->
+            <div id="rules-batch-operations-bar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <span class="px-1.5 text-sm font-medium text-blue-800">已選取 <span id="rules-selected-count">0</span>
+                  個規則</span>
+                <div class="flex items-center space-x-2">
+                  <button id="rules-batch-enable-btn"
+                    class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm">批次啟用</button>
+                  <button id="rules-batch-disable-btn"
+                    class="px-3 py-1.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-semibold transition-colors text-sm">批次停用</button>
+                  <button id="rules-batch-silence-btn"
+                    class="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold transition-colors text-sm">批次靜默</button>
+                  <button id="rules-batch-delete-btn"
+                    class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors text-sm">批次刪除</button>
+                  <button id="rules-clear-selection-btn"
+                    class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
+                </div>
+              </div>
+            </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
                 <thead class="text-sm text-slate-700 uppercase bg-slate-50">
                   <tr>
+                    <th scope="col" class="px-2 py-3"><input type="checkbox" id="select-all-rules"
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></th>
+                    <th scope="col" class="px-6 py-3">狀態</th>
                     <th scope="col" class="px-6 py-3">規則名稱</th>
                     <th scope="col" class="px-6 py-3">監控目標</th>
                     <th scope="col" class="px-6 py-3">指標</th>
-                    <th scope="col" class="px-6 py-3">啟用狀態</th>
                     <th scope="col" class="px-6 py-3 text-center">操作</th>
                   </tr>
                 </thead>
@@ -1126,10 +1210,25 @@
                   class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增人員</button>
               </div>
             </div>
+            <!-- 人員管理批次操作欄 - 位於控制項目下方、表格上方 -->
+            <div id="personnel-batch-operations-bar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <span class="px-1.5 text-sm font-medium text-blue-800">已選取 <span id="personnel-selected-count">0</span>
+                  個人員</span>
+                <div class="flex items-center space-x-2">
+                  <button id="personnel-batch-delete-btn"
+                    class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors text-sm">批次刪除</button>
+                  <button id="personnel-clear-selection-btn"
+                    class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
+                </div>
+              </div>
+            </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
                 <thead class="text-sm text-slate-700 uppercase bg-slate-50">
                   <tr>
+                    <th scope="col" class="px-2 py-3"><input type="checkbox" id="select-all-personnel"
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></th>
                     <th scope="col" class="px-6 py-3">姓名</th>
                     <th scope="col" class="px-6 py-3">角色</th>
                     <th scope="col" class="px-6 py-3">所屬團隊</th>
@@ -1156,10 +1255,27 @@
                   class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增管道</button>
               </div>
             </div>
+            <!-- 通知管道批次操作欄 - 位於控制項目下方、表格上方 -->
+            <div id="channels-batch-operations-bar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <span class="px-1.5 text-sm font-medium text-blue-800">已選取 <span id="channels-selected-count">0</span>
+                  個管道</span>
+                <div class="flex items-center space-x-2">
+                  <button id="channels-batch-test-btn"
+                    class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm">批次測試</button>
+                  <button id="channels-batch-delete-btn"
+                    class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors text-sm">批次刪除</button>
+                  <button id="channels-clear-selection-btn"
+                    class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
+                </div>
+              </div>
+            </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
                 <thead class="text-sm text-slate-700 uppercase bg-slate-50">
                   <tr>
+                    <th scope="col" class="px-2 py-3"><input type="checkbox" id="select-all-channels"
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></th>
                     <th scope="col" class="px-6 py-3">管道名稱</th>
                     <th scope="col" class="px-6 py-3">管道類型</th>
                     <th scope="col" class="px-6 py-3 text-center">操作</th>
@@ -1185,15 +1301,35 @@
                   class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增維護時段</button>
               </div>
             </div>
+            <!-- 維護時段批次操作欄 - 位於控制項目下方、表格上方 -->
+            <div id="maintenance-batch-operations-bar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <span class="px-1.5 text-sm font-medium text-blue-800">已選取 <span
+                    id="maintenance-selected-count">0</span>
+                  個維護時段</span>
+                <div class="flex items-center space-x-2">
+                  <button id="maintenance-batch-extend-btn"
+                    class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors text-sm">批次延長</button>
+                  <button id="maintenance-batch-end-btn"
+                    class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm">批次結束</button>
+                  <button id="maintenance-batch-delete-btn"
+                    class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors text-sm">批次刪除</button>
+                  <button id="maintenance-clear-selection-btn"
+                    class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
+                </div>
+              </div>
+            </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm text-left text-slate-500 rwd-table">
                 <thead class="text-sm text-slate-700 uppercase bg-slate-50">
                   <tr>
+                    <th scope="col" class="px-2 py-3"><input type="checkbox" id="select-all-maintenance"
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></th>
+                    <th scope="col" class="px-6 py-3">狀態</th>
                     <th scope="col" class="px-6 py-3">說明</th>
                     <th scope="col" class="px-6 py-3">影響群組</th>
                     <th scope="col" class="px-6 py-3">開始時間</th>
                     <th scope="col" class="px-6 py-3">結束時間</th>
-                    <th scope="col" class="px-6 py-3">狀態</th>
                     <th scope="col" class="px-6 py-3 text-center">操作</th>
                   </tr>
                 </thead>
@@ -1234,7 +1370,7 @@
                 <div id="tab-notification" class="settings-tab-content hidden space-y-8">
                   <div class="space-y-8">
                     <div>
-                      <h3 class="text-lg font-semibold text-slate-800 border-b pb-4 mb-6">郵件伺服器 (SMTP) 設定</h3>
+                      <h3 class="text-sm font-semibold text-slate-800 border-b pb-4 mb-6">郵件伺服器 (SMTP) 設定</h3>
                       <div class="space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="smtp-server" class="text-sm font-medium text-slate-700">SMTP 伺服器</label>
@@ -1262,7 +1398,7 @@
                       </div>
                     </div>
                     <div>
-                      <h3 class="text-lg font-semibold text-slate-800 border-b pb-4 mb-6">SMS 閘道設定 (SMS Gateway
+                      <h3 class="text-sm font-semibold text-slate-800 border-b pb-4 mb-6">SMS 閘道設定 (SMS Gateway
                         Settings)
                       </h3>
                       <div class="space-y-4">
@@ -1309,22 +1445,6 @@
           <div class="bg-white p-6 rounded-xl shadow-md">
             <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
               <div class="w-full md:w-auto">
-                <!-- 告警批量操作欄 -->
-                <div id="logs-batch-operations-bar"
-                  class="hidden bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
-                  <div class="flex items-center justify-between">
-                    <span class="px-1.5 text-sm font-medium text-purple-800">已選取 <span id="logs-selected-count">0</span>
-                      個告警</span>
-                    <div class="flex items-center space-x-2">
-                      <button id="logs-batch-ack-btn"
-                        class="px-3 py-1.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-semibold transition-colors text-sm">批次確認</button>
-                      <button id="logs-batch-resolve-btn"
-                        class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm">批次解決</button>
-                      <button id="logs-clear-selection-btn"
-                        class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
-                    </div>
-                  </div>
-                </div>
               </div>
               <div class="flex items-center space-x-2 w-full md:w-auto justify-end flex-nowrap overflow-x-auto">
                 <input type="date" id="logs-start-date"
@@ -1357,6 +1477,21 @@
                     class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">全選</label>
               </div>
             </div>
+            <!-- 告警批量操作欄 - 位於控制項目下方、表格上方 -->
+            <div id="logs-batch-operations-bar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <span class="px-1.5 text-sm font-medium text-blue-800">已選取 <span id="logs-selected-count">0</span>
+                  個告警</span>
+                <div class="flex items-center space-x-2">
+                  <button id="logs-batch-ack-btn"
+                    class="px-3 py-1.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-semibold transition-colors text-sm">批次確認</button>
+                  <button id="logs-batch-resolve-btn"
+                    class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm">批次解決</button>
+                  <button id="logs-clear-selection-btn"
+                    class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
+                </div>
+              </div>
+            </div>
             <div class="overflow-x-auto">
               <div id="logs-grid" class="mt-2"></div>
               <!-- Hidden master checkbox for select all functionality -->
@@ -1384,14 +1519,37 @@
 
             <!-- Scripts Library Tab -->
             <div id="scripts-content" class="automation-content">
-              <div class="flex flex-col md:flex-row justify-end items-center mb-2 gap-4">
-                <button id="add-script-btn"
-                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm">新增腳本</button>
+              <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
+                <div class="w-full md:w-auto"></div>
+                <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
+                  <button id="add-script-btn"
+                    class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增腳本</button>
+                  <label class="flex items-center gap-2 ml-2 text-slate-600 text-sm flex-shrink-0"><input
+                      type="checkbox" id="select-all-scripts-grid"
+                      class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">全選</label>
+                </div>
+              </div>
+              <!-- 腳本庫批次操作欄 - 位於控制項目下方、表格上方 -->
+              <div id="scripts-batch-operations-bar" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div class="flex items-center justify-between">
+                  <span class="px-1.5 text-sm font-medium text-blue-800">已選取 <span id="scripts-selected-count">0</span>
+                    個腳本</span>
+                  <div class="flex items-center space-x-2">
+                    <button id="scripts-batch-test-btn"
+                      class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm">批次測試</button>
+                    <button id="scripts-batch-delete-btn"
+                      class="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors text-sm">批次刪除</button>
+                    <button id="scripts-clear-selection-btn"
+                      class="px-3 py-1.5 bg-slate-500 text-white rounded-lg hover:bg-slate-600 font-semibold transition-colors text-sm">清除選取</button>
+                  </div>
+                </div>
               </div>
               <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left text-slate-500 rwd-table">
                   <thead class="text-sm text-slate-700 uppercase bg-slate-50">
                     <tr>
+                      <th scope="col" class="px-2 py-3"><input type="checkbox" id="select-all-scripts"
+                          class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></th>
                       <th scope="col" class="px-6 py-3">腳本名稱</th>
                       <th scope="col" class="px-6 py-3">類型</th>
                       <th scope="col" class="px-6 py-3">描述</th>
@@ -1429,10 +1587,10 @@
                 <table class="w-full text-sm text-left text-slate-500 rwd-table">
                   <thead class="text-sm text-slate-700 uppercase bg-slate-50">
                     <tr>
+                      <th scope="col" class="px-6 py-3">執行狀態</th>
                       <th scope="col" class="px-6 py-3">執行時間</th>
                       <th scope="col" class="px-6 py-3">腳本名稱</th>
                       <th scope="col" class="px-6 py-3">觸發告警</th>
-                      <th scope="col" class="px-6 py-3">執行狀態</th>
                       <th scope="col" class="px-6 py-3">執行時長</th>
                       <th scope="col" class="px-6 py-3 text-center">操作</th>
                     </tr>
@@ -1534,19 +1692,19 @@
                 </div>
               </div>
 
-              <!-- Trend Chart -->
+              <!-- Recommendations -->
               <div class="bg-white p-6 rounded-xl shadow-md">
-                <h4 class="text-lg font-semibold text-slate-800 mb-4">歷史趨勢與未來預測</h4>
-                <div class="relative h-96">
-                  <canvas id="capacityTrendChart"></canvas>
+                <h4 class="text-sm font-semibold text-slate-800 mb-4">建議措施</h4>
+                <div id="capacity-recommendations" class="space-y-3">
+                  <!-- Recommendations will be populated here -->
                 </div>
               </div>
 
-              <!-- Recommendations -->
+              <!-- Trend Chart -->
               <div class="bg-white p-6 rounded-xl shadow-md">
-                <h4 class="text-lg font-semibold text-slate-800 mb-4">建議措施</h4>
-                <div id="capacity-recommendations" class="space-y-3">
-                  <!-- Recommendations will be populated here -->
+                <h4 class="text-sm font-semibold text-slate-800 mb-4">歷史趨勢與未來預測</h4>
+                <div class="relative h-96">
+                  <canvas id="capacityTrendChart"></canvas>
                 </div>
               </div>
             </div>
@@ -1603,7 +1761,7 @@
                 </div>
                 <div id="tab-security" class="profile-tab-content hidden space-y-8">
                   <!-- Change Password Card -->
-                  <h3 class="text-lg font-semibold text-slate-800 border-b pb-4 mb-6">變更密碼</h3>
+                  <h3 class="text-sm font-semibold text-slate-800 border-b pb-4 mb-6">變更密碼</h3>
                   <div class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
                       <label for="current-password" class="text-sm font-medium text-slate-700">目前密碼</label>
@@ -1628,7 +1786,7 @@
                 </div>
                 <div id="tab-notifications" class="profile-tab-content hidden space-y-8">
                   <!-- Contact Info Card -->
-                  <h3 class="text-lg font-semibold text-slate-800 border-b pb-4 mb-6">聯絡方式</h3>
+                  <h3 class="text-sm font-semibold text-slate-800 border-b pb-4 mb-6">聯絡方式</h3>
                   <div id="contact-methods-container" class="space-y-4">
                     <!-- Email -->
                     <div class="grid grid-cols-1 md:grid-cols-4 items-center gap-4">
@@ -1678,7 +1836,7 @@
                     </div>
                   </div>
                   <!-- Notification Preferences Card -->
-                  <h3 class="text-lg font-semibold text-slate-800 border-b pb-4 mb-6 mt-8">通知偏好</h3>
+                  <h3 class="text-sm font-semibold text-slate-800 border-b pb-4 mb-6 mt-8">通知偏好</h3>
                   <p class="text-sm text-slate-600 mb-4">選擇您希望透過以上管道接收的告警等級。</p>
                   <div class="space-y-3">
                     <div class="relative flex items-start">
@@ -1734,7 +1892,7 @@
     <div
       class="bg-white rounded-xl shadow-2xl w-11/12 md:w-2/3 lg:w-1/2 max-w-2xl flex flex-col transform transition-all duration-300 scale-95">
       <div class="flex justify-between items-center p-4 border-b">
-        <h3 id="form-modal-title" class="text-lg font-bold text-slate-800">Modal Title</h3>
+        <h3 id="form-modal-title" class="text-sm font-bold text-slate-800">Modal Title</h3>
         <button class="close-modal-btn text-slate-500 hover:text-slate-800 text-2xl leading-none">&times;</button>
       </div>
       <div id="form-modal-body" class="p-6">
@@ -1758,7 +1916,7 @@
           <path stroke-linecap="round" stroke-linejoin="round"
             d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
         </svg>
-        <h3 id="confirm-modal-text" class="mb-5 text-lg font-normal text-slate-600">您確定嗎？</h3>
+        <h3 id="confirm-modal-text" class="mb-5 text-sm font-normal text-slate-600">您確定嗎？</h3>
         <button id="confirm-action-btn"
           class="text-white bg-yellow-600 hover:bg-yellow-800 font-medium rounded-lg text-sm inline-flex items-center px-5 py-2.5 text-center mr-2 transition-colors">確定</button>
         <button id="cancel-action-btn"
@@ -1773,7 +1931,7 @@
     <div
       class="bg-white rounded-xl shadow-2xl w-11/12 md:w-2/3 lg:w-1/2 max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-95">
       <div class="flex justify-between items-center p-4 border-b">
-        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
           <svg class="h-6 w-6 text-purple-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
             fill="currentColor">
             <path
@@ -1799,7 +1957,7 @@
     <div
       class="bg-white rounded-xl shadow-2xl w-11/12 md:w-2/3 lg:w-1/2 max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-95">
       <div class="flex justify-between items-center p-4 border-b">
-        <h3 id="incident-modal-title" class="text-lg font-bold text-slate-800">事件詳情</h3>
+        <h3 id="incident-modal-title" class="text-sm font-bold text-slate-800">事件詳情</h3>
         <button class="close-modal-btn text-slate-500 hover:text-slate-800 text-2xl leading-none">&times;</button>
       </div>
       <div id="incident-modal-body" class="p-6 overflow-y-auto text-slate-700">
@@ -1822,7 +1980,7 @@
         </svg>
       </div>
       <div>
-        <div id="feedback-modal-text" class="text-lg font-semibold text-slate-700"></div>
+        <div id="feedback-modal-text" class="text-sm font-semibold text-slate-700"></div>
       </div>
     </div>
   </div>
@@ -1872,6 +2030,11 @@
         { id: 1, name: '核心交換器', description: '所有分行的核心網路交換器', memberIds: [1, 6] },
         { id: 2, name: '總公司防火牆', description: '總部對外防火牆資源', memberIds: [7] },
         { id: 3, name: '所有路由器', description: '包含所有分行的路由器', memberIds: [3, 4] },
+        { id: 4, name: '備份伺服器群', description: '各分行的備份伺服器設備', memberIds: [2, 5] },
+        { id: 5, name: '無線網路設備', description: '所有AP及無線相關設備', memberIds: [8, 9] },
+        { id: 6, name: '分行核心設備', description: '各分行的關鍵基礎設備', memberIds: [1, 3, 6] },
+        { id: 7, name: '網路安全設備', description: '防火牆、入侵偵測等安全設備', memberIds: [7] },
+        { id: 8, name: '監控與管理', description: '網路監控及管理相關設備', memberIds: [2, 5] }
       ],
       alertRules: [
         { id: 1, name: '核心交換器 CPU 過高', target: '群組: 核心交換器', metric: 'CPU 使用率', enabled: true, silencedUntil: null },
@@ -1931,7 +2094,17 @@
         { id: 9, level: 'warning', time: '2025-08-28 10:45', branch: '台南分行', ip: '121.55.2.100', name: 'UPS-Main', desc: '電池電量低於 20%', status: 'ack', assignee: '王工程師', acknowledgedBy: '王工程師', comments: [{ user: '王工程師', text: '已聯繫廠商更換電池', time: '2025-08-28 11:00' }] },
         { id: 10, level: 'error', time: '2025-08-27 23:55', branch: '林口分行', ip: '88.99.33.15', name: 'Delta PDU', desc: '服務無回應', status: 'resolved', assignee: '陳經理', acknowledgedBy: '陳經理', comments: [{ user: '陳經理', text: '已重啟服務，問題解決', time: '2025-08-28 00:10' }] },
         { id: 11, level: 'warning', time: '2025-08-27 20:30', branch: '台中分行', ip: '192.168.10.15', name: 'Print Server', desc: '列印佇列堆積超過 50 個工作', status: 'resolved', assignee: '林組長', acknowledgedBy: '林組長', comments: [{ user: '林組長', text: '已清理佇列並重啟服務', time: '2025-08-27 20:45' }] },
-        { id: 12, level: 'info', time: '2025-08-27 16:20', branch: '高雄分行', ip: '172.16.5.5', name: 'Web Server', desc: '定期維護完成', status: 'resolved', assignee: null, acknowledgedBy: null, comments: [] }
+        { id: 12, level: 'info', time: '2025-08-27 16:20', branch: '高雄分行', ip: '172.16.5.5', name: 'Web Server', desc: '定期維護完成', status: 'resolved', assignee: null, acknowledgedBy: null, comments: [] },
+        { id: 13, level: 'error', time: '2025-08-29 02:30', branch: '板橋分行', ip: '192.168.15.20', name: 'Core Switch02', desc: '連接埠故障無法通訊', status: 'new', assignee: null, acknowledgedBy: null, comments: [] },
+        { id: 14, level: 'warning', time: '2025-08-29 01:45', branch: '新竹分行', ip: '10.10.5.8', name: 'Mail Server', desc: '磁碟 I/O 效能異常', status: 'new', assignee: null, acknowledgedBy: null, comments: [] },
+        { id: 15, level: 'error', time: '2025-08-29 00:50', branch: '桃園分行', ip: '172.20.1.15', name: 'Database Server', desc: '資料庫連線數達到上限', status: 'ack', assignee: '張工程師', acknowledgedBy: '張工程師', comments: [{ user: '張工程師', text: '正在優化連線池設定', time: '2025-08-29 01:00' }] },
+        { id: 16, level: 'warning', time: '2025-08-28 23:20', branch: '中壢分行', ip: '192.168.25.10', name: 'Proxy Server', desc: 'CPU 溫度過高', status: 'ack', assignee: '李技師', acknowledgedBy: '李技師', comments: [{ user: '李技師', text: '已檢查散熱系統', time: '2025-08-28 23:30' }] },
+        { id: 17, level: 'error', time: '2025-08-28 22:45', branch: '南投分行', ip: '10.30.8.12', name: 'NAS Storage', desc: 'RAID 陣列降級運作', status: 'new', assignee: null, acknowledgedBy: null, comments: [] },
+        { id: 18, level: 'warning', time: '2025-08-28 21:10', branch: '彰化分行', ip: '172.18.3.25', name: 'Load Balancer', desc: '後端伺服器健康檢查失敗', status: 'ack', assignee: '吳組長', acknowledgedBy: '吳組長', comments: [{ user: '吳組長', text: '正在檢查後端服務狀態', time: '2025-08-28 21:15' }] },
+        { id: 19, level: 'error', time: '2025-08-28 20:30', branch: '嘉義分行', ip: '10.25.7.18', name: 'Backup System', desc: '備份作業連續失敗', status: 'new', assignee: null, acknowledgedBy: null, comments: [] },
+        { id: 20, level: 'warning', time: '2025-08-28 19:55', branch: '雲林分行', ip: '192.168.30.5', name: 'Security Gateway', desc: '防火牆規則衝突', status: 'ack', assignee: '陳資安', acknowledgedBy: '陳資安', comments: [{ user: '陳資安', text: '正在檢視規則設定', time: '2025-08-28 20:00' }] },
+        { id: 21, level: 'error', time: '2025-08-28 18:40', branch: '屏東分行', ip: '172.22.4.30', name: 'VPN Gateway', desc: 'VPN 隧道無法建立', status: 'new', assignee: null, acknowledgedBy: null, comments: [] },
+        { id: 22, level: 'warning', time: '2025-08-28 17:25', branch: '宜蘭分行', ip: '10.35.9.14', name: 'DNS Server', desc: 'DNS 查詢回應時間過長', status: 'resolved', assignee: '劉網管', acknowledgedBy: '劉網管', comments: [{ user: '劉網管', text: '已清理 DNS 快取並重啟服務', time: '2025-08-28 17:40' }] }
       ]
     };
 
@@ -1945,6 +2118,44 @@
       pages.forEach(page => {
         page.id === `page-${pageId}` ? page.classList.remove('hidden') : page.classList.add('hidden');
       });
+
+      // 初始化頁面特定的批次操作功能
+      if (pageId === 'rules') {
+        // 延遲初始化，確保 DOM 元素已渲染
+        setTimeout(() => {
+          initializeRulesBatchOperations();
+        }, 100);
+      } else if (pageId === 'maintenance') {
+        // 延遲初始化，確保 DOM 元素已渲染
+        setTimeout(() => {
+          initializeMaintenanceBatchOperations();
+        }, 100);
+      } else if (pageId === 'groups') {
+        // 延遲初始化，確保 DOM 元素已渲染
+        setTimeout(() => {
+          initializeGroupsBatchOperations();
+        }, 100);
+      } else if (pageId === 'teams') {
+        // 延遲初始化，確保 DOM 元素已渲染
+        setTimeout(() => {
+          initializeTeamsBatchOperations();
+        }, 100);
+      } else if (pageId === 'personnel') {
+        // 延遲初始化，確保 DOM 元素已渲染
+        setTimeout(() => {
+          initializePersonnelBatchOperations();
+        }, 100);
+      } else if (pageId === 'channels') {
+        // 延遲初始化，確保 DOM 元素已渲染
+        setTimeout(() => {
+          initializeChannelsBatchOperations();
+        }, 100);
+      } else if (pageId === 'automation') {
+        // 延遲初始化，確保 DOM 元素已渲染
+        setTimeout(() => {
+          initializeScriptsBatchOperations();
+        }, 100);
+      }
     }
 
     // --- Tom Select Initialization ---
@@ -1991,6 +2202,9 @@
 
     // --- Navigation Logic ---
     document.addEventListener('DOMContentLoaded', function () {
+      // 初始化選單狀態
+      initializeMenuState();
+
       // Initialize Tom Select for all select elements
       initializeTomSelect();
 
@@ -2015,17 +2229,7 @@
       // Mobile sidebar functionality
       const sidebarHeaderToggle = document.getElementById('sidebar-header-toggle');
 
-      if (sidebarHeaderToggle) {
-        sidebarHeaderToggle.addEventListener('click', () => {
-          const isOpen = !sidebar.classList.contains('-ml-64');
-          if (isOpen) {
-            sidebar.classList.add('-ml-64');
-          } else {
-            sidebar.classList.remove('-ml-64');
-          }
-          updateMenuState();
-        });
-      }
+      // Note: sidebarHeaderToggle event listener is added later in the unified menu controls section
 
       // Close sidebar when clicking outside on mobile
       document.addEventListener('click', (e) => {
@@ -2041,13 +2245,9 @@
       const accordionToggles = document.querySelectorAll('.submenu-toggle');
 
       accordionToggles.forEach(toggle => {
-        toggle.addEventListener('click', () => {
-          // Close other open menus if you want only one open at a time
-          // accordionToggles.forEach(otherToggle => {
-          //   if (otherToggle !== toggle) {
-          //     otherToggle.classList.remove('open');
-          //   }
-          // });
+        toggle.addEventListener('click', (e) => {
+          e.preventDefault();
+          // 切換當前選單的開關狀態
           toggle.classList.toggle('open');
         });
       });
@@ -2067,9 +2267,8 @@
             activeLink.classList.add('active');
           });
 
-          // Open parent accordion if inside one
+          // 確保打開包含此連結的父級選單
           const parentSubmenu = this.closest('.submenu');
-          accordionToggles.forEach(t => t.classList.remove('open')); // Close all
           if (parentSubmenu) {
             const toggle = parentSubmenu.previousElementSibling;
             if (toggle && toggle.classList.contains('submenu-toggle')) {
@@ -2102,30 +2301,29 @@
 
 
       // Add event listeners for menu controls
-      // Desktop: headerLogoToggle click event removed - no longer toggles sidebar
       // Mobile: headerLogoToggle click event still works for opening sidebar
       if (headerLogoToggle) {
         headerLogoToggle.addEventListener('click', function () {
           if (window.innerWidth < 1024) {
-            // Mobile: allow clicking LOGO to open sidebar
+            // Mobile: allow clicking hamburger menu to open sidebar
             toggleSidebar();
           }
-          // Desktop: do nothing (cancelled as requested)
         });
+      }
+
+      // Add event listener for header logo button (works on both desktop and mobile)
+      const headerLogoBtn = document.getElementById('header-logo-btn');
+      if (headerLogoBtn) {
+        headerLogoBtn.addEventListener('click', toggleSidebar);
       }
 
       if (sidebarHeaderToggle) {
         sidebarHeaderToggle.addEventListener('click', toggleSidebar);
       }
+
       const pinMenuBtn = document.getElementById('pin-menu-btn');
       if (pinMenuBtn) {
         pinMenuBtn.addEventListener('click', toggleSidebar);
-      }
-
-      // Add event listener for header pin menu button (works on both desktop and mobile)
-      const headerPinMenuBtn = document.getElementById('header-pin-menu-btn');
-      if (headerPinMenuBtn) {
-        headerPinMenuBtn.addEventListener('click', toggleSidebar);
       }
 
       // Handle window resize to update header title and remove overlay on desktop (debounced)
@@ -2210,21 +2408,22 @@
       const app = document.getElementById('app');
       if (!app || !sidebar) return;
 
-      const isSidebarOpen = app.classList.contains('sidebar-open');
+      const isSidebarOpen = !sidebar.classList.contains('-ml-64');
       const isDesktop = window.innerWidth >= 1024;
       const sidebarHeaderToggle = document.getElementById('sidebar-header-toggle');
+      const headerLogoBtn = document.getElementById('header-logo-btn');
 
       if (isDesktop) {
-        // Desktop behavior: hide logo when sidebar is open
+        // Desktop behavior: hide logo area when sidebar is open
         if (isSidebarOpen) {
           if (headerLogoArea) headerLogoArea.style.display = 'none';
           if (sidebarHeaderToggle) sidebarHeaderToggle.title = 'Close menu';
         } else {
           if (headerLogoArea) headerLogoArea.style.display = 'flex';
-          if (headerLogoToggle) headerLogoToggle.title = 'Open menu';
+          if (headerLogoBtn) headerLogoBtn.title = 'Open sidebar';
         }
       } else {
-        // Mobile behavior: always show logo for navigation
+        // Mobile behavior: always show logo area
         if (headerLogoArea) headerLogoArea.style.display = 'flex';
         if (headerLogoToggle) headerLogoToggle.title = isSidebarOpen ? 'Close menu' : 'Open menu';
       }
@@ -2270,8 +2469,14 @@
       const app = document.getElementById('app');
       if (!app) return;
 
-      // Toggle sidebar-open class on app element
-      app.classList.toggle('sidebar-open');
+      // For desktop: toggle sidebar visibility directly
+      if (window.innerWidth >= 1024) {
+        sidebar.classList.toggle('-ml-64');
+      } else {
+        // For mobile: toggle sidebar-open class on app element
+        app.classList.toggle('sidebar-open');
+      }
+
       updateMenuState();
 
       // Handle overlay for mobile/tablet view
@@ -2304,6 +2509,20 @@
       if (overlay) {
         overlay.remove();
       }
+    }
+
+    // 初始化選單狀態函數
+    function initializeMenuState() {
+      // 預設展開常用的選單群組
+      const defaultOpenMenus = ['資源', '告警']; // 可以根據需要調整
+
+      const accordionToggles = document.querySelectorAll('.submenu-toggle');
+      accordionToggles.forEach(toggle => {
+        const menuText = toggle.querySelector('span').textContent.trim();
+        if (defaultOpenMenus.includes(menuText)) {
+          toggle.classList.add('open');
+        }
+      });
     }
 
     function renderGroupStatusChart() {
@@ -2646,10 +2865,11 @@
           statusBadge = r.enabled ? '<span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">啟用中</span>' : '<span class="bg-slate-100 text-slate-800 text-xs font-medium px-2.5 py-0.5 rounded-full">已停用</span>';
         }
         const row = `<tr class="bg-white" data-index="${index}">
+                        <td data-label="選取" class="px-2 py-4"><input type="checkbox" class="rule-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" data-rule-id="${r.id || index}"></td>
+                        <td data-label="狀態" class="px-6 py-4">${statusBadge}</td>
                         <td data-label="規則名稱" class="px-6 py-4 font-medium text-slate-900">${r.name}</td>
                         <td data-label="監控目標" class="px-6 py-4">${r.target}</td>
                         <td data-label="指標" class="px-6 py-4">${r.metric}</td>
-                        <td data-label="啟用狀態" class="px-6 py-4">${statusBadge}</td>
                         <td data-label="操作" class="px-6 py-4 text-left md:text-center">
                             <button class="edit-rule-btn text-blue-600 hover:text-blue-800 font-medium" style="display: ${userRole === 'TeamMember' ? 'none' : 'inline-block'}">編輯</button>
                             <button class="silence-rule-btn text-slate-500 hover:text-slate-800 font-medium ml-4" style="display: ${userRole === 'TeamMember' ? 'none' : 'inline-block'}">靜默</button>
@@ -2734,11 +2954,12 @@
         const groupsHtml = m.groups.map(g => `<span class="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-1 rounded-full">${g}</span>`).join(' ');
         const statusBadge = `<span class="bg-sky-100 text-sky-800 text-xs font-medium px-2.5 py-0.5 rounded-full">${m.status}</span>`;
         const row = `<tr class="bg-white" data-index="${index}">
+                        <td data-label="選取" class="px-2 py-4"><input type="checkbox" class="maintenance-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" data-maintenance-index="${index}"></td>
+                        <td data-label="狀態" class="px-6 py-4">${statusBadge}</td>
                         <td data-label="說明" class="px-6 py-4 font-medium text-slate-900">${m.name}</td>
                         <td data-label="影響群組" class="px-6 py-4"><div class="flex flex-wrap gap-1">${groupsHtml}</div></td>
                         <td data-label="開始時間" class="px-6 py-4">${m.start}</td>
                         <td data-label="結束時間" class="px-6 py-4">${m.end}</td>
-                        <td data-label="狀態" class="px-6 py-4">${statusBadge}</td>
                         <td data-label="操作" class="px-6 py-4 text-left md:text-center">
                             <button class="edit-maintenance-btn text-blue-600 hover:text-blue-800 font-medium" style="display: ${userRole === 'TeamMember' ? 'none' : 'inline-block'}">編輯</button>
                             <button class="delete-maintenance-btn text-red-600 hover:text-red-800 font-medium ml-4" style="display: ${isSuperAdmin ? 'inline-block' : 'none'}">刪除</button>
@@ -2796,10 +3017,10 @@
           const statusBadge = log.status === 'success' ? '<span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">成功</span>' :
             '<span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">失敗</span>';
           const row = `<tr class="bg-white" data-index="${index}">
+                          <td data-label="執行狀態" class="px-6 py-4">${statusBadge}</td>
                           <td data-label="執行時間" class="px-6 py-4">${log.executionTime}</td>
                           <td data-label="腳本名稱" class="px-6 py-4 font-medium text-slate-900">${log.scriptName}</td>
                           <td data-label="觸發告警" class="px-6 py-4">${log.triggerAlert}</td>
-                          <td data-label="執行狀態" class="px-6 py-4">${statusBadge}</td>
                           <td data-label="執行時長" class="px-6 py-4">${log.duration}</td>
                           <td data-label="操作" class="px-6 py-4 text-left md:text-center">
                               <button class="view-output-btn text-blue-600 hover:text-blue-800 font-medium">查看輸出</button>
@@ -3798,7 +4019,7 @@
         const incidentHtml = `
                   <div class="space-y-6">
                       <div>
-                          <h4 class="font-bold text-lg text-slate-800">${log.name} - ${log.desc}</h4>
+                          <h4 class="font-bold text-sm text-slate-800">${log.name} - ${log.desc}</h4>
                           <p class="text-sm text-slate-500">${log.time} 於 ${log.branch} (${log.ip})</p>
                       </div>
                       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -4246,10 +4467,10 @@
             const statusBadge = log.status === 'success' ? '<span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">成功</span>' :
               '<span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">失敗</span>';
             const row = `<tr class="bg-white" data-index="${mockData.executionLogs.indexOf(log)}">
+                            <td data-label="執行狀態" class="px-6 py-4">${statusBadge}</td>
                             <td data-label="執行時間" class="px-6 py-4">${log.executionTime}</td>
                             <td data-label="腳本名稱" class="px-6 py-4 font-medium text-slate-900">${log.scriptName}</td>
                             <td data-label="觸發告警" class="px-6 py-4">${log.triggerAlert}</td>
-                            <td data-label="執行狀態" class="px-6 py-4">${statusBadge}</td>
                             <td data-label="執行時長" class="px-6 py-4">${log.duration}</td>
                             <td data-label="操作" class="px-6 py-4 text-left md:text-center">
                                 <button class="view-output-btn text-blue-600 hover:text-blue-800 font-medium">查看輸出</button>
@@ -4822,7 +5043,7 @@
         return [gridjs.html(checkboxHtml), gridjs.html(statusCell), name, ip, gridjs.html(groupsHtml), gridjs.html(actions)];
       });
       _ensureGrid('resources-grid', {
-        columns: [{ name: '選取', width: '70px', id: 'select' }, { name: '狀態', width: '100px', id: 'status' }, { name: '資源名稱', id: 'name' }, { name: 'IP 位址', id: 'ip' }, { name: '所屬群組', id: 'groups' }, { name: '操作', width: '160px', id: 'actions' }],
+        columns: [{ name: '', width: '70px', id: 'select' }, { name: '狀態', width: '100px', id: 'status' }, { name: '資源名稱', id: 'name' }, { name: 'IP 位址', id: 'ip' }, { name: '所屬群組', id: 'groups' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4833,6 +5054,7 @@
     function renderGroupsGrid() {
       const rows = _rowsFromHiddenTable('groups-table-body', (tr) => {
         const idx = tr.dataset.index;
+        const checkbox = `<input type="checkbox" class="group-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" data-group-id="${idx}">`;
         const name = tr.querySelector('[data-label="群組名稱"]')?.textContent.trim() || '';
         const count = tr.querySelector('[data-label="資源數量"]')?.textContent.trim() || '';
         const desc = tr.querySelector('[data-label="說明"]')?.textContent.trim() || '';
@@ -4841,10 +5063,10 @@
         const actions = `
           ${canEdit ? `<button class="edit-group-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">編輯</button>` : ''}
           ${canDelete ? `<button class="delete-group-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : ''}`;
-        return [name, count, desc, gridjs.html(actions)];
+        return [gridjs.html(checkbox), name, count, desc, gridjs.html(actions)];
       });
       _ensureGrid('groups-grid', {
-        columns: [{ name: '群組名稱', id: 'name' }, { name: '資源數量', id: 'count' }, { name: '說明', id: 'description' }, { name: '操作', width: '160px', id: 'actions' }],
+        columns: [{ name: '', width: '60px', id: 'select' }, { name: '群組名稱', id: 'name' }, { name: '資源數量', id: 'count' }, { name: '說明', id: 'description' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4855,6 +5077,7 @@
     function renderTeamsGrid() {
       const rows = _rowsFromHiddenTable('teams-table-body', (tr) => {
         const idx = tr.dataset.index;
+        const checkbox = `<input type="checkbox" class="team-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" data-team-id="${idx}">`;
         const name = tr.querySelector('[data-label="團隊名稱"]')?.textContent.trim() || '';
         const manager = tr.querySelector('[data-label="團隊管理員"]')?.innerHTML || '';
         const members = tr.querySelector('[data-label="成員數量"]')?.textContent.trim() || '';
@@ -4862,10 +5085,10 @@
         const actions = `
           <button class="edit-team-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">編輯</button>
           ${tr.querySelector('.delete-team-btn') ? `<button class="delete-team-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : ''}`;
-        return [name, gridjs.html(manager), members, gridjs.html(subscribers), gridjs.html(actions)];
+        return [gridjs.html(checkbox), name, gridjs.html(manager), members, gridjs.html(subscribers), gridjs.html(actions)];
       });
       _ensureGrid('teams-grid', {
-        columns: [{ name: '團隊名稱', id: 'name' }, { name: '團隊管理員', id: 'manager' }, { name: '成員數量', id: 'members' }, { name: '通知訂閱者', id: 'subscribers' }, { name: '操作', width: '160px', id: 'actions' }],
+        columns: [{ name: '', width: '60px', id: 'select' }, { name: '團隊名稱', id: 'name' }, { name: '團隊管理員', id: 'manager' }, { name: '成員數量', id: 'members' }, { name: '通知訂閱者', id: 'subscribers' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4876,6 +5099,7 @@
     function renderPersonnelGrid() {
       const rows = _rowsFromHiddenTable('personnel-table-body', (tr) => {
         const idx = tr.dataset.index;
+        const checkbox = `<input type="checkbox" class="personnel-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" data-personnel-id="${idx}">`;
         const name = tr.querySelector('[data-label="姓名"]')?.textContent.trim() || '';
         const role = tr.querySelector('[data-label="角色"]')?.innerHTML || '';
         const teams = tr.querySelector('[data-label="所屬團隊"]')?.innerHTML || '';
@@ -4883,10 +5107,10 @@
         const actions = `
           <button class="edit-user-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">編輯</button>
           ${tr.querySelector('.delete-user-btn') ? `<button class="delete-user-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : ''}`;
-        return [name, gridjs.html(role), gridjs.html(teams), gridjs.html(levels), gridjs.html(actions)];
+        return [gridjs.html(checkbox), name, gridjs.html(role), gridjs.html(teams), gridjs.html(levels), gridjs.html(actions)];
       });
       _ensureGrid('personnel-grid', {
-        columns: [{ name: '姓名', id: 'name' }, { name: '角色', id: 'role' }, { name: '所屬團隊', id: 'teams' }, { name: '接收等級', id: 'levels' }, { name: '操作', width: '160px', id: 'actions' }],
+        columns: [{ name: '', width: '60px', id: 'select' }, { name: '姓名', id: 'name' }, { name: '角色', id: 'role' }, { name: '所屬團隊', id: 'teams' }, { name: '接收等級', id: 'levels' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4897,17 +5121,18 @@
     function renderRulesGrid() {
       const rows = _rowsFromHiddenTable('rules-table-body', (tr) => {
         const idx = tr.dataset.index;
+        const checkbox = `<input type="checkbox" class="rule-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" data-rule-id="${idx}">`;
+        const status = tr.querySelector('[data-label="狀態"]')?.innerHTML || '';
         const name = tr.querySelector('[data-label="規則名稱"]')?.textContent.trim() || '';
         const target = tr.querySelector('[data-label="監控目標"]')?.textContent.trim() || '';
         const metric = tr.querySelector('[data-label="指標"]')?.textContent.trim() || '';
-        const status = tr.querySelector('[data-label="啟用狀態"]')?.innerHTML || '';
         const edit = tr.querySelector('.edit-rule-btn') ? `<button class="edit-rule-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">編輯</button>` : '';
         const silence = tr.querySelector('.silence-rule-btn') ? `<button class="silence-rule-btn text-slate-500 hover:text-slate-800 font-medium ml-4" data-index="${idx}">靜默</button>` : '';
         const del = tr.querySelector('.delete-rule-btn') ? `<button class="delete-rule-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : '';
-        return [name, target, metric, gridjs.html(status), gridjs.html(`${edit}${silence}${del}`)];
+        return [gridjs.html(checkbox), gridjs.html(status), name, target, metric, gridjs.html(`${edit}${silence}${del}`)];
       });
       _ensureGrid('rules-grid', {
-        columns: [{ name: '規則名稱', id: 'name' }, { name: '監控目標', id: 'target' }, { name: '指標', id: 'metric' }, { name: '啟用狀態', width: '90px', id: 'status' }, { name: '操作', width: '200px', id: 'actions' }],
+        columns: [{ name: '', width: '60px', id: 'select' }, { name: '狀態', width: '105px', id: 'status' }, { name: '規則名稱', id: 'name' }, { name: '監控目標', id: 'target' }, { name: '指標', id: 'metric' }, { name: '操作', width: '200px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4918,16 +5143,17 @@
     function renderChannelsGrid() {
       const rows = _rowsFromHiddenTable('channels-table-body', (tr) => {
         const idx = tr.dataset.index;
+        const checkbox = `<input type="checkbox" class="channel-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" data-channel-id="${idx}">`;
         const name = tr.querySelector('[data-label="管道名稱"]')?.textContent.trim() || '';
         const type = tr.querySelector('[data-label="管道類型"]')?.innerHTML || '';
         const actions = `
           <button class="test-channel-btn text-green-600 hover:text-green-800 font-medium" data-index="${idx}">測試</button>
           <button class="edit-channel-btn text-blue-600 hover:text-blue-800 font-medium ml-4" data-index="${idx}">編輯</button>
           <button class="delete-channel-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>`;
-        return [name, gridjs.html(type), gridjs.html(actions)];
+        return [gridjs.html(checkbox), name, gridjs.html(type), gridjs.html(actions)];
       });
       _ensureGrid('channels-grid', {
-        columns: [{ name: '管道名稱', id: 'name' }, { name: '管道類型', id: 'type' }, { name: '操作', width: '220px', id: 'actions' }],
+        columns: [{ name: '', width: '60px', id: 'select' }, { name: '管道名稱', id: 'name' }, { name: '管道類型', id: 'type' }, { name: '操作', width: '220px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4938,18 +5164,19 @@
     function renderMaintenanceGrid() {
       const rows = _rowsFromHiddenTable('maintenance-table-body', (tr) => {
         const idx = tr.dataset.index;
+        const checkbox = `<input type="checkbox" class="maintenance-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" data-maintenance-index="${idx}">`;
+        const status = tr.querySelector('[data-label="狀態"]')?.innerHTML || '';
         const name = tr.querySelector('[data-label="說明"]')?.textContent.trim() || '';
         const groups = tr.querySelector('[data-label="影響群組"]')?.innerHTML || '';
         const start = tr.querySelector('[data-label="開始時間"]')?.textContent.trim() || '';
         const end = tr.querySelector('[data-label="結束時間"]')?.textContent.trim() || '';
-        const status = tr.querySelector('[data-label="狀態"]')?.innerHTML || '';
         const actions = `
           ${tr.querySelector('.edit-maintenance-btn') ? `<button class="edit-maintenance-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">編輯</button>` : ''}
           ${tr.querySelector('.delete-maintenance-btn') ? `<button class="delete-maintenance-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : ''}`;
-        return [name, gridjs.html(groups), start, end, gridjs.html(status), gridjs.html(actions)];
+        return [gridjs.html(checkbox), gridjs.html(status), name, gridjs.html(groups), start, end, gridjs.html(actions)];
       });
       _ensureGrid('maintenance-grid', {
-        columns: [{ name: '說明', id: 'name' }, { name: '影響群組', id: 'groups' }, { name: '開始時間', id: 'start' }, { name: '結束時間', id: 'end' }, { name: '狀態', width: '90px', id: 'status' }, { name: '操作', width: '160px', id: 'actions' }],
+        columns: [{ name: '', width: '60px', id: 'select' }, { name: '狀態', width: '105px', id: 'status' }, { name: '說明', id: 'name' }, { name: '影響群組', id: 'groups' }, { name: '開始時間', id: 'start' }, { name: '結束時間', id: 'end' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4993,7 +5220,7 @@
       const levelOrder = { 'error': 3, 'warning': 2, 'info': 1 };
 
       _ensureGrid('logs-grid', {
-        columns: [{ name: '選取', width: '60px', id: 'select' }, { name: '狀態', width: '100px', id: 'status' }, { name: '時間', id: 'time' }, { name: '等級', width: '100px', id: 'level' }, { name: '處理人員', id: 'assignee' }, { name: '資源名稱', id: 'resource' }, { name: '說明', id: 'description' }, { name: '操作', width: '160px', id: 'actions' }],
+        columns: [{ name: '', width: '60px', id: 'select' }, { name: '狀態', width: '100px', id: 'status' }, { name: '時間', id: 'time' }, { name: '等級', width: '100px', id: 'level' }, { name: '處理人員', id: 'assignee' }, { name: '資源名稱', id: 'resource' }, { name: '說明', id: 'description' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -5162,6 +5389,7 @@
     function renderScriptsGrid() {
       const rows = _rowsFromHiddenTable('scripts-table-body', (tr) => {
         const idx = tr.dataset.index;
+        const checkbox = `<input type="checkbox" class="script-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" data-script-id="${idx}">`;
         const name = tr.querySelector('[data-label="腳本名稱"]')?.textContent.trim() || '';
         const type = tr.querySelector('[data-label="類型"]')?.innerHTML || '';
         const desc = tr.querySelector('[data-label="描述"]')?.textContent.trim() || '';
@@ -5170,10 +5398,10 @@
           <button class="test-script-btn text-green-600 hover:text-green-800 font-medium" data-index="${idx}">測試</button>
           <button class="edit-script-btn text-blue-600 hover:text-blue-800 font-medium ml-4" data-index="${idx}">編輯</button>
           ${tr.querySelector('.delete-script-btn') ? `<button class="delete-script-btn text-red-600 hover:text-red-800 font-medium ml-4" data-index="${idx}">刪除</button>` : ''}`;
-        return [name, gridjs.html(type), desc, updated, gridjs.html(actions)];
+        return [gridjs.html(checkbox), name, gridjs.html(type), desc, updated, gridjs.html(actions)];
       });
       _ensureGrid('scripts-grid', {
-        columns: [{ name: '腳本名稱', id: 'name' }, { name: '類型', id: 'type' }, { name: '描述', id: 'description' }, { name: '最後更新', id: 'updated' }, { name: '操作', width: '220px', id: 'actions' }],
+        columns: [{ name: '', width: '60px', id: 'select' }, { name: '腳本名稱', id: 'name' }, { name: '類型', id: 'type' }, { name: '描述', id: 'description' }, { name: '最後更新', id: 'updated' }, { name: '操作', width: '220px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -5190,10 +5418,10 @@
         const status = tr.querySelector('[data-label="執行狀態"]')?.innerHTML || '';
         const duration = tr.querySelector('[data-label="執行時長"]')?.textContent.trim() || '';
         const actions = `<button class="view-output-btn text-blue-600 hover:text-blue-800 font-medium" data-index="${idx}">查看輸出</button>`;
-        return [time, script, trigger, gridjs.html(status), duration, gridjs.html(actions)];
+        return [gridjs.html(status), time, script, trigger, duration, gridjs.html(actions)];
       });
       _ensureGrid('execution-logs-grid', {
-        columns: [{ name: '執行時間', id: 'time' }, { name: '腳本名稱', id: 'script' }, { name: '觸發告警', id: 'trigger' }, { name: '執行狀態', width: '90px', id: 'status' }, { name: '執行時長', id: 'duration' }, { name: '操作', width: '120px', id: 'actions' }],
+        columns: [{ name: '狀態', width: '100px', id: 'status' }, { name: '執行時間', id: 'time' }, { name: '腳本名稱', id: 'script' }, { name: '觸發告警', id: 'trigger' }, { name: '執行時長', id: 'duration' }, { name: '操作', width: '120px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -5292,6 +5520,678 @@
         }
         // logs 不再提供全選/勾選框
       });
+    }
+
+    // --- Rules Batch Operations Functions ---
+    function initializeRulesBatchOperations() {
+      // 檢查是否已經初始化
+      if (window.rulesBatchOperationsInitialized) {
+        console.log('Rules batch operations already initialized, skipping');
+        return;
+      }
+
+      const selectAllRules = document.getElementById('select-all-rules');
+      const batchOperationsBar = document.getElementById('rules-batch-operations-bar');
+      const selectedCount = document.getElementById('rules-selected-count');
+      const clearSelectionBtn = document.getElementById('rules-clear-selection-btn');
+      const batchEnableBtn = document.getElementById('rules-batch-enable-btn');
+      const batchDisableBtn = document.getElementById('rules-batch-disable-btn');
+      const batchSilenceBtn = document.getElementById('rules-batch-silence-btn');
+      const batchDeleteBtn = document.getElementById('rules-batch-delete-btn');
+
+      // 檢查必要元素是否存在，如果不存在則退出
+      if (!selectAllRules || !batchOperationsBar || !selectedCount) {
+        console.log('Rules batch operations elements not found, skipping initialization');
+        return;
+      }
+
+      // 標記為已初始化
+      window.rulesBatchOperationsInitialized = true;
+      console.log('Initializing rules batch operations...');
+
+      function updateRulesBatchOperationsBar() {
+        const checkedBoxes = document.querySelectorAll('.rule-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedCount.textContent = count;
+
+        if (count > 0) {
+          batchOperationsBar.classList.remove('hidden');
+        } else {
+          batchOperationsBar.classList.add('hidden');
+        }
+
+        // Update select all checkbox state
+        const allCheckboxes = document.querySelectorAll('.rule-checkbox');
+        if (selectAllRules) {
+          selectAllRules.checked = count === allCheckboxes.length;
+          selectAllRules.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+      }
+
+      // Select all rules
+      if (selectAllRules) {
+        selectAllRules.addEventListener('change', (e) => {
+          document.querySelectorAll('.rule-checkbox').forEach(cb => {
+            cb.checked = e.target.checked;
+          });
+          updateRulesBatchOperationsBar();
+        });
+      }
+
+      // Individual rule selection
+      document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('rule-checkbox')) {
+          updateRulesBatchOperationsBar();
+        }
+      });
+
+      // Clear selection
+      if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', () => {
+          document.querySelectorAll('.rule-checkbox').forEach(cb => cb.checked = false);
+          if (selectAllRules) selectAllRules.checked = false;
+          updateRulesBatchOperationsBar();
+        });
+      }
+
+      // Batch enable
+      if (batchEnableBtn) {
+        batchEnableBtn.addEventListener('click', () => {
+          const selectedRules = Array.from(document.querySelectorAll('.rule-checkbox:checked'));
+          showFeedbackModal(`已批次啟用 ${selectedRules.length} 個規則`);
+          setTimeout(() => {
+            closeFeedbackModal();
+            // 清除選擇狀態
+            document.querySelectorAll('.rule-checkbox').forEach(cb => cb.checked = false);
+            if (selectAllRules) selectAllRules.checked = false;
+            updateRulesBatchOperationsBar();
+          }, 1500);
+        });
+      }
+
+      // Batch disable
+      if (batchDisableBtn) {
+        batchDisableBtn.addEventListener('click', () => {
+          const selectedRules = Array.from(document.querySelectorAll('.rule-checkbox:checked'));
+          showFeedbackModal(`已批次停用 ${selectedRules.length} 個規則`);
+          setTimeout(() => {
+            closeFeedbackModal();
+            // 清除選擇狀態
+            document.querySelectorAll('.rule-checkbox').forEach(cb => cb.checked = false);
+            if (selectAllRules) selectAllRules.checked = false;
+            updateRulesBatchOperationsBar();
+          }, 1500);
+        });
+      }
+
+      // Batch silence
+      if (batchSilenceBtn) {
+        batchSilenceBtn.addEventListener('click', () => {
+          const selectedRules = Array.from(document.querySelectorAll('.rule-checkbox:checked'));
+          showFeedbackModal(`已批次靜默 ${selectedRules.length} 個規則`);
+          setTimeout(() => {
+            closeFeedbackModal();
+            // 清除選擇狀態
+            document.querySelectorAll('.rule-checkbox').forEach(cb => cb.checked = false);
+            if (selectAllRules) selectAllRules.checked = false;
+            updateRulesBatchOperationsBar();
+          }, 1500);
+        });
+      }
+
+      // Batch delete
+      if (batchDeleteBtn) {
+        batchDeleteBtn.addEventListener('click', () => {
+          const selectedRules = Array.from(document.querySelectorAll('.rule-checkbox:checked'));
+          if (confirm(`您確定要刪除選取的 ${selectedRules.length} 個規則嗎？此操作無法復原。`)) {
+            showFeedbackModal(`已批次刪除 ${selectedRules.length} 個規則`);
+            setTimeout(() => {
+              closeFeedbackModal();
+              // 清除選擇狀態
+              document.querySelectorAll('.rule-checkbox').forEach(cb => cb.checked = false);
+              if (selectAllRules) selectAllRules.checked = false;
+              updateRulesBatchOperationsBar();
+            }, 1500);
+          }
+        });
+      }
+    }
+
+    // --- Maintenance Batch Operations Functions ---
+    function initializeMaintenanceBatchOperations() {
+      // 檢查是否已經初始化
+      if (window.maintenanceBatchOperationsInitialized) {
+        console.log('Maintenance batch operations already initialized, skipping');
+        return;
+      }
+
+      const selectAllMaintenance = document.getElementById('select-all-maintenance');
+      const batchOperationsBar = document.getElementById('maintenance-batch-operations-bar');
+      const selectedCount = document.getElementById('maintenance-selected-count');
+      const clearSelectionBtn = document.getElementById('maintenance-clear-selection-btn');
+      const batchExtendBtn = document.getElementById('maintenance-batch-extend-btn');
+      const batchEndBtn = document.getElementById('maintenance-batch-end-btn');
+      const batchDeleteBtn = document.getElementById('maintenance-batch-delete-btn');
+
+      // 檢查必要元素是否存在，如果不存在則退出
+      if (!selectAllMaintenance || !batchOperationsBar || !selectedCount) {
+        console.log('Maintenance batch operations elements not found, skipping initialization');
+        return;
+      }
+
+      // 標記為已初始化
+      window.maintenanceBatchOperationsInitialized = true;
+      console.log('Initializing maintenance batch operations...');
+
+      function updateMaintenanceBatchOperationsBar() {
+        const checkedBoxes = document.querySelectorAll('.maintenance-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedCount.textContent = count;
+
+        if (count > 0) {
+          batchOperationsBar.classList.remove('hidden');
+        } else {
+          batchOperationsBar.classList.add('hidden');
+        }
+
+        // Update select all checkbox state
+        const allCheckboxes = document.querySelectorAll('.maintenance-checkbox');
+        if (selectAllMaintenance) {
+          selectAllMaintenance.checked = count === allCheckboxes.length;
+          selectAllMaintenance.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+      }
+
+      // Select all maintenance
+      if (selectAllMaintenance) {
+        selectAllMaintenance.addEventListener('change', (e) => {
+          document.querySelectorAll('.maintenance-checkbox').forEach(cb => {
+            cb.checked = e.target.checked;
+          });
+          updateMaintenanceBatchOperationsBar();
+        });
+      }
+
+      // Individual maintenance selection
+      document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('maintenance-checkbox')) {
+          updateMaintenanceBatchOperationsBar();
+        }
+      });
+
+      // Clear selection
+      if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', () => {
+          document.querySelectorAll('.maintenance-checkbox').forEach(cb => cb.checked = false);
+          if (selectAllMaintenance) selectAllMaintenance.checked = false;
+          updateMaintenanceBatchOperationsBar();
+        });
+      }
+
+      // Batch extend
+      if (batchExtendBtn) {
+        batchExtendBtn.addEventListener('click', () => {
+          const selectedMaintenance = Array.from(document.querySelectorAll('.maintenance-checkbox:checked'));
+          showFeedbackModal(`已批次延長 ${selectedMaintenance.length} 個維護時段`);
+          setTimeout(() => {
+            closeFeedbackModal();
+            // 清除選擇狀態
+            document.querySelectorAll('.maintenance-checkbox').forEach(cb => cb.checked = false);
+            if (selectAllMaintenance) selectAllMaintenance.checked = false;
+            updateMaintenanceBatchOperationsBar();
+          }, 1500);
+        });
+      }
+
+      // Batch end
+      if (batchEndBtn) {
+        batchEndBtn.addEventListener('click', () => {
+          const selectedMaintenance = Array.from(document.querySelectorAll('.maintenance-checkbox:checked'));
+          showFeedbackModal(`已批次結束 ${selectedMaintenance.length} 個維護時段`);
+          setTimeout(() => {
+            closeFeedbackModal();
+            // 清除選擇狀態
+            document.querySelectorAll('.maintenance-checkbox').forEach(cb => cb.checked = false);
+            if (selectAllMaintenance) selectAllMaintenance.checked = false;
+            updateMaintenanceBatchOperationsBar();
+          }, 1500);
+        });
+      }
+
+      // Batch delete
+      if (batchDeleteBtn) {
+        batchDeleteBtn.addEventListener('click', () => {
+          const selectedMaintenance = Array.from(document.querySelectorAll('.maintenance-checkbox:checked'));
+          if (confirm(`您確定要刪除選取的 ${selectedMaintenance.length} 個維護時段嗎？此操作無法復原。`)) {
+            showFeedbackModal(`已批次刪除 ${selectedMaintenance.length} 個維護時段`);
+            setTimeout(() => {
+              closeFeedbackModal();
+              // 清除選擇狀態
+              document.querySelectorAll('.maintenance-checkbox').forEach(cb => cb.checked = false);
+              if (selectAllMaintenance) selectAllMaintenance.checked = false;
+              updateMaintenanceBatchOperationsBar();
+            }, 1500);
+          }
+        });
+      }
+    }
+
+    // --- Groups Batch Operations Functions ---
+    function initializeGroupsBatchOperations() {
+      if (window.groupsBatchOperationsInitialized) {
+        console.log('Groups batch operations already initialized, skipping');
+        return;
+      }
+
+      const selectAllGroups = document.getElementById('select-all-groups');
+      const batchOperationsBar = document.getElementById('groups-batch-operations-bar');
+      const selectedCount = document.getElementById('groups-selected-count');
+      const clearSelectionBtn = document.getElementById('groups-clear-selection-btn');
+      const batchDeleteBtn = document.getElementById('groups-batch-delete-btn');
+
+      if (!selectAllGroups || !batchOperationsBar || !selectedCount) {
+        console.log('Groups batch operations elements not found, skipping initialization');
+        return;
+      }
+
+      window.groupsBatchOperationsInitialized = true;
+      console.log('Initializing groups batch operations...');
+
+      function updateGroupsBatchOperationsBar() {
+        const checkedBoxes = document.querySelectorAll('.group-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedCount.textContent = count;
+
+        if (count > 0) {
+          batchOperationsBar.classList.remove('hidden');
+        } else {
+          batchOperationsBar.classList.add('hidden');
+        }
+
+        const allCheckboxes = document.querySelectorAll('.group-checkbox');
+        if (selectAllGroups) {
+          selectAllGroups.checked = count === allCheckboxes.length;
+          selectAllGroups.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+      }
+
+      if (selectAllGroups) {
+        selectAllGroups.addEventListener('change', (e) => {
+          document.querySelectorAll('.group-checkbox').forEach(cb => {
+            cb.checked = e.target.checked;
+          });
+          updateGroupsBatchOperationsBar();
+        });
+      }
+
+      document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('group-checkbox')) {
+          updateGroupsBatchOperationsBar();
+        }
+      });
+
+      if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', () => {
+          document.querySelectorAll('.group-checkbox').forEach(cb => cb.checked = false);
+          if (selectAllGroups) selectAllGroups.checked = false;
+          updateGroupsBatchOperationsBar();
+        });
+      }
+
+      if (batchDeleteBtn) {
+        batchDeleteBtn.addEventListener('click', () => {
+          const selectedGroups = Array.from(document.querySelectorAll('.group-checkbox:checked'));
+          if (confirm(`您確定要刪除選取的 ${selectedGroups.length} 個群組嗎？此操作無法復原。`)) {
+            showFeedbackModal(`已批次刪除 ${selectedGroups.length} 個群組`);
+            setTimeout(() => {
+              closeFeedbackModal();
+              document.querySelectorAll('.group-checkbox').forEach(cb => cb.checked = false);
+              if (selectAllGroups) selectAllGroups.checked = false;
+              updateGroupsBatchOperationsBar();
+            }, 1500);
+          }
+        });
+      }
+    }
+
+    // --- Teams Batch Operations Functions ---
+    function initializeTeamsBatchOperations() {
+      if (window.teamsBatchOperationsInitialized) {
+        console.log('Teams batch operations already initialized, skipping');
+        return;
+      }
+
+      const selectAllTeams = document.getElementById('select-all-teams');
+      const batchOperationsBar = document.getElementById('teams-batch-operations-bar');
+      const selectedCount = document.getElementById('teams-selected-count');
+      const clearSelectionBtn = document.getElementById('teams-clear-selection-btn');
+      const batchDeleteBtn = document.getElementById('teams-batch-delete-btn');
+
+      if (!selectAllTeams || !batchOperationsBar || !selectedCount) {
+        console.log('Teams batch operations elements not found, skipping initialization');
+        return;
+      }
+
+      window.teamsBatchOperationsInitialized = true;
+      console.log('Initializing teams batch operations...');
+
+      function updateTeamsBatchOperationsBar() {
+        const checkedBoxes = document.querySelectorAll('.team-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedCount.textContent = count;
+
+        if (count > 0) {
+          batchOperationsBar.classList.remove('hidden');
+        } else {
+          batchOperationsBar.classList.add('hidden');
+        }
+
+        const allCheckboxes = document.querySelectorAll('.team-checkbox');
+        if (selectAllTeams) {
+          selectAllTeams.checked = count === allCheckboxes.length;
+          selectAllTeams.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+      }
+
+      if (selectAllTeams) {
+        selectAllTeams.addEventListener('change', (e) => {
+          document.querySelectorAll('.team-checkbox').forEach(cb => {
+            cb.checked = e.target.checked;
+          });
+          updateTeamsBatchOperationsBar();
+        });
+      }
+
+      document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('team-checkbox')) {
+          updateTeamsBatchOperationsBar();
+        }
+      });
+
+      if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', () => {
+          document.querySelectorAll('.team-checkbox').forEach(cb => cb.checked = false);
+          if (selectAllTeams) selectAllTeams.checked = false;
+          updateTeamsBatchOperationsBar();
+        });
+      }
+
+      if (batchDeleteBtn) {
+        batchDeleteBtn.addEventListener('click', () => {
+          const selectedTeams = Array.from(document.querySelectorAll('.team-checkbox:checked'));
+          if (confirm(`您確定要刪除選取的 ${selectedTeams.length} 個團隊嗎？此操作無法復原。`)) {
+            showFeedbackModal(`已批次刪除 ${selectedTeams.length} 個團隊`);
+            setTimeout(() => {
+              closeFeedbackModal();
+              document.querySelectorAll('.team-checkbox').forEach(cb => cb.checked = false);
+              if (selectAllTeams) selectAllTeams.checked = false;
+              updateTeamsBatchOperationsBar();
+            }, 1500);
+          }
+        });
+      }
+    }
+
+    // --- Personnel Batch Operations Functions ---
+    function initializePersonnelBatchOperations() {
+      if (window.personnelBatchOperationsInitialized) {
+        console.log('Personnel batch operations already initialized, skipping');
+        return;
+      }
+
+      const selectAllPersonnel = document.getElementById('select-all-personnel');
+      const batchOperationsBar = document.getElementById('personnel-batch-operations-bar');
+      const selectedCount = document.getElementById('personnel-selected-count');
+      const clearSelectionBtn = document.getElementById('personnel-clear-selection-btn');
+      const batchDeleteBtn = document.getElementById('personnel-batch-delete-btn');
+
+      if (!selectAllPersonnel || !batchOperationsBar || !selectedCount) {
+        console.log('Personnel batch operations elements not found, skipping initialization');
+        return;
+      }
+
+      window.personnelBatchOperationsInitialized = true;
+      console.log('Initializing personnel batch operations...');
+
+      function updatePersonnelBatchOperationsBar() {
+        const checkedBoxes = document.querySelectorAll('.personnel-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedCount.textContent = count;
+
+        if (count > 0) {
+          batchOperationsBar.classList.remove('hidden');
+        } else {
+          batchOperationsBar.classList.add('hidden');
+        }
+
+        const allCheckboxes = document.querySelectorAll('.personnel-checkbox');
+        if (selectAllPersonnel) {
+          selectAllPersonnel.checked = count === allCheckboxes.length;
+          selectAllPersonnel.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+      }
+
+      if (selectAllPersonnel) {
+        selectAllPersonnel.addEventListener('change', (e) => {
+          document.querySelectorAll('.personnel-checkbox').forEach(cb => {
+            cb.checked = e.target.checked;
+          });
+          updatePersonnelBatchOperationsBar();
+        });
+      }
+
+      document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('personnel-checkbox')) {
+          updatePersonnelBatchOperationsBar();
+        }
+      });
+
+      if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', () => {
+          document.querySelectorAll('.personnel-checkbox').forEach(cb => cb.checked = false);
+          if (selectAllPersonnel) selectAllPersonnel.checked = false;
+          updatePersonnelBatchOperationsBar();
+        });
+      }
+
+      if (batchDeleteBtn) {
+        batchDeleteBtn.addEventListener('click', () => {
+          const selectedPersonnel = Array.from(document.querySelectorAll('.personnel-checkbox:checked'));
+          if (confirm(`您確定要刪除選取的 ${selectedPersonnel.length} 個人員嗎？此操作無法復原。`)) {
+            showFeedbackModal(`已批次刪除 ${selectedPersonnel.length} 個人員`);
+            setTimeout(() => {
+              closeFeedbackModal();
+              document.querySelectorAll('.personnel-checkbox').forEach(cb => cb.checked = false);
+              if (selectAllPersonnel) selectAllPersonnel.checked = false;
+              updatePersonnelBatchOperationsBar();
+            }, 1500);
+          }
+        });
+      }
+    }
+
+    // --- Channels Batch Operations Functions ---
+    function initializeChannelsBatchOperations() {
+      if (window.channelsBatchOperationsInitialized) {
+        console.log('Channels batch operations already initialized, skipping');
+        return;
+      }
+
+      const selectAllChannels = document.getElementById('select-all-channels');
+      const batchOperationsBar = document.getElementById('channels-batch-operations-bar');
+      const selectedCount = document.getElementById('channels-selected-count');
+      const clearSelectionBtn = document.getElementById('channels-clear-selection-btn');
+      const batchTestBtn = document.getElementById('channels-batch-test-btn');
+      const batchDeleteBtn = document.getElementById('channels-batch-delete-btn');
+
+      if (!selectAllChannels || !batchOperationsBar || !selectedCount) {
+        console.log('Channels batch operations elements not found, skipping initialization');
+        return;
+      }
+
+      window.channelsBatchOperationsInitialized = true;
+      console.log('Initializing channels batch operations...');
+
+      function updateChannelsBatchOperationsBar() {
+        const checkedBoxes = document.querySelectorAll('.channel-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedCount.textContent = count;
+
+        if (count > 0) {
+          batchOperationsBar.classList.remove('hidden');
+        } else {
+          batchOperationsBar.classList.add('hidden');
+        }
+
+        const allCheckboxes = document.querySelectorAll('.channel-checkbox');
+        if (selectAllChannels) {
+          selectAllChannels.checked = count === allCheckboxes.length;
+          selectAllChannels.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+      }
+
+      if (selectAllChannels) {
+        selectAllChannels.addEventListener('change', (e) => {
+          document.querySelectorAll('.channel-checkbox').forEach(cb => {
+            cb.checked = e.target.checked;
+          });
+          updateChannelsBatchOperationsBar();
+        });
+      }
+
+      document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('channel-checkbox')) {
+          updateChannelsBatchOperationsBar();
+        }
+      });
+
+      if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', () => {
+          document.querySelectorAll('.channel-checkbox').forEach(cb => cb.checked = false);
+          if (selectAllChannels) selectAllChannels.checked = false;
+          updateChannelsBatchOperationsBar();
+        });
+      }
+
+      if (batchTestBtn) {
+        batchTestBtn.addEventListener('click', () => {
+          const selectedChannels = Array.from(document.querySelectorAll('.channel-checkbox:checked'));
+          showFeedbackModal(`已批次測試 ${selectedChannels.length} 個管道`);
+          setTimeout(() => {
+            closeFeedbackModal();
+            document.querySelectorAll('.channel-checkbox').forEach(cb => cb.checked = false);
+            if (selectAllChannels) selectAllChannels.checked = false;
+            updateChannelsBatchOperationsBar();
+          }, 1500);
+        });
+      }
+
+      if (batchDeleteBtn) {
+        batchDeleteBtn.addEventListener('click', () => {
+          const selectedChannels = Array.from(document.querySelectorAll('.channel-checkbox:checked'));
+          if (confirm(`您確定要刪除選取的 ${selectedChannels.length} 個管道嗎？此操作無法復原。`)) {
+            showFeedbackModal(`已批次刪除 ${selectedChannels.length} 個管道`);
+            setTimeout(() => {
+              closeFeedbackModal();
+              document.querySelectorAll('.channel-checkbox').forEach(cb => cb.checked = false);
+              if (selectAllChannels) selectAllChannels.checked = false;
+              updateChannelsBatchOperationsBar();
+            }, 1500);
+          }
+        });
+      }
+    }
+
+    // --- Scripts Batch Operations Functions ---
+    function initializeScriptsBatchOperations() {
+      if (window.scriptsBatchOperationsInitialized) {
+        console.log('Scripts batch operations already initialized, skipping');
+        return;
+      }
+
+      const selectAllScripts = document.getElementById('select-all-scripts');
+      const batchOperationsBar = document.getElementById('scripts-batch-operations-bar');
+      const selectedCount = document.getElementById('scripts-selected-count');
+      const clearSelectionBtn = document.getElementById('scripts-clear-selection-btn');
+      const batchTestBtn = document.getElementById('scripts-batch-test-btn');
+      const batchDeleteBtn = document.getElementById('scripts-batch-delete-btn');
+
+      if (!selectAllScripts || !batchOperationsBar || !selectedCount) {
+        console.log('Scripts batch operations elements not found, skipping initialization');
+        return;
+      }
+
+      window.scriptsBatchOperationsInitialized = true;
+      console.log('Initializing scripts batch operations...');
+
+      function updateScriptsBatchOperationsBar() {
+        const checkedBoxes = document.querySelectorAll('.script-checkbox:checked');
+        const count = checkedBoxes.length;
+        selectedCount.textContent = count;
+
+        if (count > 0) {
+          batchOperationsBar.classList.remove('hidden');
+        } else {
+          batchOperationsBar.classList.add('hidden');
+        }
+
+        const allCheckboxes = document.querySelectorAll('.script-checkbox');
+        if (selectAllScripts) {
+          selectAllScripts.checked = count === allCheckboxes.length;
+          selectAllScripts.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+      }
+
+      if (selectAllScripts) {
+        selectAllScripts.addEventListener('change', (e) => {
+          document.querySelectorAll('.script-checkbox').forEach(cb => {
+            cb.checked = e.target.checked;
+          });
+          updateScriptsBatchOperationsBar();
+        });
+      }
+
+      document.addEventListener('change', (e) => {
+        if (e.target.classList.contains('script-checkbox')) {
+          updateScriptsBatchOperationsBar();
+        }
+      });
+
+      if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', () => {
+          document.querySelectorAll('.script-checkbox').forEach(cb => cb.checked = false);
+          if (selectAllScripts) selectAllScripts.checked = false;
+          updateScriptsBatchOperationsBar();
+        });
+      }
+
+      if (batchTestBtn) {
+        batchTestBtn.addEventListener('click', () => {
+          const selectedScripts = Array.from(document.querySelectorAll('.script-checkbox:checked'));
+          showFeedbackModal(`已批次測試 ${selectedScripts.length} 個腳本`);
+          setTimeout(() => {
+            closeFeedbackModal();
+            document.querySelectorAll('.script-checkbox').forEach(cb => cb.checked = false);
+            if (selectAllScripts) selectAllScripts.checked = false;
+            updateScriptsBatchOperationsBar();
+          }, 1500);
+        });
+      }
+
+      if (batchDeleteBtn) {
+        batchDeleteBtn.addEventListener('click', () => {
+          const selectedScripts = Array.from(document.querySelectorAll('.script-checkbox:checked'));
+          if (confirm(`您確定要刪除選取的 ${selectedScripts.length} 個腳本嗎？此操作無法復原。`)) {
+            showFeedbackModal(`已批次刪除 ${selectedScripts.length} 個腳本`);
+            setTimeout(() => {
+              closeFeedbackModal();
+              document.querySelectorAll('.script-checkbox').forEach(cb => cb.checked = false);
+              if (selectAllScripts) selectAllScripts.checked = false;
+              updateScriptsBatchOperationsBar();
+            }, 1500);
+          }
+        });
+      }
     }
 
 

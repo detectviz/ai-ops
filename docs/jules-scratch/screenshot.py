@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 統一截圖腳本 - 整合所有截圖功能
-包含頁面截圖、模態框截圖、角色權限截圖和 GIF 幀生成
+包含角色權限截圖和 GIF 幀生成
 """
 
 import os
@@ -25,25 +25,23 @@ class ScreenshotManager:
             "admin": {
                 "user": "admin",
                 "pass": "admin",
-                "pages": ["dashboard", "resources", "groups", "teams", "rules", "personnel", "profile", "settings", "channels", "maintenance", "automation", "capacity", "logs"]
+                "pages": ["dashboard", "logs", "resources", "groups", "personnel", "teams", "channels", "rules", "maintenance", "automation", "capacity", "profile", "settings"]
             },
             "manager": {
                 "user": "manager", 
                 "pass": "manager",
-                "pages": ["dashboard", "resources", "groups", "teams", "rules", "personnel", "profile", "maintenance", "automation", "capacity", "logs"]
+                "pages": ["dashboard", "logs", "resources", "groups", "personnel", "teams", "rules", "maintenance", "automation", "capacity", "profile"]
             },
             "member": {
                 "user": "member",
                 "pass": "member", 
-                "pages": ["dashboard", "resources", "groups", "rules", "profile", "logs"]
+                "pages": ["dashboard", "logs", "resources", "groups", "rules", "profile"]
             }
         }
         
     def setup_directories(self):
         """設置輸出目錄"""
         directories = [
-            f"{self.base_dir}/screenshot_pages",
-            f"{self.base_dir}/screenshot_modals", 
             f"{self.base_dir}/screenshot_by_role",
             f"{self.base_dir}/gif_frames"
         ]
@@ -69,6 +67,23 @@ class ScreenshotManager:
     def navigate_to_page(self, page, page_id: str, wait_for_selector=None):
         """導航到指定頁面並等待載入"""
         print(f"  - 導航至頁面: {page_id}")
+        
+        # 特殊處理：在訪問「分析與自動化」頁面前收合「組織」選單
+        if page_id == "automation":
+            print("    - 收合「組織」選單")
+            page.evaluate("""
+                // 找到「組織」選單的切換按鈕
+                const orgToggle = Array.from(document.querySelectorAll('.submenu-toggle')).find(toggle => {
+                    const span = toggle.querySelector('span');
+                    return span && span.textContent.trim() === '組織';
+                });
+                
+                // 如果找到且是展開狀態，則收合它
+                if (orgToggle && orgToggle.classList.contains('open')) {
+                    orgToggle.classList.remove('open');
+                }
+            """)
+            page.wait_for_timeout(200)
         
         # 使用 JavaScript 直接切換頁面（更可靠）
         page.evaluate(f"""
@@ -100,6 +115,10 @@ class ScreenshotManager:
         
         # 等待頁面可見
         expect(page.locator(f'#page-{page_id}')).to_be_visible()
+        
+        # 特殊處理：個人檔案頁面和系統設定頁面需要額外的等待時間以確保標籤內容渲染完成
+        if page_id in ["profile", "settings"]:
+            page.wait_for_timeout(500)
         
         # 如果指定了額外的等待元素，也要等待
         if wait_for_selector:
@@ -159,10 +178,10 @@ class ScreenshotManager:
         self.login(page, "admin", "admin")
         page.wait_for_timeout(500)
         
-        # 頁面列表
+        # 頁面列表 - 按照選單順序排列
         pages_to_visit = [
-            "dashboard", "resources", "groups", "teams", "rules", "personnel",
-            "channels", "maintenance", "automation", "capacity", "logs",
+            "dashboard", "logs", "resources", "groups", "personnel", "teams", 
+            "channels", "rules", "maintenance", "automation", "capacity", 
             "profile", "settings"
         ]
         
@@ -532,14 +551,65 @@ class ScreenshotManager:
         self.take_gif_frame(page, "02_dashboard", 1000)
         print("- 捕獲儀表板")
         
-        # 3. 資源批量操作
-        print("- 導航至資源管理...")
-        page.locator("button.submenu-toggle", has_text="資源").click()
+        # 3. 通知中心下拉選單
+        print("- 打開通知中心下拉選單...")
+        page.locator("#notification-btn").click()
+        expect(page.locator("#notification-dropdown")).to_be_visible()
         page.wait_for_timeout(500)
-        page.locator('a[data-page="resources"]').click()
-        expect(page.locator("#page-resources")).to_be_visible()
-        page.wait_for_timeout(1000)
-        self.take_gif_frame(page, "03_resources_page")
+        self.take_gif_frame(page, "03_notification_dropdown")
+        page.locator("#notification-btn").click()
+        page.wait_for_timeout(500)
+        
+        # 4. AI 日誌分析
+        print("- 導航至日誌頁面...")
+        self.navigate_to_page(page, "logs", "#logs-grid")
+        self.take_gif_frame(page, "04_logs_page")
+        
+        # 5. 事件詳情彈窗
+        print("- 打開事件詳情彈窗...")
+        page.locator('#logs-grid .view-incident-btn').first.click()
+        expect(page.locator("#incident-modal")).to_be_visible()
+        page.wait_for_timeout(500)
+        self.take_gif_frame(page, "05_incident_details_modal")
+        page.locator("#incident-modal .close-modal-btn").first.click()
+        page.wait_for_timeout(500)
+        
+        print("- 選擇日誌進行 AI 分析...")
+        # 在 Grid.js 容器內定位，避免嚴格模式衝突
+        if page.locator('#logs-grid .log-checkbox').count() >= 2:
+            page.locator('#logs-grid .log-checkbox').nth(0).check()
+            page.wait_for_timeout(200)
+            page.locator('#logs-grid .log-checkbox').nth(1).check()
+            expect(page.locator("#generate-report-btn")).to_be_enabled()
+        page.wait_for_timeout(500)
+        self.take_gif_frame(page, "06_logs_selected")
+        
+        print("- 生成 AI 報告...")
+        page.locator('#generate-report-btn').click()
+        expect(page.locator("#gemini-modal")).to_be_visible()
+        page.wait_for_timeout(2000)
+        self.take_gif_frame(page, "07_logs_ai_report")
+        page.locator("#close-gemini-modal").click()
+        page.wait_for_timeout(500)
+        
+        # 6. 資源批量操作
+        print("- 導航至資源管理...")
+        self.navigate_to_page(page, "resources", "#resources-grid")
+        self.take_gif_frame(page, "08_resources_page")
+        
+        # 7. 網段掃描彈窗
+        print("- 打開網段掃描彈窗...")
+        page.locator('#scan-network-btn').click()
+        expect(page.locator("#form-modal")).to_be_visible()
+        page.wait_for_timeout(500)
+        self.take_gif_frame(page, "09_scan_network_initial_modal")
+        
+        print("- 執行掃描...")
+        page.locator("#form-modal-save-btn").click()
+        page.wait_for_timeout(3000)
+        self.take_gif_frame(page, "10_scan_network_results_modal")
+        # 等待自動關閉
+        page.wait_for_timeout(2000)
         
         print("- 選擇資源進行批量操作...")
         page.locator('#resources-grid .resource-checkbox[data-resource-id="1"]').first.check()
@@ -549,40 +619,103 @@ class ScreenshotManager:
         page.locator('#resources-grid .resource-checkbox[data-resource-id="5"]').first.check()
         expect(page.locator("#batch-operations-bar")).to_be_visible()
         page.wait_for_timeout(500)
-        self.take_gif_frame(page, "04_resources_batch_selection", 1000)
+        self.take_gif_frame(page, "11_resources_batch_selection", 1000)
         print("- 捕獲資源批量操作欄")
         
-        # 4. 人員管理模態框
-        print("- 導航至人員管理...")
-        page.locator("button.submenu-toggle", has_text="組織").click()
-        page.wait_for_timeout(500)
-        page.locator('a[data-page="personnel"]').click()
-        expect(page.locator("#page-personnel")).to_be_visible()
-        page.wait_for_timeout(1000)
-        self.take_gif_frame(page, "05_personnel_page")
-        
-        print("- 打開「新增人員」模態框...")
-        page.locator('#add-user-btn').click()
+        # 8. 新增資源彈窗
+        print("- 打開新增資源彈窗...")
+        page.locator('#add-resource-btn').click()
         expect(page.locator("#form-modal")).to_be_visible()
         page.wait_for_timeout(500)
-        self.take_gif_frame(page, "06_add_personnel_modal")
+        self.take_gif_frame(page, "12_add_resource_modal")
         page.locator("#form-modal .close-modal-btn").first.click()
         page.wait_for_timeout(500)
         
-        # 5. 告警規則折疊介面
-        print("- 導航至告警規則...")
-        page.locator("button.submenu-toggle", has_text="告警").click()
+        # 9. 刪除資源確認彈窗
+        print("- 打開刪除資源確認彈窗...")
+        page.locator('#resources-grid .delete-resource-btn').first.click()
+        expect(page.locator("#confirm-modal")).to_be_visible()
         page.wait_for_timeout(500)
-        page.locator('a[data-page="rules"]').click()
-        expect(page.locator("#page-rules")).to_be_visible()
-        page.wait_for_timeout(1000)
-        self.take_gif_frame(page, "07_rules_page")
+        self.take_gif_frame(page, "13_confirm_delete_resource_modal")
+        page.locator("#cancel-action-btn").click()
+        page.wait_for_timeout(500)
+        
+        # 10. 資源群組操作
+        print("- 導航至資源群組...")
+        self.navigate_to_page(page, "groups", "#groups-grid")
+        self.take_gif_frame(page, "14_groups_page")
+        
+        print("- 選擇資源群組進行批量操作...")
+        page.locator('#groups-grid .group-checkbox[data-group-id="1"]').first.check()
+        page.wait_for_timeout(200)
+        page.locator('#groups-grid .group-checkbox[data-group-id="2"]').first.check()
+        page.wait_for_timeout(200)
+        expect(page.locator("#groups-batch-operations-bar")).to_be_visible()
+        page.wait_for_timeout(500)
+        self.take_gif_frame(page, "15_groups_batch_selection", 1000)
+        print("- 捕獲資源群組批量操作欄")
+        
+        # 11. 人員管理
+        print("- 導航至人員管理...")
+        self.navigate_to_page(page, "personnel", "#personnel-grid")
+        self.take_gif_frame(page, "16_personnel_page")
+        
+        # 12. 新增人員彈窗
+        print("- 打開新增人員彈窗...")
+        page.locator('#add-user-btn').click()
+        expect(page.locator("#form-modal")).to_be_visible()
+        page.wait_for_timeout(500)
+        self.take_gif_frame(page, "17_add_personnel_modal")
+        page.locator("#form-modal .close-modal-btn").first.click()
+        page.wait_for_timeout(500)
+        
+        # 13. 編輯人員彈窗
+        print("- 打開編輯人員彈窗...")
+        page.locator('#personnel-grid .edit-user-btn').first.click()
+        expect(page.locator("#form-modal")).to_be_visible()
+        page.wait_for_timeout(500)
+        self.take_gif_frame(page, "18_edit_personnel_modal")
+        page.locator("#form-modal .close-modal-btn").first.click()
+        page.wait_for_timeout(500)
+        
+        # 14. 團隊管理
+        print("- 導航至團隊管理...")
+        self.navigate_to_page(page, "teams", "#teams-grid")
+        self.take_gif_frame(page, "19_teams_page")
+        
+        # 15. 編輯團隊彈窗
+        print("- 打開編輯團隊彈窗...")
+        page.locator('#teams-grid .edit-team-btn').first.click()
+        expect(page.locator("#form-modal")).to_be_visible()
+        page.wait_for_timeout(500)
+        self.take_gif_frame(page, "20_edit_team_modal")
+        page.locator("#form-modal .close-modal-btn").first.click()
+        page.wait_for_timeout(500)
+        
+        # 16. 通知管道
+        print("- 導航至通知管道...")
+        self.navigate_to_page(page, "channels", "#channels-grid")
+        self.take_gif_frame(page, "21_channels_page")
+        
+        # 17. 編輯通知管道彈窗
+        print("- 打開編輯通知管道彈窗...")
+        page.locator('#channels-grid .edit-channel-btn').first.click()
+        expect(page.locator("#form-modal")).to_be_visible()
+        page.wait_for_timeout(500)
+        self.take_gif_frame(page, "22_edit_channel_modal")
+        page.locator("#form-modal .close-modal-btn").first.click()
+        page.wait_for_timeout(500)
+        
+        # 18. 告警規則折疊介面
+        print("- 導航至告警規則...")
+        self.navigate_to_page(page, "rules", "#rules-grid")
+        self.take_gif_frame(page, "23_rules_page")
         
         print("- 打開「新增規則」模態框並展示折疊...")
         page.locator('#add-rule-btn').click()
         expect(page.locator("#form-modal")).to_be_visible()
         page.wait_for_timeout(800)
-        self.take_gif_frame(page, "08_add_rule_modal")
+        self.take_gif_frame(page, "24_add_rule_modal")
         
         # 展開自動化部分
         page.locator('.accordion-header').nth(1).click()
@@ -593,60 +726,38 @@ class ScreenshotManager:
             print("    - 跳過自動化腳本選擇")
         
         page.wait_for_timeout(500)
-        self.take_gif_frame(page, "09_add_rule_modal_automation_expanded")
+        self.take_gif_frame(page, "25_add_rule_modal_automation_expanded")
         
         # 展開通知部分
         page.locator('.accordion-header').nth(2).click()
         page.wait_for_timeout(500)
-        self.take_gif_frame(page, "10_add_rule_modal_all_expanded")
+        self.take_gif_frame(page, "26_add_rule_modal_all_expanded")
         page.locator("#form-modal .close-modal-btn").first.click()
         page.wait_for_timeout(500)
         
-        # 6. AI 日誌分析
-        print("- 導航至日誌頁面...")
-        page.locator('a[data-page="logs"]').click()
-        expect(page.locator("#page-logs")).to_be_visible()
-        page.wait_for_timeout(1000)
-        self.take_gif_frame(page, "11_logs_page")
-        
-        print("- 選擇日誌進行 AI 分析...")
-        # 在 Grid.js 容器內定位，避免嚴格模式衝突
-        if page.locator('#logs-grid .log-checkbox').count() >= 2:
-            page.locator('#logs-grid .log-checkbox').nth(0).check()
-            page.wait_for_timeout(200)
-            page.locator('#logs-grid .log-checkbox').nth(1).check()
-            expect(page.locator("#generate-report-btn")).to_be_enabled()
-        page.wait_for_timeout(500)
-        self.take_gif_frame(page, "12_logs_selected")
-        
-        print("- 生成 AI 報告...")
-        page.locator('#generate-report-btn').click()
-        expect(page.locator("#gemini-modal")).to_be_visible()
-        page.wait_for_timeout(2000)
-        self.take_gif_frame(page, "13_logs_ai_report")
-        page.locator("#close-gemini-modal").click()
-        page.wait_for_timeout(500)
-        
-        # 7. 自動化頁面標籤
+        # 19. 自動化頁面標籤
         print("- 導航至自動化頁面...")
-        page.locator("button.submenu-toggle", has_text="分析與自動化").click()
-        page.wait_for_timeout(500)
-        page.locator('a[data-page="automation"]').click()
-        expect(page.locator("#page-automation")).to_be_visible()
-        page.wait_for_timeout(1000)
-        self.take_gif_frame(page, "14_automation_scripts_tab")
+        self.navigate_to_page(page, "automation", "#scripts-content")
+        self.take_gif_frame(page, "27_automation_scripts_tab")
         
         print("- 切換至執行日誌標籤...")
         page.locator('#execution-logs-tab').click()
         page.wait_for_timeout(500)
-        self.take_gif_frame(page, "15_automation_logs_tab")
+        self.take_gif_frame(page, "28_automation_logs_tab")
         
-        # 8. 容量規劃分析
+        # 20. 自動化執行日誌輸出彈窗
+        print("- 打開自動化執行日誌輸出彈窗...")
+        page.locator('#execution-logs-grid .view-output-btn').first.click()
+        expect(page.locator("#form-modal")).to_be_visible()
+        page.wait_for_timeout(500)
+        self.take_gif_frame(page, "29_execution_log_output_modal")
+        page.locator("#form-modal .close-modal-btn").first.click()
+        page.wait_for_timeout(500)
+        
+        # 21. 容量規劃分析
         print("- 導航至容量規劃頁面...")
-        page.locator('a[data-page="capacity"]').click()
-        expect(page.locator("#page-capacity")).to_be_visible()
-        page.wait_for_timeout(1000)
-        self.take_gif_frame(page, "16_capacity_planning_page")
+        self.navigate_to_page(page, "capacity")
+        self.take_gif_frame(page, "30_capacity_planning_page")
         
         print("- 運行分析...")
         
@@ -657,30 +768,51 @@ class ScreenshotManager:
         page.locator('#analyze-capacity-btn').click()
         expect(page.locator("#capacity-results")).to_be_visible()
         page.wait_for_timeout(2500)
-        self.take_gif_frame(page, "17_capacity_planning_results")
+        self.take_gif_frame(page, "31_capacity_planning_results")
         
-        # 9. 個人檔案標籤
+        # 22. 個人檔案標籤
         print("- 導航至個人檔案頁面...")
-        page.locator('a[data-page="profile"]').first.click()
-        expect(page.locator("#page-profile")).to_be_visible()
-        page.wait_for_timeout(1000)
-        self.take_gif_frame(page, "18_profile_info_tab")
+        self.navigate_to_page(page, "profile", "#page-profile")
+        self.take_gif_frame(page, "32_profile_info_tab")
+        
+        # 23. 操作成功反饋提示
+        print("- 觸發操作成功反饋提示...")
+        # 確保激活 info 標籤
+        page.locator('.profile-tab[data-tab="info"]').click()
+        page.wait_for_timeout(500)
+        page.locator("#profile-name-input").fill("Test Name")
+        page.get_by_role("button", name="更新資訊").click()
+        expect(page.locator("#feedback-modal")).to_be_visible()
+        page.wait_for_timeout(500)
+        self.take_gif_frame(page, "33_feedback_modal")
+        page.locator("#app").click()
+        page.wait_for_timeout(500)
         
         print("- 切換至安全標籤...")
         page.locator('.profile-tab[data-tab="security"]').click()
         page.wait_for_timeout(500)
-        self.take_gif_frame(page, "19_profile_security_tab")
+        self.take_gif_frame(page, "34_profile_security_tab")
         
         print("- 切換至通知標籤...")
         page.locator('.profile-tab[data-tab="notifications"]').click()
         page.wait_for_timeout(500)
-        self.take_gif_frame(page, "20_profile_notifications_tab")
+        self.take_gif_frame(page, "35_profile_notifications_tab")
         
-        # 10. 登出
+        # 24. 系統設定標籤
+        print("- 導航至系統設定頁面...")
+        self.navigate_to_page(page, "settings", "#page-settings")
+        self.take_gif_frame(page, "36_settings_integration_tab")
+        
+        print("- 切換至通知設定標籤...")
+        page.locator('.settings-tab[data-tab="notification"]').click()
+        page.wait_for_timeout(500)
+        self.take_gif_frame(page, "37_settings_notification_tab")
+        
+        # 25. 登出
         page.wait_for_timeout(1000)
         page.locator("#logout-btn").click()
         expect(page.locator("#login-page")).to_be_visible()
-        self.take_gif_frame(page, "21_logout")
+        self.take_gif_frame(page, "38_logout")
         
         print(f"捕獲了 {self.frame_count} 個幀到 '{self.base_dir}/gif_frames'")
         page.close()
@@ -698,8 +830,6 @@ class ScreenshotManager:
             
             try:
                 # 執行各項截圖任務
-                self.capture_pages(browser)
-                self.capture_modals(browser)
                 self.capture_by_roles(browser)
                 self.capture_gif_frames(browser)
                 
@@ -708,8 +838,6 @@ class ScreenshotManager:
                 
         print("=== 所有截圖任務完成 ===")
         print(f"輸出目錄: {self.base_dir}")
-        print(f"- 頁面截圖: {self.base_dir}/screenshot_pages/")
-        print(f"- 模態框截圖: {self.base_dir}/screenshot_modals/")
         print(f"- 角色權限截圖: {self.base_dir}/screenshot_by_role/verification/")
         print(f"- GIF 幀: {self.base_dir}/gif_frames/ ({self.frame_count} 個幀)")
 
@@ -727,10 +855,6 @@ def main():
                        help='瀏覽器視窗寬度 (預設: 1440)')
     parser.add_argument('--height', type=int, default=900, 
                        help='瀏覽器視窗高度 (預設: 900)')
-    parser.add_argument('--pages-only', action='store_true',
-                       help='僅執行頁面截圖')
-    parser.add_argument('--modals-only', action='store_true',
-                       help='僅執行模態框截圖')
     parser.add_argument('--roles-only', action='store_true',
                        help='僅執行角色權限截圖')
     parser.add_argument('--gif-only', action='store_true',
@@ -755,18 +879,12 @@ def main():
         
         try:
             # 根據參數執行特定任務
-            if args.pages_only:
-                screenshot_manager.capture_pages(browser)
-            elif args.modals_only:
-                screenshot_manager.capture_modals(browser)
-            elif args.roles_only:
+            if args.roles_only:
                 screenshot_manager.capture_by_roles(browser)
             elif args.gif_only:
                 screenshot_manager.capture_gif_frames(browser)
             else:
                 # 執行所有任務
-                screenshot_manager.capture_pages(browser)
-                screenshot_manager.capture_modals(browser)
                 screenshot_manager.capture_by_roles(browser)
                 screenshot_manager.capture_gif_frames(browser)
                 

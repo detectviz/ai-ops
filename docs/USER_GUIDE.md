@@ -54,6 +54,9 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
 - **通知中心**: 以鈴鐺圖示呈現，點擊可查看最新的系統通知。
 - **使用者選單**: 點擊您的頭像或名稱，可進行登出或前往「個人資料」頁面。
 
+![通知中心](jules-scratch/gif_frames/frame_002_03_notification_dropdown.png)
+
+
 ## 3. 儀表板 (Dashboard)
 
 ### 設計目標
@@ -65,7 +68,7 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
 - **關鍵績效指標 (KPI)**: 包含「資源妥善率」、「總資源數」等核心指標。
 - **圖表區**: 透過「資源群組狀態總覽」長條圖與「資源狀態分佈」圓餅圖，讓您能快速從宏觀角度掌握整體系統的健康度。
 
-![儀表板](jules-scratch/screenshot_pages/dashboard.png)
+![儀表板](jules-scratch/gif_frames/frame_001_02_dashboard.png)
 
 ## 4. 資源管理 (Resource Management)
 
@@ -78,8 +81,8 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
 - **表格增強**: 資料表格的每一行前方提供一個 **複選框 (Checkbox)**，表頭處提供「全選/取消全選」功能。
 - **動態操作欄**: 當使用者勾選任一資源後，表格頂部會動態出現一個「批次操作欄」，顯示已選取的項目數量，並提供「批次刪除」、「批次加入群組」與「批次移出群組」等按鈕。
 
-![資源管理](jules-scratch/screenshot_pages/resources.png)
-![資源批次操作](jules-scratch/gif_frames/frame_003_04_resources_batch_selection.png)
+![資源管理](jules-scratch/gif_frames/frame_007_08_resources_page.png)
+![資源批次操作](jules-scratch/gif_frames/frame_010_11_resources_batch_selection.png)
 
 ### 4.2. 網段掃描與探索
 
@@ -87,8 +90,8 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
 - **非同步掃描**: 使用者輸入 CIDR 格式的網段（如 192.168.1.0/24）後，後端將執行非同步掃描任務。
 - **結果匯入**: 掃描完成後，使用者可在結果列表中勾選需要匯入的資源，實現批次新增。
 
-![網段掃描初始畫面](jules-scratch/screenshot_modals/modal_scan_network_initial.png)
-![網段掃描結果](jules-scratch/screenshot_modals/modal_scan_network_results.png)
+![網段掃描初始畫面](jules-scratch/gif_frames/frame_008_09_scan_network_initial_modal.png)
+![網段掃描結果](jules-scratch/gif_frames/frame_009_10_scan_network_results_modal.png)
 
 
 ## 5. 組織與權限管理
@@ -102,8 +105,8 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
   - **權限管理**: 在「新增/編輯人員」的彈出視窗中，管理者僅能設定與組織權限相關的欄位：姓名 (Name)、角色 (Role)、團隊歸屬 (Team Membership)。
   - **職責分離**: 所有個人化的聯絡方式與通知偏好，皆已移至使用者自己的「個人資料」頁面進行管理。彈出視窗的介面會明確提示管理者此點。
 
-![人員管理](jules-scratch/screenshot_pages/personnel.png)
-![新增人員](jules-scratch/gif_frames/frame_005_06_add_personnel_modal.png)
+![人員管理](jules-scratch/gif_frames/frame_015_16_personnel_page.png)
+![新增人員](jules-scratch/gif_frames/frame_016_17_add_personnel_modal.png)
 
 ### 5.2. 團隊管理 (Teams)
 
@@ -111,8 +114,8 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
   - **訂閱者管理**: 在「新增/編輯團隊」的彈出視窗中，核心功能是管理該團隊的「通知訂閱者 (Subscribers)」。
   - **統一選擇器**: 提供一個統一的搜尋框，讓管理者可以從「所有人員」和「所有通知管道」中，選擇多個項目作為此團隊的訂閱者。這實現了將告警同時發送給特定人員和特定管道 (如 Slack) 的靈活性。
 
-![團隊管理](jules-scratch/screenshot_pages/teams.png)
-![編輯團隊](jules-scratch/screenshot_modals/modal_edit_team.png)
+![團隊管理](jules-scratch/gif_frames/frame_018_19_teams_page.png)
+![編輯團隊](jules-scratch/gif_frames/frame_019_20_edit_team_modal.png)
 
 ## 6. 告警規則 (Alert Rules)
 
@@ -130,8 +133,8 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
   - 在「通知內容自定義」區塊中，提供 `自訂標題` 與 `自訂內容` 兩個欄位。
   - 支援變數模板功能，允許使用者插入如 `{{ .ResourceName }}`、`{{ .MetricValue }}` 等變數。
 
-![告警規則頁面](jules-scratch/screenshot_pages/rules.png)
-![新增告警規則的彈出視窗](jules-scratch/gif_frames/frame_009_10_add_rule_modal_all_expanded.png)
+![告警規則頁面](jules-scratch/gif_frames/frame_022_23_rules_page.png)
+![新增告警規則的彈出視窗](jules-scratch/gif_frames/frame_023_24_add_rule_modal.png)
 
 ## 7. 自動化 (Automation)
 
@@ -142,12 +145,11 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
 此頁面包含兩個子頁籤：
 
 - **腳本庫 (Scripts)**: 提供介面讓管理者可以上傳、編輯、刪除自動化腳本（如 Shell Script, Ansible Playbook），並定義腳本需要的輸入參數。
+![自動化 - 腳本庫](jules-scratch/gif_frames/frame_026_27_automation_scripts_tab.png)
+
 - **執行日誌 (Execution Logs)**: 顯示所有自動化腳本的歷史執行紀錄，包含觸發事件、執行時間、狀態與結果，方便追蹤與除錯。
-
-![自動化頁面](jules-scratch/screenshot_pages/automation.png)
-![自動化 - 腳本庫](jules-scratch/gif_frames/frame_013_14_automation_scripts_tab.png)
-![自動化 - 執行日誌](jules-scratch/screenshot_pages/automation_execution_logs.png)
-
+![自動化 - 執行日誌](jules-scratch/gif_frames/frame_027_28_automation_logs_tab.png)
+![自動化 - 執行日誌詳情](jules-scratch/gif_frames/frame_028_29_execution_log_output_modal.png)
 ## 8. 容量規劃 (Capacity Planning)
 
 ### 設計目標
@@ -155,12 +157,12 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
 
 ### 功能規格
 - **輸入**: 頁面頂部提供下拉選單，讓使用者選擇一個「資源群組」與一個關鍵效能指標（如 平均 CPU 使用率、總磁碟空間使用率）。
+![容量規劃](jules-scratch/gif_frames/frame_029_30_capacity_planning_page.png)
+
 - **輸出**: 選擇完畢並執行分析後，頁面會顯示以下結果：
   - **關鍵預測指標**: 以卡片形式呈現，例如：「預計將在 **45 天後** 達到 80% 警戒線」、「平均每月增長率： **5.2%**」。
   - **趨勢圖**: 一張由 Chart.js 繪製的圖表，同時包含過去的歷史數據趨勢線與基於演算法預測的未來趨勢線。
-
-![容量規劃](jules-scratch/screenshot_pages/capacity.png)
-![容量規劃結果](jules-scratch/gif_frames/frame_016_17_capacity_planning_results.png)
+![容量規劃結果](jules-scratch/gif_frames/frame_030_31_capacity_planning_results.png)
 
 ## 9. 告警紀錄 (Logs/Incidents)
 
@@ -169,12 +171,13 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
 
 ### 功能規格
 - **進階篩選**: 提供基於時間範圍、告警等級 (高/中/低) 與處理狀態 (新、處理中、已解決) 的篩選功能。
-- **AI 輔助報告**: 允許使用者勾選多筆關聯事件，點擊「生成事件報告」按鈕，由 Gemini AI 自動產出結構化的事件分析報告。
-- **事件詳情**: 點擊單筆紀錄可開啟彈出視窗，查看詳細資訊、新增處理註記、指派處理人員，並執行 Ack (確認) 或 Resolve (解決) 等操作。
+![告警紀錄](jules-scratch/gif_frames/frame_003_04_logs_page.png)
 
-![告警紀錄](jules-scratch/screenshot_pages/logs.png)
-![事件詳情](jules-scratch/screenshot_modals/modal_incident_details.png)
-![AI 輔助報告](jules-scratch/gif_frames/frame_012_13_logs_ai_report.png)
+- **事件詳情**: 點擊單筆紀錄可開啟彈出視窗，查看詳細資訊、新增處理註記、指派處理人員，並執行 Ack (確認) 或 Resolve (解決) 等操作。
+![事件詳情](jules-scratch/gif_frames/frame_005_06_logs_selected.png)
+
+- **AI 輔助報告**: 允許使用者勾選多筆關聯事件，點擊「生成事件報告」按鈕，由 Gemini AI 自動產出結構化的事件分析報告。
+![AI 輔助報告](jules-scratch/gif_frames/frame_006_07_logs_ai_report.png)
 
 ## 10. 通知管道 (Notification Channels)
 
@@ -183,10 +186,9 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
 
 ### 功能規格
 - **擴充管道類型**: 在「新增/編輯通知管道」的彈出視窗中，將「管道類型」下拉選單擴充，需包含 `Email`, `Webhook (通用)`, `Slack`, `LINE Notify`, `SMS`。
+![通知管道](jules-scratch/gif_frames/frame_020_21_channels_page.png)
 - **動態表單**: 根據使用者選擇的「管道類型」，動態變化下方的設定欄位，例如為 `Slack` 顯示 `Incoming Webhook URL` 輸入框，為 `LINE Notify` 顯示 `存取權杖` 輸入框。
-
-![通知管道](jules-scratch/screenshot_pages/channels.png)
-![編輯通知管道](jules-scratch/screenshot_modals/modal_edit_channel.png)
+![編輯通知管道](jules-scratch/gif_frames/frame_021_22_edit_channel_modal.png)
 
 ## 11. 個人資料與系統設定
 
@@ -197,15 +199,18 @@ Control Plane 是一個以後端驅動 (Backend-Driven) 為核心理念的現代
 
 - **功能規格**:
   - **頁籤式佈局**: 採用頁籤式設計，將「個人資訊」、「密碼安全」與「通知設定」清晰地劃分。
+  ![個人資料 - 個人資訊](jules-scratch/gif_frames/frame_031_32_profile_info_tab.png)
   - **安全的聯絡方式驗證**: 在「通知設定」頁籤中，每一個聯絡管道（Email, LINE, SMS）都擁有獨立的狀態指示器（已驗證 / 未驗證）與操作按鈕（儲存、傳送驗證、測試）。系統在發送告警時，只會將通知發送到狀態為「已驗證」的聯絡方式。
+  ![個人資料 - 密碼安全](jules-scratch/gif_frames/frame_033_34_profile_security_tab.png)
+  ![個人資料 - 通知設定](jules-scratch/gif_frames/frame_034_35_profile_notifications_tab.png)
 
-![個人資料 - 通知設定](jules-scratch/gif_frames/frame_019_20_profile_notifications_tab.png)
+
 
 ### 11.2. 系統設定 (Settings)
 
 - **功能規格 (僅限管理員)**:
   - **頁籤式佈局**: 同樣採用頁籤式設計，劃分「整合設定」與「通知設定」。
   - **整合設定**: 包含與外部系統（如 Grafana）的串接參數。
+  ![系統設定 - 整合設定](jules-scratch/gif_frames/frame_035_36_settings_integration_tab.png)
   - **通知設定**: 包含系統發送通知所使用的後端服務設定（如 SMTP 伺服器、SMS 閘道）。
-
-![系統設定 - 通知設定](jules-scratch/screenshot_pages/settings_notification_tab.png)
+  ![系統設定 - 通知設定](jules-scratch/gif_frames/frame_034_35_profile_notifications_tab.png)
