@@ -1,3 +1,4 @@
+// services/control-plane/internal/services/sre_assistant_client.go
 package services
 
 import (
@@ -14,16 +15,23 @@ import (
 	"go.uber.org/zap"
 )
 
-// SreAssistantClientImpl 是與 SRE Assistant 服務通訊的具體實現。
+// SreAssistantClient 定義了與 SRE Assistant 服務通訊的介面
+type SreAssistantClient interface {
+	DiagnoseDeployment(ctx context.Context, req *DiagnosticRequest) (*DiagnosticResponse, error)
+	GetDiagnosticStatus(ctx context.Context, sessionID string) (*DiagnosticStatus, error)
+	PollDiagnosticStatus(ctx context.Context, sessionID string) (*DiagnosticResult, error)
+}
+
+// SreAssistantClientImpl 是 SreAssistantClient 的具體實現
 type SreAssistantClientImpl struct {
 	baseURL    string
 	httpClient *http.Client
-	authSvc    *auth.KeycloakService
+	authSvc    auth.KeycloakService
 	logger     *otelzap.Logger
 }
 
-// NewSreAssistantClient 建立一個新的 SRE Assistant 客戶端實例。
-func NewSreAssistantClient(baseURL string, authSvc *auth.KeycloakService, logger *otelzap.Logger) *SreAssistantClientImpl {
+// NewSreAssistantClient 建立一個新的 SRE Assistant 客戶端實例
+func NewSreAssistantClient(baseURL string, authSvc auth.KeycloakService, logger *otelzap.Logger) SreAssistantClient {
 	return &SreAssistantClientImpl{
 		baseURL: baseURL,
 		httpClient: &http.Client{
@@ -34,83 +42,162 @@ func NewSreAssistantClient(baseURL string, authSvc *auth.KeycloakService, logger
 	}
 }
 
-// DiagnoseDeploymentRequest 定義了發送到 SRE Assistant 的請求體結構。
-// 這對應於 openapi.yaml 中的 DeploymentRequestContext。
-type DiagnoseDeploymentRequest struct {
-	Context struct {
-		DeploymentID string `json:"deployment_id"`
-		ServiceName  string `json:"service_name"`
-		Namespace    string `json:"namespace"`
-	} `json:"context"`
+// --- 資料結構 (對應 openapi.yaml) ---
+
+type DiagnosticRequest struct {
+	IncidentID       string            `json:"incident_id"`
+	Severity         string            `json:"severity"`
+	AffectedServices []string          `json:"affected_services"`
+	Context          map[string]string `json:"context"`
 }
 
-// DiagnoseDeploymentResponse 定義了從 SRE Assistant 返回的響應體結構。
-// 這對應於 openapi.yaml 中的 SessionResponse。
-type DiagnoseDeploymentResponse struct {
-	SessionID string `json:"session_id"`
-	Message   string `json:"message"`
+type DiagnosticResponse struct {
+	SessionID     string `json:"session_id"`
+	Status        string `json:"status"`
+	Message       string `json:"message"`
+	EstimatedTime int    `json:"estimated_time"`
 }
 
-// DiagnoseDeployment 呼叫 SRE Assistant 的 /diagnostics/deployment 端點。
-func (c *SreAssistantClientImpl) DiagnoseDeployment(ctx context.Context, deploymentID string, serviceName string, namespace string) (*DiagnoseDeploymentResponse, error) {
-	c.logger.Ctx(ctx).Info("準備呼叫 SRE Assistant 進行部署診斷", zap.String("deploymentID", deploymentID))
+type DiagnosticResult struct {
+	Summary            string    `json:"summary"`
+	Findings           []Finding `json:"findings"`
+	RecommendedActions []string  `json:"recommended_actions"`
+	ConfidenceScore    float64   `json:"confidence_score"`
+	ToolsUsed          []string  `json:"tools_used"`
+	ExecutionTime      float64   `json:"execution_time"`
+}
 
-	// 1. 獲取 M2M 權杖
+type Finding struct {
+	Source    string                 `json:"source"`
+	Severity  string                 `json:"severity"`
+	Message   string                 `json:"message"`
+	Evidence  map[string]interface{} `json:"evidence"`
+	Timestamp time.Time              `json:"timestamp"`
+}
+
+type DiagnosticStatus struct {
+	SessionID   string            `json:"session_id"`
+	Status      string            `json:"status"`
+	Progress    int               `json:"progress"`
+	CurrentStep string            `json:"current_step"`
+	Result      *DiagnosticResult `json:"result,omitempty"`
+	Error       string            `json:"error,omitempty"`
+}
+
+// DiagnoseDeployment 呼叫 SRE Assistant 的 /api/v1/diagnostics/deployment 端點
+func (c *SreAssistantClientImpl) DiagnoseDeployment(ctx context.Context, req *DiagnosticRequest) (*DiagnosticResponse, error) {
+	c.logger.Ctx(ctx).Info("準備呼叫 SRE Assistant 進行部署診斷", zap.String("incidentID", req.IncidentID))
+
 	token, err := c.authSvc.GetM2MToken(ctx)
 	if err != nil {
 		c.logger.Ctx(ctx).Error("無法獲取 M2M 權杖", zap.Error(err))
 		return nil, fmt.Errorf("無法獲取 M2M 權杖: %w", err)
 	}
 
-	// 2. 建立請求體
-	reqBody := DiagnoseDeploymentRequest{}
-	reqBody.Context.DeploymentID = deploymentID
-	reqBody.Context.ServiceName = serviceName
-	reqBody.Context.Namespace = namespace
-
-	payload, err := json.Marshal(reqBody)
+	payload, err := json.Marshal(req)
 	if err != nil {
-		c.logger.Ctx(ctx).Error("無法序列化請求體", zap.Error(err))
 		return nil, fmt.Errorf("無法序列化請求體: %w", err)
 	}
 
-	// 3. 建立 HTTP 請求
-	url := fmt.Sprintf("%s/diagnostics/deployment", c.baseURL)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(payload))
+	url := fmt.Sprintf("%s/api/v1/diagnostics/deployment", c.baseURL)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(payload))
 	if err != nil {
-		c.logger.Ctx(ctx).Error("無法建立 HTTP 請求", zap.Error(err))
 		return nil, fmt.Errorf("無法建立 HTTP 請求: %w", err)
 	}
 
-	// 4. 設定標頭
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+token)
 
-	// 5. 發送請求
-	c.logger.Ctx(ctx).Info("正在向 SRE Assistant 發送請求", zap.String("url", url))
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		c.logger.Ctx(ctx).Error("向 SRE Assistant 發送請求失敗", zap.Error(err))
 		return nil, fmt.Errorf("向 SRE Assistant 發送請求失敗: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// 6. 處理響應
 	if resp.StatusCode != http.StatusAccepted {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		c.logger.Ctx(ctx).Error("SRE Assistant 返回非預期的狀態碼",
-			zap.Int("statusCode", resp.StatusCode),
-			zap.String("body", string(bodyBytes)),
-		)
-		return nil, fmt.Errorf("SRE Assistant 返回非預期的狀態碼: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("SRE Assistant 返回非預期的狀態碼: %d, body: %s", resp.StatusCode, string(body))
 	}
 
-	var respBody DiagnoseDeploymentResponse
+	var respBody DiagnosticResponse
 	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		c.logger.Ctx(ctx).Error("無法解碼 SRE Assistant 的響應", zap.Error(err))
 		return nil, fmt.Errorf("無法解碼 SRE Assistant 的響應: %w", err)
 	}
 
-	c.logger.Ctx(ctx).Info("成功收到 SRE Assistant 的響應", zap.String("sessionID", respBody.SessionID))
+	c.logger.Ctx(ctx).Info("成功收到 SRE Assistant 的非同步任務回應", zap.String("sessionID", respBody.SessionID))
 	return &respBody, nil
+}
+
+// GetDiagnosticStatus 呼叫 SRE Assistant 的 /api/v1/diagnostics/{session_id}/status 端點
+func (c *SreAssistantClientImpl) GetDiagnosticStatus(ctx context.Context, sessionID string) (*DiagnosticStatus, error) {
+	token, err := c.authSvc.GetM2MToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("無法獲取 M2M 權杖: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/diagnostics/%s/status", c.baseURL, sessionID)
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("無法建立 HTTP 請求: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("查詢狀態失敗: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("查詢狀態時返回非預期的狀態碼: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	var statusBody DiagnosticStatus
+	if err := json.NewDecoder(resp.Body).Decode(&statusBody); err != nil {
+		return nil, fmt.Errorf("無法解碼狀態響應: %w", err)
+	}
+
+	return &statusBody, nil
+}
+
+// PollDiagnosticStatus 輪詢診斷狀態直到完成或超時
+func (c *SreAssistantClientImpl) PollDiagnosticStatus(ctx context.Context, sessionID string) (*DiagnosticResult, error) {
+	c.logger.Ctx(ctx).Info("開始輪詢診斷狀態", zap.String("sessionID", sessionID))
+
+	// 設定輪詢間隔與超時
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
+	for {
+		select {
+		case <-timeoutCtx.Done():
+			return nil, fmt.Errorf("輪詢診斷結果超時 (5分鐘)")
+		case <-ticker.C:
+			c.logger.Ctx(ctx).Info("正在查詢任務狀態...", zap.String("sessionID", sessionID))
+			status, err := c.GetDiagnosticStatus(timeoutCtx, sessionID)
+			if err != nil {
+				c.logger.Ctx(ctx).Warn("查詢狀態失敗，將重試", zap.Error(err))
+				continue
+			}
+
+			switch status.Status {
+			case "completed":
+				c.logger.Ctx(ctx).Info("診斷任務完成", zap.String("sessionID", sessionID))
+				return status.Result, nil
+			case "failed":
+				c.logger.Ctx(ctx).Error("診斷任務失敗", zap.String("sessionID", sessionID), zap.String("error", status.Error))
+				return nil, fmt.Errorf("診斷任務失敗: %s", status.Error)
+			case "processing":
+				c.logger.Ctx(ctx).Info("任務仍在處理中", zap.String("sessionID", sessionID), zap.String("step", status.CurrentStep))
+				// 繼續輪詢
+			default:
+				// 繼續輪詢
+			}
+		}
+	}
 }

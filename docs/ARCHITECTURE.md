@@ -253,17 +253,22 @@ sequenceDiagram
     CP->>KC: 2. 重定向到登入頁面
     U->>KC: 3. 輸入認證資訊
     KC->>CP: 4. 回調並提供授權碼
-    CP->>KC: 5. 交換 Access Token & ID Token
-    KC-->>CP: 6. 返回 Tokens
-    CP-->>U: 7. 設置 Session Cookie
+    CP->>KC: 5. 交換 Access Token
+    KC-->>CP: 6. 返回 Token
+    CP-->>U: 7. 設置 Session
     
-    Note over CP,SA: 服務間認證流程 (Client Credentials Flow)
+    Note over CP,SA: 服務間非同步診斷流程
     CP->>KC: 8. 請求 M2M Token
     KC-->>CP: 9. 返回 Service Token
     CP->>SA: 10. API 調用 (Bearer Token)
-    SA->>KC: 11. 驗證 Token 有效性
-    KC-->>SA: 12. 返回 Token 信息
-    SA-->>CP: 13. 返回 API 響應
+    activate SA
+    SA-->>CP: 11. 202 Accepted (返回 session_id)
+    deactivate SA
+    
+    CP->>SA: 12. 輪詢狀態 (GET /status/{session_id})
+    activate SA
+    SA-->>CP: 13. 200 OK (返回最終結果)
+    deactivate SA
 ```
 
 ### 🔄 API 設計模式

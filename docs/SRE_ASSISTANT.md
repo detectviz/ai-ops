@@ -102,11 +102,13 @@ services/sre-assistant/
 
 - **`POST /diagnostics/deployment`**
   - **用途**: 專門用於診斷部署失敗或部署後健康狀況不佳的場景。
-  - **核心工作流程**:
-    1. 啟動 `DeploymentDiagnosticsWorkflow`。
-    2. 並行執行 `PrometheusQueryTool`、`LokiLogQueryTool` 和 `ControlPlaneTool` 等工具來收集數據。
-    3. (未來目標) 將收集到的所有資訊交給 LLM Agent 進行綜合分析。
-    4. (目前實現) 根據預定義的規則對收集到的數據進行簡單分析，生成診斷摘要。
+  - **核心工作流程 (非同步)**:
+    1. **接收請求**: API 端點接收到請求後，立即建立一個唯一的 `session_id`。
+    2. **啟動背景任務**: 將 `session_id` 和請求內容傳遞給一個背景任務 (background task) 進行處理。
+    3. **立即回應**: API 端點立即向客戶端返回 `202 Accepted` 和 `session_id`，不等待診斷完成。
+    4. **背景執行**: 背景任務中的 `SREWorkflow` 開始執行，並行呼叫 `PrometheusQueryTool`, `LokiLogQueryTool` 等工具。
+    5. **狀態更新**: 工作流程在執行過程中，會將進度 (如 "processing", "completed") 和最終結果更新到一個共享的任務儲存中（以 `session_id` 為鍵）。
+    6. **輪詢查詢**: 客戶端 (Control Plane) 使用 `session_id` 定期輪詢 `/diagnostics/{session_id}/status` 端點來獲取最新狀態和最終的診斷報告。
   - **Payload**:
     ```json
     {

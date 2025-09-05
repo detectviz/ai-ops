@@ -322,13 +322,26 @@ sequenceDiagram
     participant CP as 🎯 Control Plane
     participant SA as 🤖 SRE Assistant
     
-    U->>CP: 🚨 發現部署異常
-    CP->>SA: 📤 發起診斷請求 (JWT)
-    SA->>SA: 🔍 執行並行診斷工具
-    Note over SA: Prometheus + Loki + ...
-    SA->>SA: 🔬 分析與綜合結果
-    SA-->>CP: 📋 返回結構化診斷報告
-    CP-->>U: ✅ 顯示解決方案
+    U->>CP: 1. 點擊「診斷部署」
+    CP->>SA: 2. POST /api/v1/diagnostics/deployment
+    activate SA
+    Note over SA: 啟動背景任務
+    SA-->>CP: 3. 202 Accepted (返回 session_id)
+    deactivate SA
+    
+    loop 輪詢任務狀態
+        CP->>SA: 4. GET /diagnostics/{session_id}/status
+        activate SA
+        SA-->>CP: 5. 200 OK (返回 "processing")
+        deactivate SA
+    end
+    
+    CP->>SA: 6. GET /diagnostics/{session_id}/status
+    activate SA
+    SA-->>CP: 7. 200 OK (返回 "completed" 與最終報告)
+    deactivate SA
+    
+    CP-->>U: 8. 在 UI 上顯示診斷報告
 ```
 
 ---

@@ -1754,6 +1754,62 @@ jobs:
 
 ### 🎯 Go 代碼規範
 
+#### 非同步 API 客戶端 (`sre_assistant_client.go`)
+
+```go
+// services/control-plane/internal/services/sre_assistant_client.go
+package services
+
+// ... (資料結構定義) ...
+
+// DiagnoseDeployment 呼叫 SRE Assistant 的非同步端點
+func (c *SreAssistantClientImpl) DiagnoseDeployment(ctx context.Context, req *DiagnosticRequest) (*DiagnosticResponse, error) {
+    // ... (建立請求和設定標頭) ...
+    
+    resp, err := c.httpClient.Do(httpReq)
+    // ... (錯誤處理) ...
+
+    // 驗證狀態碼是否為 202 Accepted
+    if resp.StatusCode != http.StatusAccepted {
+        return nil, fmt.Errorf("非預期的狀態碼: %d", resp.StatusCode)
+    }
+
+    var respBody DiagnosticResponse
+    // ... (解碼回應) ...
+    return &respBody, nil
+}
+
+// PollDiagnosticStatus 輪詢診斷狀態直到完成
+func (c *SreAssistantClientImpl) PollDiagnosticStatus(ctx context.Context, sessionID string) (*DiagnosticResult, error) {
+    ticker := time.NewTicker(5 * time.Second) // 每 5 秒輪詢一次
+    defer ticker.Stop()
+    
+    timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Minute) // 5 分鐘超時
+    defer cancel()
+
+    for {
+        select {
+        case <-timeoutCtx.Done():
+            return nil, fmt.Errorf("輪詢診斷結果超時")
+        case <-ticker.C:
+            status, err := c.GetDiagnosticStatus(timeoutCtx, sessionID)
+            if err != nil {
+                // ... (處理查詢錯誤) ...
+                continue
+            }
+            
+            if status.Status == "completed" {
+                return status.Result, nil
+            }
+            if status.Status == "failed" {
+                return nil, fmt.Errorf("診斷失敗: %s", status.Error)
+            }
+            // "processing" 狀態則繼續輪詢
+        }
+    }
+}
+```
+
 #### 項目結構規範
 
 ```go
@@ -2038,6 +2094,76 @@ func (h *ResourceHandler) handleError(c *gin.Context, err error) {
 ```
 
 ### 🐍 Python 代碼規範
+
+#### 非同步 API 實現 (`main.py`)
+```python
+# services/sre-assistant/src/sre_assistant/main.py
+from fastapi import FastAPI, BackgroundTasks, HTTPException
+import uuid
+from typing import Dict
+
+# 假設 tasks 是一個共享的、用於儲存任務狀態的字典
+# 在生產環境中，應使用 Redis 或資料庫
+tasks: Dict[uuid.UUID, DiagnosticStatus] = {}
+
+# 背景任務執行器
+async def run_workflow_bg(session_id: uuid.UUID, request: DiagnosticRequest):
+    tasks[session_id] = DiagnosticStatus(session_id=session_id, status="processing")
+    # workflow.execute 現在會更新 tasks 字典而不是返回值
+    await workflow.execute(session_id, request, tasks)
+
+# API 端點
+@app.post("/api/v1/diagnostics/deployment", status_code=202)
+async def diagnose_deployment(
+    request: DiagnosticRequest,
+    background_tasks: BackgroundTasks
+) -> DiagnosticResponse:
+    session_id = uuid.uuid4()
+    background_tasks.add_task(run_workflow_bg, session_id, request)
+    return DiagnosticResponse(session_id=session_id, status="accepted")
+
+@app.get("/api/v1/diagnostics/{session_id}/status")
+async def get_diagnostic_status(session_id: uuid.UUID) -> DiagnosticStatus:
+    task = tasks.get(session_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="找不到診斷任務")
+    return task
+```
+
+#### 工作流程實現 (`workflow.py`)
+
+```python
+# services/sre-assistant/src/sre_assistant/workflow.py
+class SREWorkflow:
+    # ... (初始化不變) ...
+    
+    async def execute(self, session_id: uuid.UUID, request: DiagnosticRequest, tasks: Dict[uuid.UUID, DiagnosticStatus]):
+        """
+        在背景執行工作流程，並更新共享的 tasks 字典
+        """
+        try:
+            # 1. 更新初始狀態
+            tasks[session_id].current_step = "開始診斷"
+            tasks[session_id].progress = 10
+            
+            # 2. 執行工具 (此處為簡化範例)
+            results = await self._run_tools(request)
+            tasks[session_id].progress = 80
+            
+            # 3. 分析結果
+            final_result = self._analyze_results(results)
+            
+            # 4. 更新最終狀態
+            tasks[session_id].status = "completed"
+            tasks[session_id].progress = 100
+            tasks[session_id].result = final_result
+            
+        except Exception as e:
+            # 5. 更新失敗狀態
+            tasks[session_id].status = "failed"
+            tasks[session_id].error = str(e)
+```
+
 
 #### 類型註解與文檔字符串
 

@@ -394,9 +394,37 @@
         padding: 1rem !important;
       }
 
+      /* Mobile sidebar positioning */
+      #sidebar {
+        left: 0 !important;
+      }
+
       /* Hide sidebar on mobile by default */
       #app:not(.sidebar-open) #sidebar {
+        margin-left: -16rem !important;
         transform: translateX(-100%) !important;
+        z-index: -1 !important;
+        visibility: hidden !important;
+        /* Ensure completely hidden with margin, transform, negative z-index, and visibility */
+      }
+
+      /* Show sidebar on mobile when sidebar-open class is present */
+      #app.sidebar-open #sidebar {
+        margin-left: 0 !important;
+        transform: translateX(0) !important;
+        z-index: 50 !important;
+        visibility: visible !important;
+      }
+
+      /* Desktop sidebar positioning */
+      @media (min-width: 1024px) {
+        #sidebar {
+          position: relative !important;
+          margin-left: 0 !important;
+          transform: none !important;
+          z-index: auto !important;
+          visibility: visible !important;
+        }
       }
 
       /* Mobile header adjustments */
@@ -412,6 +440,10 @@
       #header-logo-toggle {
         display: flex !important;
         cursor: pointer !important;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+        min-height: 44px;
       }
 
       /* Mobile breadcrumb */
@@ -534,7 +566,7 @@
   <div id="app" class="hidden h-screen bg-slate-800 text-white relative flex">
 
     <aside id="sidebar"
-      class="w-64 h-full flex-shrink-0 bg-slate-800 flex flex-col transition-all duration-300 ease-in-out -ml-64 lg:relative lg:z-auto z-40 absolute lg:absolute">
+      class="w-64 h-full flex-shrink-0 bg-slate-800 flex flex-col transition-all duration-300 ease-in-out lg:relative lg:z-auto z-40 absolute lg:absolute">
       <!-- Sidebar header with logo (Grafana style) -->
       <div class="h-16 flex items-center justify-between px-4 border-b border-slate-700">
         <div id="sidebar-header-toggle"
@@ -733,12 +765,12 @@
         <div class="flex items-center gap-4">
           <!-- Logo shows when sidebar is closed (Grafana style) -->
           <div class="flex items-center gap-2" id="header-logo-area">
-            <div class="cursor-pointer hover:bg-slate-700 p-2 rounded transition-colors" id="header-logo-toggle"
-              title="Open menu">
+            <div class="md:pointer-events-none hover:bg-slate-700 p-2 rounded transition-colors"
+              id="header-logo-toggle">
               <!-- Hamburger menu icon for mobile -->
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="h-6 w-6 text-white md:hidden">
+                class="h-6 w-6 text-white md:hidden block">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
                 <line x1="3" y1="6" x2="21" y2="6"></line>
                 <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -746,6 +778,17 @@
               <!-- Logo for desktop -->
               <img src="LOGO.png" alt="Control Plane Logo" class="h-8 w-auto hidden md:block">
             </div>
+            <!-- Pin menu button -->
+            <button id="header-pin-menu-btn"
+              class="text-slate-400 hover:text-white p-2 rounded hover:bg-slate-700 transition-colors"
+              title="Toggle sidebar">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="18" x="3" y="3" rx="2" />
+                <path d="M9 3v18" />
+                <path d="m16 15-3-3 3-3" />
+              </svg>
+            </button>
           </div>
           <div id="breadcrumb"
             class="text-lg font-semibold text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis">總覽儀表板</div>
@@ -1955,55 +1998,16 @@
       setTimeout(() => initializeTomSelect(), 500);
 
       const links = document.querySelectorAll('.sidebar-link');
-      const breadcrumb = document.getElementById('breadcrumb');
-      const sidebar = document.getElementById('sidebar');
-      const headerLogoToggle = document.getElementById('header-logo-toggle');
+      // Initialize global variables
+      breadcrumb = document.getElementById('breadcrumb');
+      sidebar = document.getElementById('sidebar');
+      headerLogoToggle = document.getElementById('header-logo-toggle');
+      headerLogoArea = document.getElementById('header-logo-area');
       const headerTitleToggle = document.getElementById('header-title-toggle');
-      const headerLogoArea = document.getElementById('header-logo-area');
       const notificationBtn = document.getElementById('notification-btn');
       const notificationDropdown = document.getElementById('notification-dropdown');
 
       // --- Sidebar/Menu Logic ---
-      // Initialize sidebar state based on screen size
-      function initializeSidebarState() {
-        if (window.innerWidth >= 1024) {
-          sidebar.classList.remove('-ml-64'); // Desktop: show sidebar
-        } else {
-          sidebar.classList.add('-ml-64'); // Mobile: hide sidebar
-        }
-        updateMenuState();
-      }
-
-      // Update titles and visibility based on sidebar state
-      function updateMenuState() {
-        const isSidebarOpen = !sidebar.classList.contains('-ml-64');
-        const isDesktop = window.innerWidth >= 1024;
-        const sidebarHeaderToggle = document.getElementById('sidebar-header-toggle');
-
-        if (isDesktop) {
-          // Desktop behavior: hide logo when sidebar is open
-          if (isSidebarOpen) {
-            headerLogoArea.style.display = 'none';
-            if (sidebarHeaderToggle) {
-              sidebarHeaderToggle.title = 'Close menu';
-            }
-          } else {
-            headerLogoArea.style.display = 'flex';
-            headerLogoToggle.title = 'Open menu';
-          }
-        } else {
-          // Mobile behavior: always show logo for navigation
-          headerLogoArea.style.display = 'flex';
-          headerLogoToggle.title = isSidebarOpen ? 'Close menu' : 'Open menu';
-        }
-
-        // Update body class for mobile sidebar state
-        if (window.innerWidth < 1024) {
-          document.body.classList.toggle('sidebar-open', isSidebarOpen);
-        }
-
-        updateHeaderTitle();
-      }
 
       // Initialize on page load
       initializeSidebarState();
@@ -2080,12 +2084,14 @@
           }
 
           // Close sidebar on mobile devices only
-          const isMobile = window.innerWidth < 1024; // Changed to 1024px for more reliable desktop detection
+          const isMobile = window.innerWidth < 1024;
           if (isMobile) {
-            sidebar.classList.add('-ml-64');
-            removeOverlay();
-            // Update both header title and logo visibility after sidebar state change
-            updateMenuState();
+            const app = document.getElementById('app');
+            if (app && app.classList.contains('sidebar-open')) {
+              app.classList.remove('sidebar-open');
+              removeOverlay();
+              updateMenuState();
+            }
           }
 
           // Update header title after sidebar state change
@@ -2093,41 +2099,21 @@
         });
       });
 
-      // Function to update header title based on sidebar state
-      function updateHeaderTitle() {
-        const isSidebarOpen = !sidebar.classList.contains('-ml-64');
-        const isDesktop = window.innerWidth >= 1024;
-        const activePage = document.querySelector('.sidebar-link.active');
-        let pageTitle = '總覽儀表板'; // Default title
-        if (activePage) {
-          pageTitle = activePage.textContent.trim();
-        }
 
-        if (isDesktop) {
-          // On desktop, always show current page breadcrumb
-          breadcrumb.textContent = pageTitle;
-        } else {
-          // On mobile, always show current page title
-          breadcrumb.textContent = pageTitle;
-        }
-      }
-
-      function toggleSidebar() {
-        sidebar.classList.toggle('-ml-64');
-        updateMenuState();
-
-        // Handle overlay for mobile/tablet view
-        if (window.innerWidth < 1024) {
-          if (!sidebar.classList.contains('-ml-64')) {
-            document.body.appendChild(createOverlay());
-          } else {
-            removeOverlay();
-          }
-        }
-      }
 
       // Add event listeners for menu controls
-      headerLogoToggle.addEventListener('click', toggleSidebar);
+      // Desktop: headerLogoToggle click event removed - no longer toggles sidebar
+      // Mobile: headerLogoToggle click event still works for opening sidebar
+      if (headerLogoToggle) {
+        headerLogoToggle.addEventListener('click', function () {
+          if (window.innerWidth < 1024) {
+            // Mobile: allow clicking LOGO to open sidebar
+            toggleSidebar();
+          }
+          // Desktop: do nothing (cancelled as requested)
+        });
+      }
+
       if (sidebarHeaderToggle) {
         sidebarHeaderToggle.addEventListener('click', toggleSidebar);
       }
@@ -2136,17 +2122,10 @@
         pinMenuBtn.addEventListener('click', toggleSidebar);
       }
 
-      // Function to create overlay
-      function createOverlay() {
-        const overlay = document.createElement('div');
-        overlay.id = 'sidebar-overlay';
-        overlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-30';
-        overlay.addEventListener('click', () => {
-          sidebar.classList.add('-ml-64');
-          removeOverlay();
-          updateHeaderTitle();
-        });
-        return overlay;
+      // Add event listener for header pin menu button (works on both desktop and mobile)
+      const headerPinMenuBtn = document.getElementById('header-pin-menu-btn');
+      if (headerPinMenuBtn) {
+        headerPinMenuBtn.addEventListener('click', toggleSidebar);
       }
 
       // Handle window resize to update header title and remove overlay on desktop (debounced)
@@ -2161,14 +2140,6 @@
           updateHeaderTitle();
         }, 150);
       });
-
-      // Function to remove overlay
-      function removeOverlay() {
-        const overlay = document.getElementById('sidebar-overlay');
-        if (overlay) {
-          overlay.remove();
-        }
-      }
 
       notificationBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2215,9 +2186,134 @@
 
     let groupStatusChartInstance = null; // To hold the chart instance
 
+    // Global variables for sidebar management
+    let sidebar, breadcrumb, headerLogoToggle, headerLogoArea;
+
+    // --- Sidebar State Management ---
+    function initializeSidebarState() {
+      const app = document.getElementById('app');
+      if (!app || !sidebar) return;
+
+      if (window.innerWidth >= 1024) {
+        // Desktop: show sidebar by default
+        sidebar.classList.remove('-ml-64');
+        app.classList.remove('sidebar-open');
+      } else {
+        // Mobile: hide sidebar by default
+        sidebar.classList.add('-ml-64');
+        app.classList.remove('sidebar-open');
+      }
+      updateMenuState();
+    }
+
+    function updateMenuState() {
+      const app = document.getElementById('app');
+      if (!app || !sidebar) return;
+
+      const isSidebarOpen = app.classList.contains('sidebar-open');
+      const isDesktop = window.innerWidth >= 1024;
+      const sidebarHeaderToggle = document.getElementById('sidebar-header-toggle');
+
+      if (isDesktop) {
+        // Desktop behavior: hide logo when sidebar is open
+        if (isSidebarOpen) {
+          if (headerLogoArea) headerLogoArea.style.display = 'none';
+          if (sidebarHeaderToggle) sidebarHeaderToggle.title = 'Close menu';
+        } else {
+          if (headerLogoArea) headerLogoArea.style.display = 'flex';
+          if (headerLogoToggle) headerLogoToggle.title = 'Open menu';
+        }
+      } else {
+        // Mobile behavior: always show logo for navigation
+        if (headerLogoArea) headerLogoArea.style.display = 'flex';
+        if (headerLogoToggle) headerLogoToggle.title = isSidebarOpen ? 'Close menu' : 'Open menu';
+      }
+
+      updateHeaderTitle();
+    }
+
+    function updateHeaderTitle() {
+      const sidebar = document.getElementById('sidebar');
+      const breadcrumb = document.getElementById('breadcrumb');
+
+      if (!sidebar || !breadcrumb) return;
+
+      const isSidebarOpen = !sidebar.classList.contains('-ml-64');
+      const isDesktop = window.innerWidth >= 1024;
+      const activePage = document.querySelector('.sidebar-link.active');
+      let pageTitle = '總覽儀表板'; // Default title
+      if (activePage) {
+        pageTitle = activePage.textContent.trim();
+      }
+
+      if (isDesktop) {
+        // On desktop, always show current page breadcrumb
+        breadcrumb.textContent = pageTitle;
+      } else {
+        // On mobile, show current page title
+        breadcrumb.textContent = pageTitle;
+      }
+    }
+
+    // Global function to update report button state
+    function updateReportButtonState() {
+      const generateReportBtn = document.getElementById('generate-report-btn');
+      if (!generateReportBtn) return;
+
+      // 有選中項目或有篩選後的告警時可點擊
+      const selectedCount = document.querySelectorAll('.log-checkbox:checked').length;
+      const filteredCount = getFilteredLogs().length;
+      generateReportBtn.disabled = selectedCount === 0 && filteredCount === 0;
+    }
+
+    function toggleSidebar() {
+      const app = document.getElementById('app');
+      if (!app) return;
+
+      // Toggle sidebar-open class on app element
+      app.classList.toggle('sidebar-open');
+      updateMenuState();
+
+      // Handle overlay for mobile/tablet view
+      if (window.innerWidth < 1024) {
+        if (app.classList.contains('sidebar-open')) {
+          document.body.appendChild(createOverlay());
+        } else {
+          removeOverlay();
+        }
+      }
+    }
+
+    function createOverlay() {
+      const overlay = document.createElement('div');
+      overlay.id = 'sidebar-overlay';
+      overlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-30';
+      overlay.addEventListener('click', () => {
+        const app = document.getElementById('app');
+        if (app) {
+          app.classList.remove('sidebar-open');
+          updateMenuState();
+          removeOverlay();
+        }
+      });
+      return overlay;
+    }
+
+    function removeOverlay() {
+      const overlay = document.getElementById('sidebar-overlay');
+      if (overlay) {
+        overlay.remove();
+      }
+    }
+
     function renderGroupStatusChart() {
+      // Check if required data is available
+      if (!loggedInUser || !mockData || !mockData.resourceGroups) {
+        console.warn('Required data not available for group status chart');
+        return;
+      }
+
       // --- Start of moved logic from getVisibleGroups ---
-      if (!loggedInUser) return [];
       const userRole = loggedInUser.role;
       let groupsToRender;
 
@@ -2237,7 +2333,15 @@
         groupsToRender = [];
       }
       // --- End of moved logic ---
-      const groupStatusCtx = document.getElementById('groupStatusChart').getContext('2d');
+
+      // Check if canvas element exists
+      const groupStatusCanvas = document.getElementById('groupStatusChart');
+      if (!groupStatusCanvas) {
+        console.warn('groupStatusChart canvas not found');
+        return;
+      }
+
+      const groupStatusCtx = groupStatusCanvas.getContext('2d');
 
       // 1. Prepare data
       const labels = groupsToRender.map(g => g.name);
@@ -2315,6 +2419,9 @@
       document.getElementById('user-name').textContent = loggedInUser.name;
       document.getElementById('user-dept').textContent = loggedInUser.dept;
 
+      // Reinitialize sidebar state after login to ensure mobile menu works
+      initializeSidebarState();
+
       showPage('dashboard');
       document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
       document.querySelector('.sidebar-link[data-page="dashboard"]').classList.add('active');
@@ -2339,7 +2446,15 @@
       initializeBatchOperations();
       initializeAutomationFeatures();
       initializeCapacityPlanning();
-      renderGroupStatusChart();
+
+      // Delay chart rendering to ensure DOM is fully loaded
+      setTimeout(() => {
+        try {
+          renderGroupStatusChart();
+        } catch (error) {
+          console.error('Error rendering group status chart:', error);
+        }
+      }, 300);
     }
 
     // --- Data Population Functions ---
@@ -2368,10 +2483,25 @@
       }
     }
     function populateDashboard() {
+      // Check if mockData is available
+      if (!mockData || !mockData.logs) {
+        console.warn('mockData not available in populateDashboard');
+        return;
+      }
+
       const pendingAlerts = getPendingAlerts();
       const notificationList = document.getElementById('notification-list');
+      const notificationBadge = document.getElementById('notification-badge');
 
-      document.getElementById('notification-badge').textContent = pendingAlerts.length;
+      // Update notification badge with count and ensure it's visible
+      if (notificationBadge) {
+        notificationBadge.textContent = pendingAlerts.length;
+        if (pendingAlerts.length > 0) {
+          notificationBadge.style.display = 'flex';
+        } else {
+          notificationBadge.style.display = 'none';
+        }
+      }
 
       document.getElementById('dashboard-new-alerts').textContent = mockData.logs.filter(l => l.status === 'new').length;
       document.getElementById('dashboard-ack-alerts').textContent = mockData.logs.filter(l => l.status === 'ack').length;
@@ -3437,12 +3567,6 @@
       closeModalBtn.addEventListener('click', closeModal);
       modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
-      function updateReportButtonState() {
-        // 有選中項目或有篩選後的告警時可點擊
-        const selectedCount = document.querySelectorAll('.log-checkbox:checked').length;
-        const filteredCount = getFilteredLogs().length;
-        generateReportBtn.disabled = selectedCount === 0 && filteredCount === 0;
-      }
 
       // 可能不存在 selectAllCheckbox（已移除全選），需保護性檢查
       if (selectAllCheckbox) {
@@ -4698,7 +4822,7 @@
         return [gridjs.html(checkboxHtml), gridjs.html(statusCell), name, ip, gridjs.html(groupsHtml), gridjs.html(actions)];
       });
       _ensureGrid('resources-grid', {
-        columns: [{ width: '70px' }, { name: '狀態', width: '100px' }, '資源名稱', 'IP 位址', '所屬群組', { name: '操作', width: '160px' }],
+        columns: [{ name: '選取', width: '70px', id: 'select' }, { name: '狀態', width: '100px', id: 'status' }, { name: '資源名稱', id: 'name' }, { name: 'IP 位址', id: 'ip' }, { name: '所屬群組', id: 'groups' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4720,7 +4844,7 @@
         return [name, count, desc, gridjs.html(actions)];
       });
       _ensureGrid('groups-grid', {
-        columns: ['群組名稱', '資源數量', '說明', { name: '操作', width: '160px' }],
+        columns: [{ name: '群組名稱', id: 'name' }, { name: '資源數量', id: 'count' }, { name: '說明', id: 'description' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4741,7 +4865,7 @@
         return [name, gridjs.html(manager), members, gridjs.html(subscribers), gridjs.html(actions)];
       });
       _ensureGrid('teams-grid', {
-        columns: ['團隊名稱', '團隊管理員', '成員數量', '通知訂閱者', { name: '操作', width: '160px' }],
+        columns: [{ name: '團隊名稱', id: 'name' }, { name: '團隊管理員', id: 'manager' }, { name: '成員數量', id: 'members' }, { name: '通知訂閱者', id: 'subscribers' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4762,7 +4886,7 @@
         return [name, gridjs.html(role), gridjs.html(teams), gridjs.html(levels), gridjs.html(actions)];
       });
       _ensureGrid('personnel-grid', {
-        columns: ['姓名', '角色', '所屬團隊', '接收等級', { name: '操作', width: '160px' }],
+        columns: [{ name: '姓名', id: 'name' }, { name: '角色', id: 'role' }, { name: '所屬團隊', id: 'teams' }, { name: '接收等級', id: 'levels' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4783,7 +4907,7 @@
         return [name, target, metric, gridjs.html(status), gridjs.html(`${edit}${silence}${del}`)];
       });
       _ensureGrid('rules-grid', {
-        columns: ['規則名稱', '監控目標', '指標', { name: '啟用狀態', width: '90px' }, { name: '操作', width: '200px' }],
+        columns: [{ name: '規則名稱', id: 'name' }, { name: '監控目標', id: 'target' }, { name: '指標', id: 'metric' }, { name: '啟用狀態', width: '90px', id: 'status' }, { name: '操作', width: '200px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4803,7 +4927,7 @@
         return [name, gridjs.html(type), gridjs.html(actions)];
       });
       _ensureGrid('channels-grid', {
-        columns: ['管道名稱', '管道類型', { name: '操作', width: '220px' }],
+        columns: [{ name: '管道名稱', id: 'name' }, { name: '管道類型', id: 'type' }, { name: '操作', width: '220px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4825,7 +4949,7 @@
         return [name, gridjs.html(groups), start, end, gridjs.html(status), gridjs.html(actions)];
       });
       _ensureGrid('maintenance-grid', {
-        columns: ['說明', '影響群組', '開始時間', '結束時間', { name: '狀態', width: '90px' }, { name: '操作', width: '160px' }],
+        columns: [{ name: '說明', id: 'name' }, { name: '影響群組', id: 'groups' }, { name: '開始時間', id: 'start' }, { name: '結束時間', id: 'end' }, { name: '狀態', width: '90px', id: 'status' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -4869,7 +4993,7 @@
       const levelOrder = { 'error': 3, 'warning': 2, 'info': 1 };
 
       _ensureGrid('logs-grid', {
-        columns: [{ width: '60px' }, { name: '狀態', width: '100px' }, '時間', { name: '等級', width: '100px' }, '處理人員', '資源名稱', '說明', { name: '操作', width: '160px' }],
+        columns: [{ name: '選取', width: '60px', id: 'select' }, { name: '狀態', width: '100px', id: 'status' }, { name: '時間', id: 'time' }, { name: '等級', width: '100px', id: 'level' }, { name: '處理人員', id: 'assignee' }, { name: '資源名稱', id: 'resource' }, { name: '說明', id: 'description' }, { name: '操作', width: '160px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -5049,7 +5173,7 @@
         return [name, gridjs.html(type), desc, updated, gridjs.html(actions)];
       });
       _ensureGrid('scripts-grid', {
-        columns: ['腳本名稱', '類型', '描述', '最後更新', { name: '操作', width: '220px' }],
+        columns: [{ name: '腳本名稱', id: 'name' }, { name: '類型', id: 'type' }, { name: '描述', id: 'description' }, { name: '最後更新', id: 'updated' }, { name: '操作', width: '220px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,
@@ -5069,7 +5193,7 @@
         return [time, script, trigger, gridjs.html(status), duration, gridjs.html(actions)];
       });
       _ensureGrid('execution-logs-grid', {
-        columns: ['執行時間', '腳本名稱', '觸發告警', { name: '執行狀態', width: '90px' }, '執行時長', { name: '操作', width: '120px' }],
+        columns: [{ name: '執行時間', id: 'time' }, { name: '腳本名稱', id: 'script' }, { name: '觸發告警', id: 'trigger' }, { name: '執行狀態', width: '90px', id: 'status' }, { name: '執行時長', id: 'duration' }, { name: '操作', width: '120px', id: 'actions' }],
         data: rows,
         pagination: true,
         search: false,

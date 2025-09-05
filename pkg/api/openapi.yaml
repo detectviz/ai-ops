@@ -1,631 +1,1061 @@
 openapi: 3.1.0
 info:
-  title: SRE Assistant 與 Control-Plane API
-  version: 1.2.0
+  title: SRE Platform API
+  version: 1.0.0
   description: |
-    這是一份根據專案文件綜合分析後，所制定的 SRE Assistant 與 Control-Plane 互動的最終 API 規格書 (繁體中文版)。
-    本規格書定義了兩組關鍵的 API：
-    1.  **主動 API (SRE-Assistant 端點):** 由 Control-Plane 的 Go 後端呼叫，用以觸發分析任務。此處採用雙軌策略：
-        - `/execute`: 一個彈性、通用的端點，供後端立即使用，以實現特定的 UI 功能（如：AI 報告、容量分析）。
-        - `/diagnostics/*`: 語義化的產品級端點，用於穩定、長期的整合，或供未來的外部客戶端、SPA 前端使用。它們可作為 `/execute` 端點的外觀 (Facade) 來實現。
-    2.  **只讀 API (Control-Plane 端點):** 由 Control-Plane 提供，供 SRE-Assistant 作為「工具」來使用，以獲取其分析所需的上下文數據。其資料模型基於 `demo-page.html` 中的詳細定義。
+    SRE Platform 的完整 API 規格書，定義 Control Plane 與 SRE Assistant 之間的所有互動接口。
+
+    ## 架構說明
+    - **Control Plane**: 前端 UI 與資源管理服務 (Go)
+    - **SRE Assistant**: 智能診斷與分析引擎 (Python)
+
+    ## 認證機制
+    - 使用 Keycloak 進行 JWT 認證
+    - 服務間通訊採用 M2M (Machine-to-Machine) Token
+  contact:
+    name: SRE Platform Team
+    email: sre-team@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://api.example.com
-    description: 主要正式環境伺服器
+  - url: http://localhost:8000
+    description: 本地開發環境 - SRE Assistant
+  - url: http://localhost:8081
+    description: 本地開發環境 - Control Plane
+  - url: https://sre-assistant.example.com
+    description: 生產環境 - SRE Assistant
+  - url: https://control-plane.example.com
+    description: 生產環境 - Control Plane
 
 tags:
-  - name: SRE-Assistant - 主動端點
-    description: 由 SRE-assistant 提供，用於執行診斷與分析任務的 API。
-  - name: Control-Plane - 只讀端點
-    description: 由 Control-Plane 提供，用於讓 SRE-assistant 獲取上下文資料的 API。
-  - name: Control-Plane - 回調端點
-    description: 由 SRE-assistant 呼叫，用於回報任務狀態與結果的 API。
-  - name: Observability
-    description: 用於監控服務健康狀態的 API。
+  - name: Health
+    description: 健康檢查與服務狀態
+  - name: Diagnostics
+    description: 診斷與分析功能
+  - name: Capacity
+    description: 容量分析與預測
+  - name: Execute
+    description: 通用執行介面
+  - name: Resources
+    description: 資源管理 (Control Plane)
+  - name: Audit
+    description: 審計日誌 (Control Plane)
 
 paths:
+  # ============================================
+  # 健康檢查端點 (所有服務通用)
+  # ============================================
   /healthz:
     get:
       tags:
-        - Observability
-      summary: 健康檢查 (Liveness)
-      description: |
-        一個簡單的健康檢查端點，用於確認服務是否正在運行。
-        此端點應在服務器啟動後立即回應 200 OK。適用於所有服務。
+        - Health
+      summary: 存活性檢查
+      description: 檢查服務是否存活，用於 Kubernetes liveness probe
+      operationId: checkLiveness
       responses:
         "200":
-          description: "服務正在運行"
+          description: 服務存活
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-                example: "ok"
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: 服務不可用
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /readyz:
     get:
       tags:
-        - Observability
-      summary: 就緒檢查 (Readiness)
-      description: |
-        一個就緒檢查端點，用於確認服務是否已準備好接收流量。
-        此端點應在服務完成初始化（例如，資料庫連線已建立）後才回應 200 OK。適用於所有服務。
+        - Health
+      summary: 就緒性檢查
+      description: 檢查服務是否就緒，包含依賴服務檢查
+      operationId: checkReadiness
       responses:
         "200":
-          description: "服務已就緒"
+          description: 服務就緒
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-                example: "ok"
+                $ref: "#/components/schemas/ReadinessResponse"
         "503":
-          description: "服務尚未就緒"
+          description: 服務未就緒
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /metrics:
     get:
       tags:
-        - Observability
-      summary: 獲取 Prometheus 指標
-      description: |
-        提供 Prometheus 格式的監控指標。適用於所有服務。
+        - Health
+      summary: Prometheus 指標
+      description: 提供 Prometheus 格式的監控指標
+      operationId: getMetrics
       responses:
         "200":
-          description: "Prometheus 指標"
+          description: Prometheus 指標
           content:
             text/plain:
               schema:
                 type: string
                 example: |
-                  # HELP http_requests_total The total number of HTTP requests.
+                  # HELP http_requests_total Total HTTP requests
                   # TYPE http_requests_total counter
-                  http_requests_total{method="post",code="200"} 1027
-                  http_requests_total{method="post",code="400"} 3
+                  http_requests_total{method="GET",status="200"} 1234
 
-  /execute:
+  # ============================================
+  # SRE Assistant API 端點
+  # ============================================
+  /api/v1/diagnostics/deployment:
     post:
       tags:
-        - SRE-Assistant - 主動端點
+        - Diagnostics
+      summary: 部署診斷
+      description: 分析部署問題並提供診斷報告
+      operationId: diagnoseDeployment
       security:
         - bearerAuth: []
-      summary: 通用代理 API (用於臨機查詢)
-      description: |
-        一個統一、靈活的端點，專供 Go 後端進行臨機診斷。
-        後端會將使用者的操作（例如點擊「生成報告」）打包成一個自然語言查詢與一個結構化的上下文物件後，向此處發送請求。
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/GenericRequestContext"
+              $ref: "#/components/schemas/DiagnosticRequest"
       responses:
         "202":
-          $ref: "#/components/responses/AcceptedResponse"
+          description: 診斷任務已接受
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticResponse"
         "400":
-          $ref: "#/components/responses/BadRequestResponse"
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
-  /diagnostics/deployment:
+  /api/v1/diagnostics/alerts:
     post:
       tags:
-        - SRE-Assistant - 主動端點
+        - Diagnostics
+      summary: 告警分析
+      description: 分析告警並提供根因分析
+      operationId: analyzeAlerts
       security:
         - bearerAuth: []
-      summary: 診斷部署健康度 (產品化)
-      description: 一個專門的、語義化的端點，用於分析特定部署的健康狀況。作為一個穩定的產品化介面。
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DeploymentRequestContext"
+              $ref: "#/components/schemas/AlertAnalysisRequest"
       responses:
         "202":
-          $ref: "#/components/responses/AcceptedResponse"
+          description: 分析任務已接受
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertAnalysisResponse"
         "400":
-          $ref: "#/components/responses/BadRequestResponse"
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
-  /diagnostics/alerts:
+  /api/v1/capacity/analyze:
     post:
       tags:
-        - SRE-Assistant - 主動端點
+        - Capacity
+      summary: 容量分析
+      description: 分析資源使用趨勢並預測容量需求
+      operationId: analyzeCapacity
       security:
         - bearerAuth: []
-      summary: 診斷觸發的告警 (產品化)
-      description: 用於由一或多個監控告警所觸發的自動化診斷，對應「生成事件報告」功能。
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AlertRequestContext"
+              $ref: "#/components/schemas/CapacityAnalysisRequest"
       responses:
-        "202":
-          $ref: "#/components/responses/AcceptedResponse"
+        "200":
+          description: 容量分析結果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapacityAnalysisResponse"
         "400":
-          $ref: "#/components/responses/BadRequestResponse"
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
-  /capacity/analyze:
+  /api/v1/execute:
     post:
       tags:
-        - SRE-Assistant - 主動端點
+        - Execute
+      summary: 通用執行介面
+      description: 執行自然語言查詢或指令
+      operationId: executeCommand
       security:
         - bearerAuth: []
-      summary: 分析服務容量 (產品化)
-      description: 針對給定的資源群組與指標，執行容量分析，對應「容量規劃」功能。
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CapacityRequestContext"
+              $ref: "#/components/schemas/ExecuteRequest"
       responses:
-        "202":
-          $ref: "#/components/responses/AcceptedResponse"
+        "200":
+          description: 執行結果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecuteResponse"
         "400":
-          $ref: "#/components/responses/BadRequestResponse"
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/diagnostics/{session_id}/status:
+    get:
+      tags:
+        - Diagnostics
+      summary: 查詢診斷狀態
+      description: 查詢非同步診斷任務的執行狀態
+      operationId: getDiagnosticStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: 診斷會話 ID
+      responses:
+        "200":
+          description: 診斷狀態
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticStatus"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ============================================
+  # Control Plane API 端點 (供 SRE Assistant 呼叫)
+  # ============================================
+  /api/v1/resources:
+    get:
+      tags:
+        - Resources
+      summary: 獲取資源列表
+      description: 獲取所有受管理的資源
+      operationId: listResources
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [deployment, service, pod, node]
+          description: 資源類型
+        - name: namespace
+          in: query
+          schema:
+            type: string
+          description: Kubernetes 命名空間
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+      responses:
+        "200":
+          description: 資源列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/resources/{resource_id}:
+    get:
+      tags:
+        - Resources
+      summary: 獲取資源詳情
+      description: 獲取特定資源的詳細資訊
+      operationId: getResource
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: resource_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 資源 ID
+      responses:
+        "200":
+          description: 資源詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /api/v1/audit-logs:
     get:
       tags:
-        - Control-Plane - 只讀端點
+        - Audit
+      summary: 查詢審計日誌
+      description: 查詢系統審計日誌
+      operationId: queryAuditLogs
       security:
         - bearerAuth: []
-      summary: 獲取審計日誌
-      description: 獲取一個服務在特定時間範圍內的變更歷史，用以回答「最近誰動了什麼？」
       parameters:
         - name: service_name
           in: query
-          required: true
           schema:
             type: string
+          description: 服務名稱
         - name: start_time
           in: query
-          required: true
           schema:
             type: string
             format: date-time
+          description: 開始時間
         - name: end_time
           in: query
-          required: true
           schema:
             type: string
             format: date-time
+          description: 結束時間
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
       responses:
         "200":
-          description: 一個包含審計日誌事件的陣列。
+          description: 審計日誌
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/AuditLog"
-        "400":
-          $ref: "#/components/responses/BadRequestResponse"
+                $ref: "#/components/schemas/AuditLogList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
-  /api/v1/incidents:
+  /api/v1/alerts:
     get:
       tags:
-        - Control-Plane - 只讀端點
+        - Resources
+      summary: 獲取告警列表
+      description: 獲取當前活躍的告警
+      operationId: listAlerts
       security:
         - bearerAuth: []
-      summary: 獲取告警紀錄
-      description: 獲取一份告警事件列表 (在 UI 中稱為「告警紀錄」)。
       parameters:
-        - name: service_name
+        - name: severity
           in: query
           schema:
             type: string
+            enum: [P0, P1, P2, P3]
+          description: 嚴重程度
         - name: status
           in: query
           schema:
             type: string
-            enum: [new, ack, resolved]
-        - name: level
-          in: query
-          schema:
-            type: string
-            enum: [error, warning, info]
+            enum: [firing, resolved, pending]
+          description: 告警狀態
       responses:
         "200":
-          description: 一個包含告警紀錄的陣列。
+          description: 告警列表
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Incident"
-        "400":
-          $ref: "#/components/responses/BadRequestResponse"
+                $ref: "#/components/schemas/AlertList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
-  /api/v1/incidents/{id}:
-    get:
-      tags:
-        - Control-Plane - 只讀端點
-      security:
-        - bearerAuth: []
-      summary: 獲取單筆告警紀錄
-      description: 獲取單一告警事件的詳細資訊。
-      parameters:
-        - $ref: "#/components/parameters/IncidentId"
-      responses:
-        "200":
-          description: 所請求的告警紀錄。
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Incident"
-        "404":
-          $ref: "#/components/responses/NotFoundResponse"
-
-  /api/v1/executions/{id}:
-    get:
-      tags:
-        - Control-Plane - 只讀端點
-      security:
-        - bearerAuth: []
-      summary: 獲取自動化執行日誌
-      description: 提供特定自動化腳本執行的詳細日誌。
-      parameters:
-        - $ref: "#/components/parameters/ExecutionId"
-      responses:
-        "200":
-          description: 所請求的執行日誌。
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ExecutionLog"
-        "404":
-          $ref: "#/components/responses/NotFoundResponse"
-    patch:
-      tags:
-        - Control-Plane - 回調端點
-      security:
-        - bearerAuth: []
-      summary: 更新執行狀態與結果
-      description: |
-        由 SRE-assistant 呼叫，用以在任務完成或失敗時，更新對應的執行紀錄。
-      parameters:
-        - $ref: "#/components/parameters/ExecutionId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UpdateExecutionRequest"
-      responses:
-        "200":
-          description: "執行紀錄已成功更新"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ExecutionLog"
-        "404":
-          $ref: "#/components/responses/NotFoundResponse"
-
-  /api/v1/executions:
-    post:
-      tags:
-        - Control-Plane - 回調端點
-      security:
-        - bearerAuth: []
-      summary: 回報執行結果
-      description: |
-        由 SRE-assistant 呼叫，用以在一個非同步任務開始時，建立一個對應的執行紀錄。
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/NewExecutionRequest"
-      responses:
-        "201":
-          description: "執行紀錄已成功建立"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ExecutionLog"
-        "400":
-          $ref: "#/components/responses/BadRequestResponse"
-
-  /api/v1/sessions/{id}:
-    get:
-      tags:
-        - Control-Plane - 只讀端點
-      summary: 查詢非同步任務狀態
-      description: 根據 session_id 查詢對應的執行紀錄與狀態。
-      parameters:
-        - $ref: "#/components/parameters/SessionId"
-      responses:
-        "200":
-          description: "對應的執行紀錄"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ExecutionLog"
-        "404":
-          $ref: "#/components/responses/NotFoundResponse"
-
+# ============================================
+# 組件定義
+# ============================================
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: Keycloak JWT Token
+
+  responses:
+    BadRequest:
+      description: 請求參數錯誤
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Unauthorized:
+      description: 未授權
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    NotFound:
+      description: 資源不存在
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    InternalServerError:
+      description: 內部伺服器錯誤
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
   schemas:
-    NewExecutionRequest:
+    # 通用模型
+    ErrorResponse:
       type: object
-      description: "用於建立一個新的執行紀錄"
-      properties:
-        session_id:
-          type: string
-          format: uuid
-          description: "對應到 `/execute` 回應的 session_id"
-        status:
-          type: string
-          enum: [running, completed, failed]
-        output:
-          type: string
-          description: "任務執行的最終產出或錯誤訊息"
       required:
-        - session_id
-        - status
-
-    UpdateExecutionRequest:
-      type: object
-      description: "用於更新一個執行紀錄的狀態"
-      properties:
-        status:
-          type: string
-          enum: [running, completed, failed]
-        output:
-          type: string
-          description: "任務執行的最終產出或錯誤訊息"
-      required:
-        - status
-
-    ContextBase:
-      type: object
-      properties:
-        trigger_source:
-          type: string
-          description: 觸發此請求的來源。
-          example: "ControlPlane::Backend::LogsPage"
-        service_name:
-          type: string
-          example: "payment-api"
-        namespace:
-          type: string
-          example: "production"
-      required:
-        - trigger_source
-
-    GenericRequestContext:
-      type: object
-      properties:
-        user_query:
-          type: string
-          description: "由後端系統組裝的自然語言查詢指令"
-          example: "為選定的告警生成一份事件報告。"
-        context:
-          $ref: "#/components/schemas/ContextBase"
-      required:
-        - user_query
-        - context
-
-    DeploymentRequestContext:
-      type: object
-      properties:
-        context:
-          type: object
-          properties:
-            deployment_id:
-              type: string
-              example: "deploy-xyz-12345"
-            image_tag:
-              type: string
-              example: "v1.2.1"
-            service_name:
-              type: string
-            namespace:
-              type: string
-          required:
-            - deployment_id
-            - service_name
-
-    AlertRequestContext:
-      type: object
-      properties:
-        context:
-          type: object
-          properties:
-            incident_ids:
-              type: array
-              items:
-                type: integer
-              description: "在 UI 上被勾選的告警紀錄 ID 列表"
-              example: [1, 2, 3]
-            service_name:
-              type: string
-          required:
-            - incident_ids
-
-    CapacityRequestContext:
-      type: object
-      properties:
-        context:
-          type: object
-          properties:
-            device_group_id:
-              type: integer
-              description: "在 UI 上選擇的資源群組 ID"
-            metric_name:
-              type: string
-              description: "在 UI 上選擇的指標"
-              enum: [cpu_usage, memory_usage, disk_usage, network_traffic]
-          required:
-            - device_group_id
-            - metric_name
-
-    SessionResponse:
-      type: object
-      properties:
-        session_id:
-          type: string
-          format: uuid
-          description: "用於追蹤此非同步任務的會話 ID"
-        message:
-          type: string
-          example: "請求已接受，正在處理中。"
-      required:
-        - session_id
-
-    Error:
-      type: object
-      properties:
-        code:
-          type: integer
-          format: int32
-        message:
-          type: string
-      required:
-        - code
+        - error
         - message
-
-    # Control-Plane 只讀 API 的資料模型 (基於 demo-page.html)
-    AuditLog:
-      type: object
       properties:
+        error:
+          type: string
+          description: 錯誤代碼
+        message:
+          type: string
+          description: 錯誤訊息
+        details:
+          type: object
+          description: 錯誤詳情
+        request_id:
+          type: string
+          description: 請求追蹤 ID
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
         timestamp:
           type: string
           format: date-time
-        event_type:
+        version:
           type: string
-          enum: [DEPLOYMENT, CONFIG_UPDATE, TEAM_CHANGE]
-        author:
-          type: string
-        summary:
-          type: string
-      required:
-        - timestamp
-        - event_type
-        - author
+          description: 服務版本
 
-    Incident:
+    ReadinessResponse:
       type: object
-      description: "代表一筆告警紀錄"
+      required:
+        - ready
+        - checks
       properties:
-        id:
-          type: integer
-        level:
-          type: string
-          enum: [error, warning, info]
-        time:
+        ready:
+          type: boolean
+        checks:
+          type: object
+          properties:
+            database:
+              type: boolean
+            redis:
+              type: boolean
+            keycloak:
+              type: boolean
+            prometheus:
+              type: boolean
+        timestamp:
           type: string
           format: date-time
-        branch:
+
+    # 診斷相關模型
+    DiagnosticRequest:
+      type: object
+      required:
+        - incident_id
+        - severity
+        - affected_services
+      properties:
+        incident_id:
           type: string
-        ip:
+          description: 事件 ID
+        severity:
           type: string
-          format: ipv4
-        name:
+          enum: [P0, P1, P2, P3]
+          description: 嚴重程度
+        title:
           type: string
-        desc:
+          description: 事件標題
+        description:
           type: string
+          description: 問題描述
+        affected_services:
+          type: array
+          items:
+            type: string
+          description: 受影響的服務列表
+        time_range:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+        context:
+          type: object
+          description: 額外上下文資訊
+
+    DiagnosticResponse:
+      type: object
+      required:
+        - session_id
+        - status
+      properties:
+        session_id:
+          type: string
+          format: uuid
+          description: 診斷會話 ID
         status:
           type: string
-          enum: [new, ack, resolved]
-        assignee:
+          enum: [accepted, processing, completed, failed]
+        message:
           type: string
-          nullable: true
-        acknowledgedBy:
+          description: 狀態訊息
+        estimated_time:
+          type: integer
+          description: 預估完成時間（秒）
+
+    DiagnosticStatus:
+      type: object
+      required:
+        - session_id
+        - status
+      properties:
+        session_id:
           type: string
-          nullable: true
-        comments:
+          format: uuid
+        status:
+          type: string
+          enum: [processing, completed, failed]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: 進度百分比
+        current_step:
+          type: string
+          description: 當前執行步驟
+        result:
+          $ref: "#/components/schemas/DiagnosticResult"
+        error:
+          type: string
+          description: 錯誤訊息（如果失敗）
+
+    DiagnosticResult:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: 診斷摘要
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Finding"
+        recommended_actions:
+          type: array
+          items:
+            type: string
+          description: 建議採取的行動
+        confidence_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 診斷信心分數
+        tools_used:
+          type: array
+          items:
+            type: string
+          description: 使用的診斷工具
+        execution_time:
+          type: number
+          format: float
+          description: 執行時間（秒）
+
+    Finding:
+      type: object
+      required:
+        - source
+        - severity
+        - message
+      properties:
+        source:
+          type: string
+          description: 發現來源（如 Prometheus, Loki）
+        severity:
+          type: string
+          enum: [critical, warning, info]
+        message:
+          type: string
+          description: 發現描述
+        evidence:
+          type: object
+          description: 支撐證據
+        timestamp:
+          type: string
+          format: date-time
+
+    # 告警分析模型
+    AlertAnalysisRequest:
+      type: object
+      required:
+        - alert_ids
+      properties:
+        alert_ids:
+          type: array
+          items:
+            type: string
+          description: 告警 ID 列表
+        correlation_window:
+          type: integer
+          default: 300
+          description: 關聯時間窗口（秒）
+        include_metrics:
+          type: boolean
+          default: true
+          description: 是否包含相關指標
+        include_logs:
+          type: boolean
+          default: true
+          description: 是否包含相關日誌
+
+    AlertAnalysisResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        root_cause:
+          type: string
+          description: 根因分析結果
+        correlation_graph:
+          type: object
+          description: 告警關聯圖
+        affected_components:
+          type: array
+          items:
+            type: string
+        mitigation_steps:
+          type: array
+          items:
+            type: string
+        confidence_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+
+    # 容量分析模型
+    CapacityAnalysisRequest:
+      type: object
+      required:
+        - resources
+        - analysis_type
+      properties:
+        resources:
+          type: array
+          items:
+            type: string
+          description: 資源 ID 列表
+        analysis_type:
+          type: string
+          enum: [current, forecast, optimization]
+          description: 分析類型
+        forecast_days:
+          type: integer
+          default: 30
+          description: 預測天數
+        optimization_target:
+          type: string
+          enum: [cost, performance, availability]
+          description: 優化目標
+
+    CapacityAnalysisResponse:
+      type: object
+      properties:
+        current_usage:
+          type: object
+          properties:
+            cpu:
+              $ref: "#/components/schemas/ResourceMetric"
+            memory:
+              $ref: "#/components/schemas/ResourceMetric"
+            storage:
+              $ref: "#/components/schemas/ResourceMetric"
+        forecast:
+          type: object
+          properties:
+            cpu:
+              $ref: "#/components/schemas/ForecastData"
+            memory:
+              $ref: "#/components/schemas/ForecastData"
+            storage:
+              $ref: "#/components/schemas/ForecastData"
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapacityRecommendation"
+        estimated_cost_savings:
+          type: number
+          format: float
+          description: 預估成本節省（美元/月）
+
+    ResourceMetric:
+      type: object
+      properties:
+        current:
+          type: number
+          format: float
+        allocated:
+          type: number
+          format: float
+        limit:
+          type: number
+          format: float
+        utilization_percent:
+          type: number
+          format: float
+        unit:
+          type: string
+
+    ForecastData:
+      type: object
+      properties:
+        predicted_values:
           type: array
           items:
             type: object
             properties:
-              user:
-                type: string
-              text:
-                type: string
-              time:
+              timestamp:
                 type: string
                 format: date-time
+              value:
+                type: number
+                format: float
+              confidence_interval:
+                type: object
+                properties:
+                  lower:
+                    type: number
+                    format: float
+                  upper:
+                    type: number
+                    format: float
+        trend:
+          type: string
+          enum: [increasing, stable, decreasing]
+        anomaly_detected:
+          type: boolean
+
+    CapacityRecommendation:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [scale_up, scale_down, optimize, rebalance]
+        resource:
+          type: string
+        current_value:
+          type: number
+          format: float
+        recommended_value:
+          type: number
+          format: float
+        reason:
+          type: string
+        impact:
+          type: string
+          enum: [high, medium, low]
+        estimated_savings:
+          type: number
+          format: float
+
+    # 執行介面模型
+    ExecuteRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: 自然語言查詢或指令
+        context:
+          type: object
+          description: 執行上下文
+        session_id:
+          type: string
+          description: 會話 ID（用於保持上下文）
+        stream:
+          type: boolean
+          default: false
+          description: 是否使用串流回應
+
+    ExecuteResponse:
+      type: object
+      properties:
+        result:
+          type: string
+          description: 執行結果
+        data:
+          type: object
+          description: 結構化資料
+        visualizations:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [chart, table, graph]
+              data:
+                type: object
+        tools_invoked:
+          type: array
+          items:
+            type: string
+          description: 調用的工具列表
+        execution_plan:
+          type: string
+          description: 執行計畫說明
+
+    # Control Plane 資源模型
+    Resource:
+      type: object
       required:
         - id
-        - level
-        - time
+        - type
         - name
-        - desc
         - status
-
-    ExecutionLog:
-      type: object
-      description: "代表一筆自動化腳本執行日誌"
       properties:
         id:
-          type: integer
-        executionTime:
           type: string
-          format: date-time
-        scriptName:
+        type:
           type: string
-        triggerAlert:
+          enum: [deployment, service, pod, node, cluster]
+        name:
+          type: string
+        namespace:
           type: string
         status:
           type: string
-          enum: [success, failed]
-        duration:
+          enum: [healthy, warning, critical, unknown]
+        metadata:
+          type: object
+          properties:
+            labels:
+              type: object
+              additionalProperties:
+                type: string
+            annotations:
+              type: object
+              additionalProperties:
+                type: string
+        spec:
+          type: object
+          description: 資源規格
+        metrics:
+          type: object
+          properties:
+            cpu_usage:
+              type: number
+              format: float
+            memory_usage:
+              type: number
+              format: float
+            network_io:
+              type: number
+              format: float
+        created_at:
           type: string
-          example: "15s"
-        output:
+          format: date-time
+        updated_at:
           type: string
+          format: date-time
+
+    ResourceList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Resource"
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    # 審計日誌模型
+    AuditLog:
+      type: object
       required:
         - id
-        - executionTime
-        - scriptName
+        - timestamp
+        - user
+        - action
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        user:
+          type: string
+        action:
+          type: string
+          enum: [CREATE, UPDATE, DELETE, READ, EXECUTE]
+        resource_type:
+          type: string
+        resource_id:
+          type: string
+        service_name:
+          type: string
+        changes:
+          type: object
+          properties:
+            before:
+              type: object
+            after:
+              type: object
+        result:
+          type: string
+          enum: [success, failure]
+        error_message:
+          type: string
+
+    AuditLogList:
+      type: object
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLog"
+        total:
+          type: integer
+        has_more:
+          type: boolean
+
+    # 告警模型
+    Alert:
+      type: object
+      required:
+        - id
+        - name
+        - severity
         - status
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        severity:
+          type: string
+          enum: [P0, P1, P2, P3]
+        status:
+          type: string
+          enum: [firing, resolved, pending]
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        generator_url:
+          type: string
+          format: uri
 
-  parameters:
-    IncidentId:
-      name: id
-      in: path
-      required: true
-      description: 告警紀錄的 ID
-      schema:
-        type: integer
-    ExecutionId:
-      name: id
-      in: path
-      required: true
-      description: 自動化執行日誌的 ID
-      schema:
-        type: integer
-    SessionId:
-      name: id
-      in: path
-      required: true
-      description: 非同步任務的會話 ID
-      schema:
-        type: string
-        format: uuid
+    AlertList:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Alert"
+        total:
+          type: integer
+        firing_count:
+          type: integer
+        resolved_count:
+          type: integer
 
-  responses:
-    AcceptedResponse:
-      description: 請求已接受處理
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/SessionResponse"
-    BadRequestResponse:
-      description: 無效請求
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Error"
-    NotFoundResponse:
-      description: 找不到資源
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Error"
+# ============================================
+# Webhooks (可選，用於事件通知)
+# ============================================
+webhooks:
+  diagnosticComplete:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_id:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [completed, failed]
+                result:
+                  $ref: "#/components/schemas/DiagnosticResult"
+                timestamp:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Webhook 接收成功
