@@ -1,0 +1,3454 @@
+# SRE Platform Control Plane API Specification
+# Version: 1.0.0
+# Description: API specification for SRE Platform Control Plane (Go + HTMX)
+
+openapi: 3.0.3
+info:
+  title: SRE Platform Control Plane API
+  description: |
+    SRE Platform Control Plane 的 API 規範，基於 Go + HTMX 技術棧。
+
+    ## API 分類
+    - **Core**: 核心系統功能（健康檢查、認證）
+    - **Dashboard**: 儀表板與統計
+    - **Resources**: 資源管理
+    - **Organization**: 組織與權限
+    - **Incidents**: 事件管理
+    - **Alert Rules**: 告警規則
+    - **Automation**: 自動化腳本
+    - **Notifications**: 通知管道
+    - **Settings**: 系統設定
+    - **Audit**: 審計日誌
+  version: 1.0.0
+  contact:
+    name: SRE Platform Team
+    email: sre-platform@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:8081
+    description: Control Plane Development Server
+  - url: https://api.sre-platform.example.com
+    description: Production Server
+
+tags:
+  - name: Core
+    description: 核心系統功能
+  - name: Dashboard
+    description: 儀表板與統計
+  - name: Resources
+    description: 資源管理
+  - name: Resource Groups
+    description: 資源群組管理
+  - name: Incidents
+    description: 事件管理
+  - name: Alert Rules
+    description: 告警規則
+  - name: Automation
+    description: 自動化腳本
+  - name: Users
+    description: 使用者管理
+  - name: Teams
+    description: 團隊管理
+  - name: Notifications
+    description: 通知管道
+  - name: Settings
+    description: 系統設定
+  - name: Audit
+    description: 審計日誌
+  - name: Callbacks
+    description: 服務間回調
+
+paths:
+  # ============================================
+  # Core - 核心系統功能
+  # ============================================
+  /api/v1/healthz:
+    get:
+      tags: [Core]
+      summary: 服務健康檢查
+      description: 檢查服務是否存活
+      operationId: checkHealth
+      responses:
+        "200":
+          description: 服務健康
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /api/v1/readyz:
+    get:
+      tags: [Core]
+      summary: 服務就緒檢查
+      description: 檢查服務及其依賴是否就緒
+      operationId: checkReadiness
+      responses:
+        "200":
+          description: 服務就緒
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessStatus"
+        "503":
+          description: 服務未就緒
+
+  /api/v1/metrics:
+    get:
+      tags: [Core]
+      summary: Prometheus 指標
+      description: 獲取 Prometheus 格式的系統指標
+      operationId: getMetrics
+      responses:
+        "200":
+          description: Prometheus 指標
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ============================================
+  # Dashboard - 儀表板與統計
+  # ============================================
+  /api/v1/dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: 儀表板摘要
+      description: 獲取儀表板的摘要數據
+      operationId: getDashboardSummary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 儀表板摘要
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /api/v1/dashboard/trends:
+    get:
+      tags: [Dashboard]
+      summary: 趨勢數據
+      description: 獲取各項指標的趨勢數據
+      operationId: getDashboardTrends
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          description: 時間範圍
+          schema:
+            type: string
+            enum: [1h, 6h, 24h, 7d, 30d]
+            default: 24h
+      responses:
+        "200":
+          description: 趨勢數據
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrendData"
+
+  /api/v1/dashboard/resource-distribution:
+    get:
+      tags: [Dashboard]
+      summary: 資源分佈
+      description: 獲取資源狀態分佈統計
+      operationId: getResourceDistribution
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 資源分佈數據
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceDistribution"
+
+  # ============================================
+  # Resources - 資源管理
+  # ============================================
+  /api/v1/resources:
+    get:
+      tags: [Resources]
+      summary: 獲取資源列表
+      description: 獲取所有資源的列表，支援分頁和過濾
+      operationId: listResources
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - name: status
+          in: query
+          description: 資源狀態過濾
+          schema:
+            type: string
+            enum: [healthy, warning, critical, unknown]
+        - name: type
+          in: query
+          description: 資源類型過濾
+          schema:
+            type: string
+            enum: [server, network, database, application, container]
+        - name: group_id
+          in: query
+          description: 群組 ID 過濾
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: 搜尋關鍵字
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 資源列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceList"
+
+    post:
+      tags: [Resources]
+      summary: 創建資源
+      description: 創建新的資源
+      operationId: createResource
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResourceCreateRequest"
+      responses:
+        "201":
+          description: 資源創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/v1/resources/{resourceId}:
+    get:
+      tags: [Resources]
+      summary: 獲取資源詳情
+      description: 獲取特定資源的詳細資訊
+      operationId: getResource
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceIdParam"
+      responses:
+        "200":
+          description: 資源詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Resources]
+      summary: 更新資源
+      description: 更新資源資訊
+      operationId: updateResource
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResourceUpdateRequest"
+      responses:
+        "200":
+          description: 資源更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resource"
+
+    delete:
+      tags: [Resources]
+      summary: 刪除資源
+      description: 刪除資源
+      operationId: deleteResource
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceIdParam"
+      responses:
+        "204":
+          description: 資源刪除成功
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/resources/batch:
+    post:
+      tags: [Resources]
+      summary: 批次操作資源
+      description: 對多個資源執行批次操作
+      operationId: batchOperateResources
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchResourceOperation"
+      responses:
+        "200":
+          description: 批次操作結果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchOperationResult"
+
+  /api/v1/resources/scan:
+    post:
+      tags: [Resources]
+      summary: 掃描網段
+      description: 掃描指定網段發現新資源
+      operationId: scanNetwork
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkScanRequest"
+      responses:
+        "202":
+          description: 掃描任務已接受
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanTaskResponse"
+
+  /api/v1/resources/scan/{taskId}:
+    get:
+      tags: [Resources]
+      summary: 獲取掃描結果
+      description: 獲取網段掃描任務的結果
+      operationId: getScanResult
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          description: 掃描任務 ID
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 掃描結果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResult"
+
+  # ============================================
+  # Resource Groups - 資源群組管理
+  # ============================================
+  /api/v1/resource-groups:
+    get:
+      tags: [Resource Groups]
+      summary: 獲取群組列表
+      description: 獲取所有資源群組
+      operationId: listResourceGroups
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 群組列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceGroupList"
+
+    post:
+      tags: [Resource Groups]
+      summary: 創建群組
+      description: 創建新的資源群組
+      operationId: createResourceGroup
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResourceGroupCreateRequest"
+      responses:
+        "201":
+          description: 群組創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceGroup"
+
+  /api/v1/resource-groups/{groupId}:
+    put:
+      tags: [Resource Groups]
+      summary: 更新群組
+      description: 更新資源群組資訊
+      operationId: updateResourceGroup
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResourceGroupUpdateRequest"
+      responses:
+        "200":
+          description: 群組更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceGroup"
+
+    delete:
+      tags: [Resource Groups]
+      summary: 刪除群組
+      description: 刪除資源群組
+      operationId: deleteResourceGroup
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 群組刪除成功
+
+  /api/v1/resource-groups/{groupId}/members:
+    post:
+      tags: [Resource Groups]
+      summary: 管理群組成員
+      description: 新增或移除群組成員
+      operationId: manageGroupMembers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupMemberOperation"
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceGroup"
+
+  # ============================================
+  # Incidents - 事件管理
+  # ============================================
+  /api/v1/incidents:
+    get:
+      tags: [Incidents]
+      summary: 獲取事件列表
+      description: 獲取所有事件記錄
+      operationId: listIncidents
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [new, acknowledged, resolved]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, error, warning, info]
+        - name: start_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: 事件列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IncidentList"
+
+    post:
+      tags: [Incidents]
+      summary: 創建事件
+      description: 創建新的事件記錄
+      operationId: createIncident
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncidentCreateRequest"
+      responses:
+        "201":
+          description: 事件創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+
+  /api/v1/incidents/{incidentId}:
+    get:
+      tags: [Incidents]
+      summary: 獲取事件詳情
+      description: 獲取特定事件的詳細資訊
+      operationId: getIncident
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: incidentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 事件詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+
+    put:
+      tags: [Incidents]
+      summary: 更新事件
+      description: 更新事件資訊
+      operationId: updateIncident
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: incidentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncidentUpdateRequest"
+      responses:
+        "200":
+          description: 事件更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+
+  /api/v1/incidents/{incidentId}/acknowledge:
+    post:
+      tags: [Incidents]
+      summary: 確認事件
+      description: 確認事件已被接收處理
+      operationId: acknowledgeIncident
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: incidentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                acknowledged_by:
+                  type: string
+                  description: 確認人
+                comment:
+                  type: string
+                  description: 確認備註
+      responses:
+        "200":
+          description: 事件確認成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+
+  /api/v1/incidents/{incidentId}/resolve:
+    post:
+      tags: [Incidents]
+      summary: 解決事件
+      description: 標記事件為已解決
+      operationId: resolveIncident
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: incidentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolved_by:
+                  type: string
+                  description: 解決人
+                resolution:
+                  type: string
+                  description: 解決方案描述
+                root_cause:
+                  type: string
+                  description: 根本原因
+      responses:
+        "200":
+          description: 事件解決成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+
+  /api/v1/incidents/{incidentId}/assign:
+    post:
+      tags: [Incidents]
+      summary: 指派事件
+      description: 指派事件給特定人員處理
+      operationId: assignIncident
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: incidentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - assignee_id
+              properties:
+                assignee_id:
+                  type: string
+                  description: 被指派人 ID
+      responses:
+        "200":
+          description: 事件指派成功
+
+  /api/v1/incidents/{incidentId}/comments:
+    post:
+      tags: [Incidents]
+      summary: 新增事件註記
+      description: 為事件新增註記
+      operationId: addIncidentComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: incidentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - comment
+              properties:
+                comment:
+                  type: string
+                  description: 註記內容
+      responses:
+        "201":
+          description: 註記新增成功
+
+  /api/v1/incidents/generate-report:
+    post:
+      tags: [Incidents]
+      summary: AI 生成事件報告
+      description: 使用 AI 生成事件分析報告
+      operationId: generateIncidentReport
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - incident_ids
+              properties:
+                incident_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: 要分析的事件 ID 列表
+                report_type:
+                  type: string
+                  enum: [summary, root_cause, impact_analysis]
+                  default: summary
+      responses:
+        "200":
+          description: AI 報告生成成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIGeneratedReport"
+
+  # ============================================
+  # Alert Rules - 告警規則
+  # ============================================
+  /api/v1/alert-rules:
+    get:
+      tags: [Alert Rules]
+      summary: 獲取告警規則列表
+      description: 獲取所有告警規則
+      operationId: listAlertRules
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: enabled
+          in: query
+          schema:
+            type: boolean
+          description: 是否啟用
+      responses:
+        "200":
+          description: 告警規則列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRuleList"
+
+    post:
+      tags: [Alert Rules]
+      summary: 創建告警規則
+      description: 創建新的告警規則
+      operationId: createAlertRule
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertRuleCreateRequest"
+      responses:
+        "201":
+          description: 規則創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+
+  /api/v1/alert-rules/{ruleId}:
+    get:
+      tags: [Alert Rules]
+      summary: 獲取規則詳情
+      description: 獲取特定告警規則的詳情
+      operationId: getAlertRule
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 規則詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+
+    put:
+      tags: [Alert Rules]
+      summary: 更新告警規則
+      description: 更新告警規則
+      operationId: updateAlertRule
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertRuleUpdateRequest"
+      responses:
+        "200":
+          description: 規則更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+
+    delete:
+      tags: [Alert Rules]
+      summary: 刪除告警規則
+      description: 刪除告警規則
+      operationId: deleteAlertRule
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 規則刪除成功
+
+  /api/v1/alert-rules/{ruleId}/test:
+    post:
+      tags: [Alert Rules]
+      summary: 測試告警規則
+      description: 測試告警規則是否正常運作
+      operationId: testAlertRule
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 測試結果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  matched_resources:
+                    type: array
+                    items:
+                      type: string
+
+  /api/v1/alert-rules/{ruleId}/enable:
+    post:
+      tags: [Alert Rules]
+      summary: 啟用規則
+      description: 啟用告警規則
+      operationId: enableAlertRule
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 規則已啟用
+
+  /api/v1/alert-rules/{ruleId}/disable:
+    post:
+      tags: [Alert Rules]
+      summary: 停用規則
+      description: 停用告警規則
+      operationId: disableAlertRule
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 規則已停用
+
+  # ============================================
+  # Automation - 自動化腳本
+  # ============================================
+  /api/v1/automation/scripts:
+    get:
+      tags: [Automation]
+      summary: 獲取腳本列表
+      description: 獲取所有自動化腳本
+      operationId: listScripts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [diagnostic, remediation, maintenance, custom]
+      responses:
+        "200":
+          description: 腳本列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScriptList"
+
+    post:
+      tags: [Automation]
+      summary: 創建腳本
+      description: 創建新的自動化腳本
+      operationId: createScript
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScriptCreateRequest"
+      responses:
+        "201":
+          description: 腳本創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Script"
+
+  /api/v1/automation/scripts/{scriptId}:
+    get:
+      tags: [Automation]
+      summary: 獲取腳本詳情
+      description: 獲取特定腳本的詳情
+      operationId: getScript
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: scriptId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 腳本詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Script"
+
+    put:
+      tags: [Automation]
+      summary: 更新腳本
+      description: 更新自動化腳本
+      operationId: updateScript
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: scriptId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScriptUpdateRequest"
+      responses:
+        "200":
+          description: 腳本更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Script"
+
+    delete:
+      tags: [Automation]
+      summary: 刪除腳本
+      description: 刪除自動化腳本
+      operationId: deleteScript
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: scriptId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 腳本刪除成功
+
+  /api/v1/automation/execute:
+    post:
+      tags: [Automation]
+      summary: 執行腳本
+      description: 執行自動化腳本
+      operationId: executeScript
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScriptExecuteRequest"
+      responses:
+        "202":
+          description: 執行任務已接受
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionTaskResponse"
+
+  /api/v1/automation/executions:
+    get:
+      tags: [Automation]
+      summary: 執行歷史
+      description: 查詢腳本執行歷史
+      operationId: listExecutions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - name: script_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, running, success, failed]
+      responses:
+        "200":
+          description: 執行歷史列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecutionList"
+
+  /api/v1/automation/executions/{executionId}:
+    get:
+      tags: [Automation]
+      summary: 執行詳情
+      description: 獲取執行任務的詳情
+      operationId: getExecution
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 執行詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Execution"
+
+  /api/v1/automation/schedules:
+    post:
+      tags: [Automation]
+      summary: 創建排程
+      description: 創建腳本執行排程
+      operationId: createSchedule
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleCreateRequest"
+      responses:
+        "201":
+          description: 排程創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Schedule"
+
+  # ============================================
+  # Users - 使用者管理
+  # ============================================
+  /api/v1/users:
+    get:
+      tags: [Users]
+      summary: 獲取使用者列表
+      description: 獲取所有使用者
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [super_admin, team_manager, team_member]
+        - name: team_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 使用者列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserList"
+
+    post:
+      tags: [Users]
+      summary: 創建使用者
+      description: 創建新使用者
+      operationId: createUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateRequest"
+      responses:
+        "201":
+          description: 使用者創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /api/v1/users/{userId}:
+    get:
+      tags: [Users]
+      summary: 獲取使用者詳情
+      description: 獲取特定使用者的詳情
+      operationId: getUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 使用者詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+    put:
+      tags: [Users]
+      summary: 更新使用者
+      description: 更新使用者資訊
+      operationId: updateUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+      responses:
+        "200":
+          description: 使用者更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+    delete:
+      tags: [Users]
+      summary: 刪除使用者
+      description: 刪除使用者
+      operationId: deleteUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 使用者刪除成功
+
+  /api/v1/users/profile:
+    get:
+      tags: [Users]
+      summary: 獲取個人資料
+      description: 獲取當前登入使用者的個人資料
+      operationId: getProfile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 個人資料
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+    put:
+      tags: [Users]
+      summary: 更新個人資料
+      description: 更新當前登入使用者的個人資料
+      operationId: updateProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdateRequest"
+      responses:
+        "200":
+          description: 個人資料更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /api/v1/users/profile/change-password:
+    post:
+      tags: [Users]
+      summary: 修改密碼
+      description: 修改當前使用者的密碼
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current_password
+                - new_password
+              properties:
+                current_password:
+                  type: string
+                  format: password
+                new_password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: 密碼修改成功
+
+  /api/v1/users/profile/notifications:
+    put:
+      tags: [Users]
+      summary: 更新通知設定
+      description: 更新個人通知偏好設定
+      operationId: updateNotificationPreferences
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferences"
+      responses:
+        "200":
+          description: 通知設定更新成功
+
+  /api/v1/users/profile/verify-contact:
+    post:
+      tags: [Users]
+      summary: 驗證聯絡方式
+      description: 驗證使用者的聯絡方式（Email、SMS、LINE）
+      operationId: verifyContact
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - method
+                - value
+              properties:
+                method:
+                  type: string
+                  enum: [email, sms, line]
+                value:
+                  type: string
+                  description: 聯絡方式的值（如 email 地址、手機號碼）
+                verification_code:
+                  type: string
+                  description: 驗證碼（如果是驗證步驟）
+      responses:
+        "200":
+          description: 驗證成功或驗證碼已發送
+
+  # ============================================
+  # Teams - 團隊管理
+  # ============================================
+  /api/v1/teams:
+    get:
+      tags: [Teams]
+      summary: 獲取團隊列表
+      description: 獲取所有團隊
+      operationId: listTeams
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 團隊列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamList"
+
+    post:
+      tags: [Teams]
+      summary: 創建團隊
+      description: 創建新團隊
+      operationId: createTeam
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamCreateRequest"
+      responses:
+        "201":
+          description: 團隊創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+
+  /api/v1/teams/{teamId}:
+    get:
+      tags: [Teams]
+      summary: 獲取團隊詳情
+      description: 獲取特定團隊的詳情
+      operationId: getTeam
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 團隊詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+
+    put:
+      tags: [Teams]
+      summary: 更新團隊
+      description: 更新團隊資訊
+      operationId: updateTeam
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamUpdateRequest"
+      responses:
+        "200":
+          description: 團隊更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+
+    delete:
+      tags: [Teams]
+      summary: 刪除團隊
+      description: 刪除團隊
+      operationId: deleteTeam
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 團隊刪除成功
+
+  /api/v1/teams/{teamId}/members:
+    post:
+      tags: [Teams]
+      summary: 管理團隊成員
+      description: 新增或移除團隊成員
+      operationId: manageTeamMembers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - operation
+                - user_ids
+              properties:
+                operation:
+                  type: string
+                  enum: [add, remove]
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: 成員管理成功
+
+  # ============================================
+  # Notifications - 通知管道
+  # ============================================
+  /api/v1/notification-channels:
+    get:
+      tags: [Notifications]
+      summary: 獲取通知管道列表
+      description: 獲取所有通知管道
+      operationId: listNotificationChannels
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 通知管道列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationChannelList"
+
+    post:
+      tags: [Notifications]
+      summary: 創建通知管道
+      description: 創建新的通知管道
+      operationId: createNotificationChannel
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationChannelCreateRequest"
+      responses:
+        "201":
+          description: 通知管道創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationChannel"
+
+  /api/v1/notification-channels/{channelId}:
+    get:
+      tags: [Notifications]
+      summary: 獲取管道詳情
+      description: 獲取特定通知管道的詳情
+      operationId: getNotificationChannel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 通知管道詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationChannel"
+
+    put:
+      tags: [Notifications]
+      summary: 更新通知管道
+      description: 更新通知管道設定
+      operationId: updateNotificationChannel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationChannelUpdateRequest"
+      responses:
+        "200":
+          description: 通知管道更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationChannel"
+
+    delete:
+      tags: [Notifications]
+      summary: 刪除通知管道
+      description: 刪除通知管道
+      operationId: deleteNotificationChannel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 通知管道刪除成功
+
+  /api/v1/notification-channels/{channelId}/test:
+    post:
+      tags: [Notifications]
+      summary: 測試通知管道
+      description: 發送測試訊息到通知管道
+      operationId: testNotificationChannel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  default: "這是一則測試訊息"
+      responses:
+        "200":
+          description: 測試訊息已發送
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  # ============================================
+  # Settings - 系統設定
+  # ============================================
+  /api/v1/settings:
+    get:
+      tags: [Settings]
+      summary: 獲取系統設定
+      description: 獲取系統設定（需管理員權限）
+      operationId: getSettings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 系統設定
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemSettings"
+
+    put:
+      tags: [Settings]
+      summary: 更新系統設定
+      description: 更新系統設定（需管理員權限）
+      operationId: updateSettings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SystemSettings"
+      responses:
+        "200":
+          description: 系統設定更新成功
+
+  /api/v1/settings/maintenance-windows:
+    get:
+      tags: [Settings]
+      summary: 獲取維護時段
+      description: 獲取所有維護時段設定
+      operationId: listMaintenanceWindows
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 維護時段列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceWindowList"
+
+    post:
+      tags: [Settings]
+      summary: 創建維護時段
+      description: 創建新的維護時段
+      operationId: createMaintenanceWindow
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaintenanceWindowCreateRequest"
+      responses:
+        "201":
+          description: 維護時段創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceWindow"
+
+  # ============================================
+  # Audit - 審計日誌
+  # ============================================
+  /api/v1/audit-logs:
+    get:
+      tags: [Audit]
+      summary: 查詢審計日誌
+      description: 查詢系統審計日誌
+      operationId: queryAuditLogs
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - name: user_id
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+            enum: [create, update, delete, execute, login, logout]
+        - name: resource_type
+          in: query
+          schema:
+            type: string
+        - name: start_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: 審計日誌列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditLogList"
+
+  # ============================================
+  # Callbacks - 服務間回調
+  # ============================================
+  /api/v1/callbacks/diagnosis-complete:
+    post:
+      tags: [Callbacks]
+      summary: 診斷完成回調
+      description: 接收 SRE Assistant 診斷完成的回調通知
+      operationId: diagnosisCompleteCallback
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiagnosisCompleteCallback"
+      responses:
+        "200":
+          description: 回調處理成功
+
+# ============================================
+# Components
+# ============================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Keycloak JWT Token
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: 頁碼（從 1 開始）
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    PageSizeParam:
+      name: page_size
+      in: query
+      description: 每頁筆數
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    ResourceIdParam:
+      name: resourceId
+      in: path
+      required: true
+      description: 資源 ID
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: 請求參數錯誤
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Unauthorized:
+      description: 未授權
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Forbidden:
+      description: 無權限
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    NotFound:
+      description: 資源不存在
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Conflict:
+      description: 資源衝突
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    InternalServerError:
+      description: 內部伺服器錯誤
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    # ============================================
+    # Common Schemas
+    # ============================================
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: 錯誤代碼
+        message:
+          type: string
+          description: 錯誤訊息
+        details:
+          type: object
+          description: 錯誤詳情
+        request_id:
+          type: string
+          description: 請求追蹤 ID
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: 當前頁碼
+        page_size:
+          type: integer
+          description: 每頁筆數
+        total:
+          type: integer
+          description: 總筆數
+        total_pages:
+          type: integer
+          description: 總頁數
+
+    # ============================================
+    # Core Schemas
+    # ============================================
+    HealthStatus:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+        uptime:
+          type: integer
+          description: 運行時間（秒）
+
+    ReadinessStatus:
+      type: object
+      required:
+        - ready
+        - checks
+      properties:
+        ready:
+          type: boolean
+        checks:
+          type: object
+          properties:
+            database:
+              type: boolean
+            redis:
+              type: boolean
+            keycloak:
+              type: boolean
+            sre_assistant:
+              type: boolean
+
+    # ============================================
+    # Dashboard Schemas
+    # ============================================
+    DashboardSummary:
+      type: object
+      properties:
+        alerts:
+          type: object
+          properties:
+            new:
+              type: integer
+            processing:
+              type: integer
+            resolved_today:
+              type: integer
+        resources:
+          type: object
+          properties:
+            total:
+              type: integer
+            healthy:
+              type: integer
+            warning:
+              type: integer
+            critical:
+              type: integer
+        kpis:
+          type: object
+          properties:
+            availability:
+              type: number
+              format: float
+              description: 系統可用性百分比
+            mttr:
+              type: number
+              description: 平均修復時間（分鐘）
+            incident_rate:
+              type: number
+              description: 事件發生率
+
+    TrendData:
+      type: object
+      properties:
+        period:
+          type: string
+        data_points:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              alerts:
+                type: integer
+              incidents:
+                type: integer
+              resources_healthy:
+                type: integer
+              resources_unhealthy:
+                type: integer
+
+    ResourceDistribution:
+      type: object
+      properties:
+        by_status:
+          type: object
+          properties:
+            healthy:
+              type: integer
+            warning:
+              type: integer
+            critical:
+              type: integer
+            unknown:
+              type: integer
+        by_type:
+          type: object
+          additionalProperties:
+            type: integer
+        by_group:
+          type: array
+          items:
+            type: object
+            properties:
+              group_id:
+                type: string
+              group_name:
+                type: string
+              total:
+                type: integer
+              healthy:
+                type: integer
+              warning:
+                type: integer
+              critical:
+                type: integer
+
+    # ============================================
+    # Resource Schemas
+    # ============================================
+    Resource:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - status
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [server, network, database, application, container]
+        status:
+          type: string
+          enum: [healthy, warning, critical, unknown]
+        ip_address:
+          type: string
+        location:
+          type: string
+        group_id:
+          type: string
+        group_name:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        owner:
+          type: string
+          description: 負責人
+        description:
+          type: string
+        maintenance_window:
+          $ref: "#/components/schemas/MaintenanceWindow"
+        metrics:
+          type: object
+          properties:
+            cpu_usage:
+              type: number
+              format: float
+            memory_usage:
+              type: number
+              format: float
+            disk_usage:
+              type: number
+              format: float
+            network_io:
+              type: number
+              format: float
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ResourceList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Resource"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    ResourceCreateRequest:
+      type: object
+      required:
+        - name
+        - type
+        - ip_address
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [server, network, database, application, container]
+        ip_address:
+          type: string
+        location:
+          type: string
+        group_id:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        owner:
+          type: string
+        description:
+          type: string
+        metadata:
+          type: object
+
+    ResourceUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        location:
+          type: string
+        group_id:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        owner:
+          type: string
+        description:
+          type: string
+        metadata:
+          type: object
+
+    BatchResourceOperation:
+      type: object
+      required:
+        - operation
+        - resource_ids
+      properties:
+        operation:
+          type: string
+          enum: [delete, add_to_group, remove_from_group, update_tags]
+        resource_ids:
+          type: array
+          items:
+            type: string
+        parameters:
+          type: object
+          properties:
+            group_id:
+              type: string
+            tags:
+              type: array
+              items:
+                type: string
+
+    BatchOperationResult:
+      type: object
+      properties:
+        success_count:
+          type: integer
+        failure_count:
+          type: integer
+        failures:
+          type: array
+          items:
+            type: object
+            properties:
+              resource_id:
+                type: string
+              error:
+                type: string
+
+    NetworkScanRequest:
+      type: object
+      required:
+        - cidr
+      properties:
+        cidr:
+          type: string
+          description: CIDR 格式的網段（如 192.168.1.0/24）
+        port_ranges:
+          type: array
+          items:
+            type: string
+          default: ["22", "80", "443", "3389"]
+        timeout:
+          type: integer
+          description: 掃描超時時間（秒）
+          default: 30
+
+    ScanTaskResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, scanning, completed, failed]
+        message:
+          type: string
+
+    ScanResult:
+      type: object
+      properties:
+        task_id:
+          type: string
+        status:
+          type: string
+          enum: [completed, failed]
+        discovered_resources:
+          type: array
+          items:
+            type: object
+            properties:
+              ip_address:
+                type: string
+              hostname:
+                type: string
+              open_ports:
+                type: array
+                items:
+                  type: integer
+              os_detection:
+                type: string
+              services:
+                type: array
+                items:
+                  type: string
+        scan_time:
+          type: string
+          format: date-time
+        error:
+          type: string
+
+    # ============================================
+    # Resource Group Schemas
+    # ============================================
+    ResourceGroup:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        parent_group_id:
+          type: string
+        resource_count:
+          type: integer
+        status_summary:
+          type: object
+          properties:
+            healthy:
+              type: integer
+            warning:
+              type: integer
+            critical:
+              type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ResourceGroupList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResourceGroup"
+        total:
+          type: integer
+
+    ResourceGroupCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        parent_group_id:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    ResourceGroupUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        parent_group_id:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    GroupMemberOperation:
+      type: object
+      required:
+        - operation
+        - resource_ids
+      properties:
+        operation:
+          type: string
+          enum: [add, remove]
+        resource_ids:
+          type: array
+          items:
+            type: string
+
+    # ============================================
+    # Incident Schemas
+    # ============================================
+    Incident:
+      type: object
+      required:
+        - id
+        - title
+        - severity
+        - status
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [critical, error, warning, info]
+        status:
+          type: string
+          enum: [new, acknowledged, resolved]
+        affected_resources:
+          type: array
+          items:
+            type: string
+        assignee:
+          type: string
+        acknowledged_by:
+          type: string
+        acknowledged_at:
+          type: string
+          format: date-time
+        resolved_by:
+          type: string
+        resolved_at:
+          type: string
+          format: date-time
+        resolution:
+          type: string
+        root_cause:
+          type: string
+        comments:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              user:
+                type: string
+              comment:
+                type: string
+              created_at:
+                type: string
+                format: date-time
+        tags:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    IncidentList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Incident"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    IncidentCreateRequest:
+      type: object
+      required:
+        - title
+        - severity
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [critical, error, warning, info]
+        affected_resources:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    IncidentUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        severity:
+          type: string
+          enum: [critical, error, warning, info]
+        affected_resources:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    AIGeneratedReport:
+      type: object
+      properties:
+        report_type:
+          type: string
+          enum: [summary, root_cause, impact_analysis]
+        content:
+          type: string
+          description: AI 生成的報告內容（Markdown 格式）
+        key_findings:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        confidence_score:
+          type: number
+          format: float
+        generated_at:
+          type: string
+          format: date-time
+
+    # ============================================
+    # Alert Rule Schemas
+    # ============================================
+    AlertRule:
+      type: object
+      required:
+        - id
+        - name
+        - condition
+        - enabled
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        condition:
+          type: object
+          properties:
+            metric:
+              type: string
+            operator:
+              type: string
+              enum: [gt, gte, lt, lte, eq, neq]
+            threshold:
+              type: number
+            duration:
+              type: integer
+              description: 持續時間（秒）
+        severity:
+          type: string
+          enum: [critical, error, warning, info]
+        enabled:
+          type: boolean
+        notification_channels:
+          type: array
+          items:
+            type: string
+        resource_filter:
+          type: object
+          properties:
+            groups:
+              type: array
+              items:
+                type: string
+            types:
+              type: array
+              items:
+                type: string
+            tags:
+              type: array
+              items:
+                type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AlertRuleList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertRule"
+        total:
+          type: integer
+
+    AlertRuleCreateRequest:
+      type: object
+      required:
+        - name
+        - condition
+        - severity
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        condition:
+          type: object
+          required:
+            - metric
+            - operator
+            - threshold
+          properties:
+            metric:
+              type: string
+            operator:
+              type: string
+              enum: [gt, gte, lt, lte, eq, neq]
+            threshold:
+              type: number
+            duration:
+              type: integer
+        severity:
+          type: string
+          enum: [critical, error, warning, info]
+        notification_channels:
+          type: array
+          items:
+            type: string
+        resource_filter:
+          type: object
+
+    AlertRuleUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        condition:
+          type: object
+        severity:
+          type: string
+        notification_channels:
+          type: array
+          items:
+            type: string
+        resource_filter:
+          type: object
+
+    # ============================================
+    # Automation Schemas
+    # ============================================
+    Script:
+      type: object
+      required:
+        - id
+        - name
+        - category
+        - language
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [diagnostic, remediation, maintenance, custom]
+        language:
+          type: string
+          enum: [python, bash, powershell, javascript]
+        content:
+          type: string
+          description: 腳本內容
+        parameters:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [string, number, boolean, array, object]
+              required:
+                type: boolean
+              default:
+                type: any
+              description:
+                type: string
+        tags:
+          type: array
+          items:
+            type: string
+        version:
+          type: string
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ScriptList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Script"
+        total:
+          type: integer
+
+    ScriptCreateRequest:
+      type: object
+      required:
+        - name
+        - category
+        - language
+        - content
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [diagnostic, remediation, maintenance, custom]
+        language:
+          type: string
+          enum: [python, bash, powershell, javascript]
+        content:
+          type: string
+        parameters:
+          type: array
+          items:
+            type: object
+        tags:
+          type: array
+          items:
+            type: string
+
+    ScriptUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        content:
+          type: string
+        parameters:
+          type: array
+          items:
+            type: object
+        tags:
+          type: array
+          items:
+            type: string
+
+    ScriptExecuteRequest:
+      type: object
+      required:
+        - script_id
+      properties:
+        script_id:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+        target_resources:
+          type: array
+          items:
+            type: string
+        dry_run:
+          type: boolean
+          default: false
+
+    ExecutionTaskResponse:
+      type: object
+      properties:
+        execution_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, success, failed]
+        message:
+          type: string
+
+    Execution:
+      type: object
+      properties:
+        id:
+          type: string
+        script_id:
+          type: string
+        script_name:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, success, failed]
+        parameters:
+          type: object
+        target_resources:
+          type: array
+          items:
+            type: string
+        output:
+          type: string
+        error:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        executed_by:
+          type: string
+
+    ExecutionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Execution"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    Schedule:
+      type: object
+      properties:
+        id:
+          type: string
+        script_id:
+          type: string
+        cron_expression:
+          type: string
+        enabled:
+          type: boolean
+        parameters:
+          type: object
+        target_resources:
+          type: array
+          items:
+            type: string
+        next_run:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    ScheduleCreateRequest:
+      type: object
+      required:
+        - script_id
+        - cron_expression
+      properties:
+        script_id:
+          type: string
+        cron_expression:
+          type: string
+        parameters:
+          type: object
+        target_resources:
+          type: array
+          items:
+            type: string
+
+    # ============================================
+    # User Schemas
+    # ============================================
+    User:
+      type: object
+      required:
+        - id
+        - username
+        - email
+        - role
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum: [super_admin, team_manager, team_member]
+        teams:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+        department:
+          type: string
+        phone:
+          type: string
+        avatar_url:
+          type: string
+        last_login:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    UserCreateRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+        - role
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        name:
+          type: string
+        role:
+          type: string
+          enum: [super_admin, team_manager, team_member]
+        team_ids:
+          type: array
+          items:
+            type: string
+        department:
+          type: string
+        phone:
+          type: string
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [super_admin, team_manager, team_member]
+        team_ids:
+          type: array
+          items:
+            type: string
+        department:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, suspended]
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        email_verified:
+          type: boolean
+        name:
+          type: string
+        phone:
+          type: string
+        phone_verified:
+          type: boolean
+        line_token:
+          type: string
+        line_verified:
+          type: boolean
+        avatar_url:
+          type: string
+        department:
+          type: string
+        teams:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+        notification_preferences:
+          $ref: "#/components/schemas/NotificationPreferences"
+
+    ProfileUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        line_token:
+          type: string
+        department:
+          type: string
+        avatar_url:
+          type: string
+
+    NotificationPreferences:
+      type: object
+      properties:
+        email:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            severity_filter:
+              type: array
+              items:
+                type: string
+                enum: [critical, error, warning, info]
+        sms:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            severity_filter:
+              type: array
+              items:
+                type: string
+        line:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            severity_filter:
+              type: array
+              items:
+                type: string
+        quiet_hours:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            start:
+              type: string
+              format: time
+            end:
+              type: string
+              format: time
+
+    # ============================================
+    # Team Schemas
+    # ============================================
+    Team:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        manager_id:
+          type: string
+        manager_name:
+          type: string
+        member_count:
+          type: integer
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              role:
+                type: string
+        notification_settings:
+          type: object
+          properties:
+            primary_contact:
+              type: string
+            escalation_contact:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TeamList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Team"
+        total:
+          type: integer
+
+    TeamCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        manager_id:
+          type: string
+        member_ids:
+          type: array
+          items:
+            type: string
+        notification_settings:
+          type: object
+
+    TeamUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        manager_id:
+          type: string
+        notification_settings:
+          type: object
+
+    # ============================================
+    # Notification Channel Schemas
+    # ============================================
+    NotificationChannel:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - enabled
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [email, webhook, slack, line, sms]
+        enabled:
+          type: boolean
+        configuration:
+          type: object
+          description: 管道特定的配置
+          properties:
+            # Email
+            smtp_host:
+              type: string
+            smtp_port:
+              type: integer
+            smtp_username:
+              type: string
+            smtp_from:
+              type: string
+            # Webhook
+            url:
+              type: string
+            method:
+              type: string
+            headers:
+              type: object
+            # Slack
+            webhook_url:
+              type: string
+            channel:
+              type: string
+            mention:
+              type: string
+            # LINE
+            access_token:
+              type: string
+            # SMS
+            api_endpoint:
+              type: string
+            api_key:
+              type: string
+            sender_id:
+              type: string
+        test_status:
+          type: object
+          properties:
+            last_test:
+              type: string
+              format: date-time
+            success:
+              type: boolean
+            message:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    NotificationChannelList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationChannel"
+        total:
+          type: integer
+
+    NotificationChannelCreateRequest:
+      type: object
+      required:
+        - name
+        - type
+        - configuration
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [email, webhook, slack, line, sms]
+        configuration:
+          type: object
+        enabled:
+          type: boolean
+          default: true
+
+    NotificationChannelUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        configuration:
+          type: object
+        enabled:
+          type: boolean
+
+    # ============================================
+    # Settings Schemas
+    # ============================================
+    SystemSettings:
+      type: object
+      properties:
+        general:
+          type: object
+          properties:
+            site_name:
+              type: string
+            site_url:
+              type: string
+            time_zone:
+              type: string
+            language:
+              type: string
+              enum: [zh-TW, zh-CN, en-US]
+        integration:
+          type: object
+          properties:
+            grafana_url:
+              type: string
+            prometheus_url:
+              type: string
+            loki_url:
+              type: string
+            keycloak_url:
+              type: string
+        notification:
+          type: object
+          properties:
+            default_channel:
+              type: string
+            retry_count:
+              type: integer
+            retry_delay:
+              type: integer
+        maintenance:
+          type: object
+          properties:
+            auto_acknowledge:
+              type: boolean
+            auto_resolve:
+              type: boolean
+            default_assignee:
+              type: string
+
+    MaintenanceWindow:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        recurring:
+          type: boolean
+        recurrence_pattern:
+          type: string
+          enum: [daily, weekly, monthly]
+        affected_resources:
+          type: array
+          items:
+            type: string
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    MaintenanceWindowList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MaintenanceWindow"
+        total:
+          type: integer
+
+    MaintenanceWindowCreateRequest:
+      type: object
+      required:
+        - name
+        - start_time
+        - end_time
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        recurring:
+          type: boolean
+        recurrence_pattern:
+          type: string
+          enum: [daily, weekly, monthly]
+        affected_resources:
+          type: array
+          items:
+            type: string
+
+    # ============================================
+    # Audit Log Schemas
+    # ============================================
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        user_id:
+          type: string
+        username:
+          type: string
+        action:
+          type: string
+          enum: [create, update, delete, execute, login, logout]
+        resource_type:
+          type: string
+        resource_id:
+          type: string
+        resource_name:
+          type: string
+        changes:
+          type: object
+          properties:
+            before:
+              type: object
+            after:
+              type: object
+        result:
+          type: string
+          enum: [success, failure]
+        error_message:
+          type: string
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+
+    AuditLogList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLog"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    # ============================================
+    # Callback Schemas
+    # ============================================
+    DiagnosisCompleteCallback:
+      type: object
+      required:
+        - session_id
+        - status
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [completed, failed]
+        result_url:
+          type: string
+          description: 診斷結果查詢 URL

@@ -1,0 +1,767 @@
+# SRE Platform SRE Assistant API Specification
+# Version: 1.0.0
+# Description: API specification for SRE Platform SRE Assistant (Python + FastAPI + Google ADK)
+
+openapi: 3.0.3
+info:
+  title: SRE Platform SRE Assistant API
+  description: |
+    SRE Platform SRE Assistant 的 API 規範，基於 Python + FastAPI + Google ADK 技術棧。
+
+    ## 服務定位
+    SRE Assistant 是無界面的 AI 專家代理服務，專門負責：
+    - 🧠 智能診斷：利用 AI 分析部署、告警和系統問題
+    - 📊 容量預測：基於歷史數據預測資源需求趨勢
+    - 🔍 根因分析：自動關聯告警，找出問題根源
+    - 🤖 自動化執行：執行複雜的 SRE 工作流程
+    - 🛠️ 工具整合：串接 Prometheus、Loki、Kubernetes 等平台
+
+    ## API 分類
+    - **Core**: 核心系統功能（健康檢查、認證）
+    - **Diagnostics**: 診斷分析
+    - **Capacity**: 容量規劃
+    - **Execute**: 通用執行
+    - **Workflows**: 工作流管理
+    - **Tools**: 工具狀態
+  version: 1.0.0
+  contact:
+    name: SRE Platform Team
+    email: sre-platform@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:8000
+    description: SRE Assistant Development Server
+  - url: https://sre-assistant.example.com
+    description: Production Server
+
+tags:
+  - name: Core
+    description: 核心系統功能
+  - name: Diagnostics
+    description: 診斷分析
+  - name: Capacity
+    description: 容量規劃
+  - name: Execute
+    description: 通用執行
+  - name: Workflows
+    description: 工作流管理
+  - name: Tools
+    description: 工具狀態
+
+paths:
+  # ============================================
+  # Core - 核心系統功能
+  # ============================================
+  /healthz:
+    get:
+      tags: [Core]
+      summary: 服務健康檢查
+      description: 檢查服務是否存活
+      operationId: checkHealth
+      responses:
+        "200":
+          description: 服務健康
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - timestamp
+                  - service
+                  - version
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  service:
+                    type: string
+                    enum: [sre-assistant]
+                  version:
+                    type: string
+
+  /readyz:
+    get:
+      tags: [Core]
+      summary: 服務就緒檢查
+      description: 檢查服務及其依賴是否就緒
+      operationId: checkReadiness
+      responses:
+        "200":
+          description: 服務就緒
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ready
+                  - dependencies
+                  - timestamp
+                properties:
+                  ready:
+                    type: boolean
+                  dependencies:
+                    type: object
+                    properties:
+                      prometheus:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [healthy, unhealthy]
+                          response_time:
+                            type: string
+                      loki:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [healthy, unhealthy]
+                          response_time:
+                            type: string
+                      control_plane:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [healthy, unhealthy]
+                          response_time:
+                            type: string
+                      adk_runtime:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [ready, not_ready]
+                          model_loaded:
+                            type: boolean
+                  timestamp:
+                    type: string
+                    format: date-time
+        "503":
+          description: 服務未就緒
+
+  /metrics:
+    get:
+      tags: [Core]
+      summary: Prometheus 指標
+      description: 獲取 Prometheus 格式的系統指標
+      operationId: getMetrics
+      responses:
+        "200":
+          description: Prometheus 指標
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  # ============================================
+  # Diagnostics - 診斷分析
+  # ============================================
+  /api/v1/diagnostics/deployment:
+    post:
+      tags: [Diagnostics]
+      summary: 部署診斷
+      description: 分析部署問題並提供診斷報告
+      operationId: diagnoseDeployment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiagnosticRequest"
+      responses:
+        "202":
+          description: 診斷任務已接受
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticResponse"
+
+  /api/v1/diagnostics/alerts:
+    post:
+      tags: [Diagnostics]
+      summary: 告警關聯分析
+      description: 分析多個告警之間的關聯性並提供根因分析
+      operationId: analyzeAlerts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertAnalysisRequest"
+      responses:
+        "202":
+          description: 分析任務已接受
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticResponse"
+
+  /api/v1/diagnostics/{sessionId}/status:
+    get:
+      tags: [Diagnostics]
+      summary: 查詢診斷狀態
+      description: 查詢非同步診斷任務的狀態
+      operationId: getDiagnosticStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: 診斷狀態
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticStatusResponse"
+
+  # ============================================
+  # Capacity - 容量規劃
+  # ============================================
+  /api/v1/capacity/analyze:
+    post:
+      tags: [Capacity]
+      summary: 容量分析
+      description: 分析資源使用趨勢並預測容量需求
+      operationId: analyzeCapacity
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapacityAnalysisRequest"
+      responses:
+        "200":
+          description: 容量分析結果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapacityAnalysisResponse"
+
+  # ============================================
+  # Execute - 通用執行
+  # ============================================
+  /api/v1/execute:
+    post:
+      tags: [Execute]
+      summary: 自然語言查詢
+      description: 接受自然語言查詢，AI 自動解析並執行相應操作
+      operationId: executeQuery
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: stream
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: 是否使用串流回應模式
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecuteRequest"
+      responses:
+        "200":
+          description: 查詢執行完成
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExecuteResponse"
+        "202":
+          description: 查詢已接受（串流模式）
+        "400":
+          description: 請求參數錯誤
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ============================================
+  # Workflows - 工作流管理
+  # ============================================
+  /api/v1/workflows/templates:
+    get:
+      tags: [Workflows]
+      summary: 獲取工作流模板
+      description: 獲取所有可用的工作流模板
+      operationId: listWorkflowTemplates
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 工作流模板列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowTemplateList"
+
+  # ============================================
+  # Tools - 工具狀態
+  # ============================================
+  /api/v1/tools/status:
+    get:
+      tags: [Tools]
+      summary: 工具狀態檢查
+      description: 檢查所有外部工具的連線狀態和可用性
+      operationId: getToolStatus
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 工具狀態
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolStatusResponse"
+
+# ============================================
+# Components
+# ============================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: M2M JWT Token
+
+  schemas:
+    # ============================================
+    # Common Schemas
+    # ============================================
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: 錯誤代碼
+        message:
+          type: string
+          description: 錯誤訊息
+        details:
+          type: object
+          description: 錯誤詳情
+        request_id:
+          type: string
+          description: 請求追蹤 ID
+        timestamp:
+          type: string
+          format: date-time
+
+    # ============================================
+    # Diagnostic Schemas
+    # ============================================
+    DiagnosticRequest:
+      type: object
+      required:
+        - incident_id
+        - severity
+        - title
+        - description
+        - affected_services
+        - time_range
+      properties:
+        incident_id:
+          type: string
+        severity:
+          type: string
+          enum: [P0, P1, P2, P3]
+        title:
+          type: string
+        description:
+          type: string
+        affected_services:
+          type: array
+          items:
+            type: string
+        time_range:
+          type: object
+          required:
+            - start
+            - end
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+        context:
+          type: object
+          properties:
+            deployment_id:
+              type: string
+            namespace:
+              type: string
+            cluster:
+              type: string
+
+    DiagnosticResponse:
+      type: object
+      required:
+        - session_id
+        - status
+        - message
+        - estimated_time
+        - workflow_steps
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [accepted]
+        message:
+          type: string
+        estimated_time:
+          type: integer
+          description: 預估執行時間（秒）
+        workflow_steps:
+          type: array
+          items:
+            type: string
+
+    DiagnosticStatusResponse:
+      type: object
+      required:
+        - session_id
+        - status
+        - progress
+        - current_step
+        - execution_time
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        current_step:
+          type: string
+        execution_time:
+          type: number
+          format: float
+        result:
+          type: object
+          description: 診斷結果（僅在 status 為 completed 時存在）
+        error:
+          type: object
+          description: 錯誤信息（僅在 status 為 failed 時存在）
+          properties:
+            error:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+
+    AlertAnalysisRequest:
+      type: object
+      required:
+        - alert_ids
+      properties:
+        alert_ids:
+          type: array
+          items:
+            type: string
+        correlation_window:
+          type: integer
+          description: 關聯分析時間窗口（秒）
+          default: 300
+        analysis_depth:
+          type: string
+          enum: [basic, deep]
+          default: basic
+        include_metrics:
+          type: boolean
+          default: true
+        include_logs:
+          type: boolean
+          default: true
+
+    # ============================================
+    # Capacity Schemas
+    # ============================================
+    CapacityAnalysisRequest:
+      type: object
+      required:
+        - target
+        - metrics
+        - analysis_type
+      properties:
+        target:
+          type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum: [resource_group, resource]
+            ids:
+              type: array
+              items:
+                type: string
+        metrics:
+          type: array
+          items:
+            type: string
+            enum: [cpu_usage, memory_usage, disk_usage, network_usage]
+        analysis_type:
+          type: string
+          enum: [current, forecast, optimization]
+        forecast_horizon_days:
+          type: integer
+          description: 預測天數（僅在 analysis_type 為 forecast 時有效）
+        historical_period_days:
+          type: integer
+          description: 歷史數據期間（天）
+          default: 90
+        optimization_target:
+          type: string
+          enum: [performance, cost_efficiency]
+
+    CapacityAnalysisResponse:
+      type: object
+      required:
+        - analysis_id
+        - status
+        - current_usage
+      properties:
+        analysis_id:
+          type: string
+        status:
+          type: string
+          enum: [completed]
+        current_usage:
+          type: object
+          properties:
+            cpu:
+              type: object
+              properties:
+                current_cores:
+                  type: number
+                  format: float
+                allocated_cores:
+                  type: number
+                  format: float
+                utilization_percent:
+                  type: number
+                  format: float
+                trend_7d:
+                  type: string
+            memory:
+              type: object
+              properties:
+                current_gb:
+                  type: number
+                  format: float
+                allocated_gb:
+                  type: number
+                  format: float
+                utilization_percent:
+                  type: number
+                  format: float
+                trend_7d:
+                  type: string
+        forecast_results:
+          type: object
+        recommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              resource:
+                type: string
+              priority:
+                type: string
+                enum: [low, medium, high, immediate]
+              current_allocation:
+                type: number
+                format: float
+              recommended_allocation:
+                type: number
+                format: float
+              reasoning:
+                type: string
+              cost_impact:
+                type: object
+                properties:
+                  monthly_increase:
+                    type: number
+                    format: float
+                  currency:
+                    type: string
+
+    # ============================================
+    # Execute Schemas
+    # ============================================
+    ExecuteRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: 自然語言查詢
+        context:
+          type: object
+          properties:
+            namespace:
+              type: string
+            user_role:
+              type: string
+        options:
+          type: object
+          properties:
+            include_visualizations:
+              type: boolean
+              default: false
+            response_format:
+              type: string
+              enum: [structured, text]
+              default: structured
+            max_execution_time:
+              type: integer
+              description: 最大執行時間（秒）
+              default: 60
+
+    ExecuteResponse:
+      type: object
+      required:
+        - execution_id
+        - status
+        - query_understanding
+        - results
+        - tools_invoked
+      properties:
+        execution_id:
+          type: string
+        status:
+          type: string
+          enum: [completed]
+        query_understanding:
+          type: object
+          properties:
+            intent:
+              type: string
+            entities:
+              type: object
+            confidence:
+              type: number
+              format: float
+        results:
+          type: object
+        tools_invoked:
+          type: array
+          items:
+            type: object
+            properties:
+              tool:
+                type: string
+              query:
+                type: string
+              execution_time:
+                type: number
+                format: float
+
+    # ============================================
+    # Workflow Schemas
+    # ============================================
+    WorkflowTemplateList:
+      type: object
+      required:
+        - templates
+      properties:
+        templates:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - description
+              - version
+              - steps
+              - estimated_duration
+              - success_rate
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+              version:
+                type: string
+              steps:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    tool:
+                      type: string
+              estimated_duration:
+                type: integer
+                description: 預估執行時間（秒）
+              success_rate:
+                type: number
+                format: float
+
+    # ============================================
+    # Tool Schemas
+    # ============================================
+    ToolStatusResponse:
+      type: object
+      required:
+        - tools
+      properties:
+        tools:
+          type: object
+          additionalProperties:
+            type: object
+            required:
+              - status
+            properties:
+              status:
+                type: string
+                enum: [healthy, unhealthy, unavailable]
+              endpoint:
+                type: string
+              response_time:
+                type: string
+              capabilities:
+                type: array
+                items:
+                  type: string
