@@ -24,7 +24,7 @@ make setup-dev
 
 ### 2.2. 啟動與停止服務
 
-- **啟動所有背景服務** (Keycloak, PostgreSQL, VictoriaMetrics, etc.):
+- **啟動所有背景服務** (Keycloak, PostgreSQL, VictoriaMetrics, Redis, ChromaDB, etc.):
   ```bash
   make start-services
   ```

@@ -90,6 +90,7 @@ C4Container
         ContainerDb(postgres, "PostgreSQL", "關聯式數據庫", "統一元數據存儲")
         ContainerDb(victoria, "VictoriaMetrics", "時序數據庫", "監控指標存儲")
         ContainerDb(chroma, "ChromaDB", "向量數據庫", "AI 知識庫")
+        ContainerDb(redis, "Redis", "內存數據庫", "快取與工作隊列")
     }
     
     System_Boundary(auth, "認證系統") {
@@ -116,6 +117,7 @@ C4Container
     Rel(controlplane, postgres, "讀寫", "TCP")
     Rel(sreassistant, postgres, "讀寫", "TCP")
     Rel(sreassistant, chroma, "查詢", "HTTP")
+    Rel(sreassistant, redis, "讀寫", "TCP")
     
     Rel(controlplane, keycloak, "認證", "OIDC")
     Rel(sreassistant, keycloak, "驗證", "JWT")

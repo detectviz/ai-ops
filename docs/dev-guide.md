@@ -8,6 +8,7 @@
 
 ## 📋 開發者指南目錄
 
+- [專案成熟度](#專案成熟度)
 - [開發環境設置](#開發環境設置)
 - [專案架構深入](#專案架構深入)
 - [開發工作流程](#開發工作流程)
@@ -15,6 +16,20 @@
 - [測試策略與實踐](#測試策略與實踐)
 - [調試與故障排除](#調試與故障排除)
 
+
+---
+
+## 專案成熟度
+
+> ⚠️ **重要提示**: 本專案目前處於**早期開發階段**。
+
+本開發者指南旨在描述專案的**目標架構**與**理想工作流程**。開發者應注意，目前的實作與本文件描述之間可能存在以下差異：
+
+- **功能完整性**: 許多核心功能，特別是 `SRE Assistant` 的診斷與 AI 分析能力，仍處於**骨架或模擬 (mock) 階段**。
+- **API 狀態**: API 設計仍在演進，可能會出現與 `openapi.yaml` 定義不完全一致的情況。
+- **程式碼品質**: 部分模組可能仍在快速迭代，尚未達到生產環境的穩定性與品質標準。
+
+我們鼓勵開發者將本文件作為開發的**藍圖**與**方向**，並積極參與，共同將理想變為現實。
 
 ---
 
@@ -1222,406 +1237,146 @@ class BaseTool(ABC):
         )
 ```
 
-**2. Prometheus 查詢工具實現**
+**2. Prometheus 查詢工具實現 (反映當前程式碼)**
 ```python
 # src/sre_assistant/tools/prometheus_tool.py
-import aiohttp
-from typing import Dict, List, Any
-from datetime import datetime, timedelta
-from .base import BaseTool
-from ..contracts import ToolResult, ToolError
+import logging
+import httpx
+from typing import Dict, Any, Optional
 
-class PrometheusQueryTool(BaseTool):
-    """Prometheus 指標查詢工具"""
+# 注意: 此為簡化版本，反映當前程式碼的真實狀況。
+# 缺少趨勢分析、健康評估等進階功能。
+
+class PrometheusQueryTool:
+    """Prometheus 查詢工具 (基礎實現)"""
     
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
-        self.base_url = config['prometheus']['base_url']
-        self.default_step = config['prometheus'].get('step', '1m')
+    def __init__(self, config):
+        self.base_url = config.prometheus.get("base_url", "http://prometheus:9090")
+        self.timeout = config.prometheus.get("timeout_seconds", 15)
         
-    def validate_context(self, context: Dict[str, Any]) -> bool:
-        """驗證查詢上下文"""
-        required_fields = ['service_name']
-        return all(field in context for field in required_fields)
-        
-    async def execute(self, context: Dict[str, Any]) -> ToolResult:
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
         """執行 Prometheus 查詢"""
-        if not self.validate_context(context):
-            return ToolResult(
-                success=False,
-                error=ToolError(
-                    code="INVALID_CONTEXT",
-                    message="Missing required context fields: service_name"
-                )
-            )
-            
-        service_name = context['service_name']
-        time_range = context.get('time_range', self._default_time_range())
-        
-        # 構建查詢集合
-        queries = self._build_golden_signal_queries(service_name)
-        
-        results = {}
-        async with aiohttp.ClientSession() as session:
-            for metric_name, query in queries.items():
-                try:
-                    data = await self._execute_range_query(
-                        session, query, time_range['start'], time_range['end']
-                    )
-                    results[metric_name] = self._process_query_result(data)
-                except Exception as e:
-                    results[metric_name] = {
-                        'error': str(e),
-                        'status': 'failed'
-                    }
-                    
+        # TODO: 擴充以支援更複雜的查詢
+        service = params.get("service", "")
+        # ... 其他參數未使用 ...
+
+        # 實際程式碼中，此處邏輯在 workflow.py 中為模擬資料
+        # 此處展示一個真實的查詢範例
+        return await self.query_golden_signals(service, "default", 30)
+
+    async def query_golden_signals(self, service_name: str, namespace: str, duration: int) -> ToolResult:
+        """查詢四大黃金訊號"""
+        # TODO: 實現真正的並行查詢
+        latency = await self._query_latency(service_name, namespace, duration)
+        errors = await self._query_errors(service_name, namespace, duration)
+
         return ToolResult(
             success=True,
-            data={
-                'service_name': service_name,
-                'time_range': time_range,
-                'metrics': results,
-                'summary': self._generate_metrics_summary(results)
-            }
+            data={**latency, **errors}
         )
-    
-    def _build_golden_signal_queries(self, service_name: str) -> Dict[str, str]:
-        """構建黃金指標查詢"""
-        return {
-            'latency_p99': f'histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{{service="{service_name}"}}[5m]))',
-            'latency_p95': f'histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{{service="{service_name}"}}[5m]))',
-            'latency_p50': f'histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{{service="{service_name}"}}[5m]))',
-            'error_rate': f'rate(http_requests_total{{service="{service_name}",status=~"5.."}[5m]}) / rate(http_requests_total{{service="{service_name}"}}[5m])',
-            'request_rate': f'rate(http_requests_total{{service="{service_name}"}}[5m])',
-            'cpu_usage': f'rate(cpu_usage_seconds_total{{service="{service_name}"}}[5m])',
-            'memory_usage': f'memory_usage_bytes{{service="{service_name}"}}',
-            'disk_io_read': f'rate(disk_read_bytes_total{{service="{service_name}"}}[5m])',
-            'disk_io_write': f'rate(disk_write_bytes_total{{service="{service_name}"}}[5m])',
-            'network_receive': f'rate(network_receive_bytes_total{{service="{service_name}"}}[5m])',
-            'network_transmit': f'rate(network_transmit_bytes_total{{service="{service_name}"}}[5m])'
-        }
-    
-    async def _execute_range_query(self, session: aiohttp.ClientSession, 
-                                  query: str, start: str, end: str) -> Dict[str, Any]:
-        """執行範圍查詢"""
-        params = {
-            'query': query,
-            'start': start,
-            'end': end,
-            'step': self.default_step
-        }
+
+    async def _query_latency(self, service: str, namespace: str, time_range: int) -> Dict[str, Any]:
+        """查詢延遲指標 (P99)"""
+        query = f'histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{{service="{service}"}}[5m]))'
+        value = await self._execute_instant_query(query)
+        return {"latency_p99": f"{value*1000:.2f}ms" if value is not None else "N/A"}
+
+    async def _query_errors(self, service: str, namespace: str, time_range: int) -> Dict[str, Any]:
+        """查詢錯誤指標"""
+        error_query = f'sum(rate(http_requests_total{{service="{service}", status=~"5.."}}[5m]))'
+        total_query = f'sum(rate(http_requests_total{{service="{service}"}}[5m]))'
         
-        async with session.get(f"{self.base_url}/api/v1/query_range", 
-                              params=params, timeout=self.timeout) as response:
-            if response.status != 200:
-                raise Exception(f"Prometheus query failed: {response.status}")
-            
-            data = await response.json()
-            if data['status'] != 'success':
-                raise Exception(f"Prometheus query error: {data.get('error', 'Unknown error')}")
-                
-            return data['data']
-    
-    def _process_query_result(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """處理查詢結果"""
-        if not data.get('result'):
-            return {'status': 'no_data', 'values': []}
-            
-        result = data['result'][0]  # 假設單一時間序列
-        values = result.get('values', [])
+        errors = await self._execute_instant_query(error_query)
+        total = await self._execute_instant_query(total_query)
         
-        if not values:
-            return {'status': 'no_data', 'values': []}
-            
-        # 計算統計資訊
-        numeric_values = [float(v[1]) for v in values if v[1] != 'NaN']
+        error_rate = 0
+        if total and total > 0:
+            error_rate = (errors / total) * 100
         
-        if not numeric_values:
-            return {'status': 'no_data', 'values': values}
-            
-        return {
-            'status': 'success',
-            'values': values,
-            'statistics': {
-                'min': min(numeric_values),
-                'max': max(numeric_values),
-                'avg': sum(numeric_values) / len(numeric_values),
-                'current': numeric_values[-1] if numeric_values else None,
-                'trend': self._calculate_trend(numeric_values)
-            }
-        }
-    
-    def _calculate_trend(self, values: List[float]) -> str:
-        """計算趨勢方向"""
-        if len(values) < 2:
-            return 'unknown'
-            
-        # 簡單線性趨勢計算
-        first_half = sum(values[:len(values)//2]) / (len(values)//2)
-        second_half = sum(values[len(values)//2:]) / (len(values) - len(values)//2)
-        
-        change_percent = ((second_half - first_half) / first_half) * 100
-        
-        if change_percent > 5:
-            return 'increasing'
-        elif change_percent < -5:
-            return 'decreasing'
-        else:
-            return 'stable'
-    
-    def _generate_metrics_summary(self, results: Dict[str, Any]) -> Dict[str, Any]:
-        """生成指標摘要"""
-        summary = {
-            'healthy_metrics': 0,
-            'warning_metrics': 0,
-            'critical_metrics': 0,
-            'failed_metrics': 0
-        }
-        
-        for metric_name, data in results.items():
-            if data.get('error'):
-                summary['failed_metrics'] += 1
-            elif data.get('status') == 'no_data':
-                summary['warning_metrics'] += 1
-            else:
-                # 根據指標類型和值判斷健康狀態
-                health_status = self._assess_metric_health(metric_name, data)
-                summary[f'{health_status}_metrics'] += 1
-                
-        return summary
-    
-    def _assess_metric_health(self, metric_name: str, data: Dict[str, Any]) -> str:
-        """評估單個指標的健康狀態"""
-        if 'statistics' not in data:
-            return 'warning'
-            
-        current_value = data['statistics'].get('current')
-        if current_value is None:
-            return 'warning'
-            
-        # 根據指標類型設定閾值
-        thresholds = {
-            'error_rate': {'warning': 0.01, 'critical': 0.05},  # 1% 和 5%
-            'latency_p99': {'warning': 0.5, 'critical': 2.0},   # 500ms 和 2s
-            'latency_p95': {'warning': 0.3, 'critical': 1.0},   # 300ms 和 1s
-            'cpu_usage': {'warning': 0.7, 'critical': 0.9},     # 70% 和 90%
-        }
-        
-        if metric_name not in thresholds:
-            return 'healthy'  # 未定義閾值的指標預設為健康
-            
-        threshold = thresholds[metric_name]
-        if current_value >= threshold['critical']:
-            return 'critical'
-        elif current_value >= threshold['warning']:
-            return 'warning'
-        else:
-            return 'healthy'
-    
-    def _default_time_range(self) -> Dict[str, str]:
-        """預設時間範圍（過去 1 小時）"""
-        end_time = datetime.utcnow()
-        start_time = end_time - timedelta(hours=1)
-        
-        return {
-            'start': start_time.isoformat() + 'Z',
-            'end': end_time.isoformat() + 'Z'
-        }
+        return {"error_rate": f"{error_rate:.2f}%"}
+
+    async def _execute_instant_query(self, query: str) -> Optional[float]:
+        """執行即時查詢"""
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                # ... 實際的 httpx 呼叫邏輯 ...
+                # 為簡化，返回一個模擬值
+                return 0.85 # 模擬 CPU 使用率
+        except Exception:
+            return None
 ```
 
-**3. 工作流程協調器**
+**3. 工作流程協調器 (反映當前程式碼)**
 ```python
 # src/sre_assistant/workflow.py
 import asyncio
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
 from .tools import PrometheusQueryTool, LokiLogQueryTool, ControlPlaneTool
-from .contracts import SRERequest, ToolResult
+from .contracts import SRERequest, ToolResult, Finding, SeverityLevel
 
-class DiagnosticWorkflow:
-    """診斷工作流程協調器"""
+class SREWorkflow:
+    """診斷工作流程協調器 (骨架實現)"""
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.tools = self._initialize_tools()
-        self.parallel_execution = config.get('parallel_diagnosis', True)
-        self.timeout = config.get('workflow_timeout', 300)  # 5 分鐘
+        self.prometheus_tool = PrometheusQueryTool(config)
+        # ... 其他工具初始化 ...
         
-    def _initialize_tools(self) -> Dict[str, Any]:
-        """初始化工具集"""
-        return {
-            'prometheus': PrometheusQueryTool(self.config),
-            'loki': LokiLogQueryTool(self.config),
-            'control_plane': ControlPlaneTool(self.config),
-            'kubernetes': KubernetesAPITool(self.config),
-        }
+    async def execute(self, request: SRERequest) -> Dict[str, Any]:
+        """執行主要工作流程"""
+        # 根據請求類型決定執行策略
+        # TODO: 增加對 alert_diagnosis 和 ad_hoc_query 的處理
+        return await self._diagnose_deployment(request)
     
-    async def execute_deployment_diagnosis(self, request: SRERequest) -> Dict[str, Any]:
-        """執行部署診斷工作流程"""
-        context = request.context
-        service_name = context.get('service_name')
+    async def _diagnose_deployment(self, request: SRERequest) -> Dict[str, Any]:
+        """
+        診斷部署問題 (模擬實現)
         
-        if not service_name:
-            raise ValueError("service_name is required for deployment diagnosis")
-            
-        # 1. 並行執行數據收集
-        data_collection_tasks = {
-            'metrics': self._collect_metrics(context),
-            'logs': self._collect_logs(context),
-            'audit_logs': self._collect_audit_logs(context),
-            'kubernetes_status': self._collect_kubernetes_status(context)
-        }
-        
-        if self.parallel_execution:
-            # 並行執行所有工具
-            results = await self._execute_parallel_tasks(data_collection_tasks)
+        注意: 目前大部分工具呼叫返回的是模擬資料.
+        """
+        # TODO: 實現真正的並行診斷
+        # 模擬呼叫工具
+        metrics_result = await self._query_metrics(request.context)
+        audit_result = await self._query_audit_logs(request.context)
+
+        # TODO: 實現真正的結果分析與 AI 整合
+        # 基於模擬資料的簡單分析
+        findings = []
+        issues = []
+
+        if metrics_result.success and float(metrics_result.data.get("cpu_usage", "0%").replace("%", "")) > 80:
+            findings.append(Finding(source="Prometheus", severity=SeverityLevel.P1, data=metrics_result.data))
+            issues.append("CPU 使用率過高")
+
+        if audit_result.success and audit_result.data.get("recent_changes"):
+            findings.append(Finding(source="Control-Plane", severity=SeverityLevel.P2, data=audit_result.data))
+            issues.append("最近有配置變更")
+
+        # 生成摘要和建議
+        if issues:
+            summary = f"發現 {len(issues)} 個問題: {', '.join(issues)}"
+            recommended_action = "審查 CPU 使用率並檢查最近的配置變更"
         else:
-            # 順序執行
-            results = await self._execute_sequential_tasks(data_collection_tasks)
-        
-        # 2. 綜合分析
-        analysis = await self._analyze_deployment_results(results, context)
-        
-        # 3. 生成建議
-        recommendations = await self._generate_recommendations(analysis, context)
-        
-        # 4. 構建響應
+            summary = "未發現明顯問題"
+            recommended_action = "請手動檢查日誌"
+
         return {
-            'status': 'COMPLETED',
-            'deployment_summary': self._build_deployment_summary(results, context),
-            'analysis': analysis,
-            'recommendations': recommendations,
-            'confidence_score': self._calculate_confidence_score(results),
-            'metadata': {
-                'execution_time_ms': results.get('execution_time_ms', 0),
-                'tools_used': list(results.keys()),
-                'parallel_execution': self.parallel_execution
-            }
+            "status": "COMPLETED",
+            "summary": summary,
+            "findings": [f.dict() for f in findings],
+            "recommended_action": recommended_action,
+            "confidence_score": 0.8 if issues else 0.5
         }
     
-    async def _execute_parallel_tasks(self, tasks: Dict[str, Any]) -> Dict[str, Any]:
-        """並行執行任務"""
-        start_time = asyncio.get_event_loop().time()
-        
-        # 建立任務
-        task_futures = {
-            name: asyncio.create_task(task)
-            for name, task in tasks.items()
-        }
-        
-        # 等待所有任務完成（設定超時）
-        try:
-            results = await asyncio.wait_for(
-                asyncio.gather(*task_futures.values(), return_exceptions=True),
-                timeout=self.timeout
-            )
-        except asyncio.TimeoutError:
-            # 取消未完成的任務
-            for task in task_futures.values():
-                if not task.done():
-                    task.cancel()
-            raise Exception(f"Workflow execution timed out after {self.timeout} seconds")
-        
-        # 組合結果
-        execution_results = {}
-        for i, (name, _) in enumerate(task_futures.items()):
-            result = results[i]
-            if isinstance(result,Exception):
-                execution_results[name] = ToolResult(
-                    success=False,
-                    error={'code': 'EXECUTION_ERROR', 'message': str(result)}
-                )
-            else:
-                execution_results[name] = result
-        
-        execution_results['execution_time_ms'] = int((asyncio.get_event_loop().time() - start_time) * 1000)
-        return execution_results
-    
-    async def _collect_metrics(self, context: Dict[str, Any]) -> ToolResult:
-        """收集監控指標"""
-        return await self.tools['prometheus'].execute(context)
-    
-    async def _collect_logs(self, context: Dict[str, Any]) -> ToolResult:
-        """收集應用日誌"""
-        return await self.tools['loki'].execute(context)
-    
-    async def _collect_audit_logs(self, context: Dict[str, Any]) -> ToolResult:
-        """收集審計日誌"""
-        return await self.tools['control_plane'].execute(context)
-    
-    async def _analyze_deployment_results(self, results: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-        """分析部署結果"""
-        analysis = {
-            'overall_health': 'unknown',
-            'issues_found': [],
-            'performance_assessment': {},
-            'resource_utilization': {},
-            'error_patterns': []
-        }
-        
-        # 分析指標數據
-        if 'metrics' in results and results['metrics'].success:
-            metrics_data = results['metrics'].data
-            analysis['performance_assessment'] = self._analyze_performance_metrics(metrics_data)
-            analysis['resource_utilization'] = self._analyze_resource_metrics(metrics_data)
-        
-        # 分析日誌數據
-        if 'logs' in results and results['logs'].success:
-            logs_data = results['logs'].data
-            analysis['error_patterns'] = self._analyze_error_patterns(logs_data)
-        
-        # 分析 Kubernetes 狀態
-        if 'kubernetes_status' in results and results['kubernetes_status'].success:
-            k8s_data = results['kubernetes_status'].data
-            k8s_issues = self._analyze_kubernetes_health(k8s_data)
-            analysis['issues_found'].extend(k8s_issues)
-        
-        # 綜合健康評估
-        analysis['overall_health'] = self._calculate_overall_health(analysis)
-        
-        return analysis
-    
-    def _analyze_performance_metrics(self, metrics_data: Dict[str, Any]) -> Dict[str, Any]:
-        """分析性能指標"""
-        assessment = {
-            'latency_status': 'unknown',
-            'throughput_status': 'unknown',
-            'error_rate_status': 'unknown',
-            'trends': {}
-        }
-        
-        metrics = metrics_data.get('metrics', {})
-        
-        # 延遲分析
-        if 'latency_p99' in metrics:
-            latency_data = metrics['latency_p99']
-            if latency_data.get('statistics'):
-                current_latency = latency_data['statistics']['current']
-                if current_latency:
-                    if current_latency > 2.0:  # 2秒
-                        assessment['latency_status'] = 'critical'
-                    elif current_latency > 0.5:  # 500ms
-                        assessment['latency_status'] = 'warning'
-                    else:
-                        assessment['latency_status'] = 'healthy'
-                    
-                    assessment['trends']['latency'] = latency_data['statistics']['trend']
-        
-        # 錯誤率分析
-        if 'error_rate' in metrics:
-            error_data = metrics['error_rate']
-            if error_data.get('statistics'):
-                current_error_rate = error_data['statistics']['current']
-                if current_error_rate:
-                    if current_error_rate > 0.05:  # 5%
-                        assessment['error_rate_status'] = 'critical'
-                    elif current_error_rate > 0.01:  # 1%
-                        assessment['error_rate_status'] = 'warning'
-                    else:
-                        assessment['error_rate_status'] = 'healthy'
-                    
-                    assessment['trends']['error_rate'] = error_data['statistics']['trend']
-        
-        return assessment
+    async def _query_metrics(self, context: Dict[str, Any]) -> ToolResult:
+        """查詢監控指標 (模擬)"""
+        await asyncio.sleep(0.5)
+        return ToolResult(success=True, data={"cpu_usage": "85%"})
+
+    async def _query_audit_logs(self, context: Dict[str, Any]) -> ToolResult:
+        """查詢審計日誌 (模擬)"""
+        await asyncio.sleep(0.2)
+        return ToolResult(success=True, data={"recent_changes": [{"user": "admin", "action": "UPDATE_CONFIG"}]})
 ```
 
 ---

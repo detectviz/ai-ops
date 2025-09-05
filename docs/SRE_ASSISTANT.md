@@ -104,8 +104,9 @@ services/sre-assistant/
   - **用途**: 專門用於診斷部署失敗或部署後健康狀況不佳的場景。
   - **核心工作流程**:
     1. 啟動 `DeploymentDiagnosticsWorkflow`。
-    2. 並行執行 `PrometheusQueryTool`、`LokiLogQueryTool` 和 `ControlPlaneTool`。
-    3. 將收集到的所有資訊交給 LLM Agent 進行綜合分析，生成診斷摘要。
+    2. 並行執行 `PrometheusQueryTool`、`LokiLogQueryTool` 和 `ControlPlaneTool` 等工具來收集數據。
+    3. (未來目標) 將收集到的所有資訊交給 LLM Agent 進行綜合分析。
+    4. (目前實現) 根據預定義的規則對收集到的數據進行簡單分析，生成診斷摘要。
   - **Payload**:
     ```json
     {

@@ -52,12 +52,19 @@ graph LR
 | **回應格式** | JSON | JSON + 結構化報告 |
 | **主要用途** | 資源管理 | 智能診斷分析 |
 
+### 📝 API 契約與範圍
+
+本文件描述了 SRE Platform 中 **Control Plane** 與 **SRE Assistant** 兩個服務之間的 API 互動契約。
+
+- **唯一真實來源**: 所有 API 的最終定義以 `pkg/api/openapi.yaml` 為準。
+- **架構模式**: Control Plane 作為客戶端，呼叫 SRE Assistant 提供的同步 API。SRE Assistant 會在處理完成後直接返回結果。
+- **文件範圍**: 本文件僅包含上述兩個服務之間的直接互動，不包含所有 Control Plane 對外的完整 API。
+
 ### 📊 服務端點總覽
 
 | 服務 | 基礎 URL | API 版本 | 文檔 |
 |------|----------|----------|------|
-| **Control Plane** | `https://api.sre-platform.com` | v1 | [OpenAPI 規格](pkg/api/openapi.yaml) |
-| **SRE Assistant** | `https://assistant.sre-platform.com` | v1 | [Interactive Docs](http://localhost:8000/docs) |
+| **SRE Assistant** | `http://sre-assistant:8000` | v1 | [Interactive Docs](http://localhost:8000/docs) |
 
 ---
 
@@ -84,8 +91,7 @@ sequenceDiagram
     CP->>KC: 7. M2M Token 請求
     KC-->>CP: 8. Service Token
     CP->>SA: 9. 診斷請求 (Service Token)
-    SA->>KC: 10. Token 驗證
-    SA-->>CP: 11. 診斷結果
+    SA-->>CP: 10. 診斷結果 (同步回應)
 ```
 
 ### 🎯 認證類型
@@ -139,60 +145,18 @@ Refresh: Automatic
 
 ---
 
-## Control Plane APIs
+## SRE Assistant APIs
 
-### 🎯 資源管理 APIs
+**注意**: SRE Assistant 服務目前為早期開發階段，以下 API 回應為根據現有程式碼的模擬範例，並非最終的複雜分析結果。
 
-#### 獲取資源列表
+### 🧠 通用探索 API
 
-```http
-GET /api/v1/resources
-Authorization: Bearer <token>
-```
+一個高靈活性的 API，支援自然語言查詢和探索性分析。
 
-**查詢參數**:
-```yaml
-page: 1                    # 頁碼
-limit: 20                  # 每頁數量
-type: server|network|app   # 資源類型
-status: active|inactive    # 狀態篩選
-team_id: 123              # 團隊篩選
-search: "web-server"      # 關鍵字搜尋
-```
-
-**響應範例**:
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "name": "web-server-01",
-      "type": "server",
-      "ip_address": "192.168.1.10",
-      "status": "active",
-      "team_id": 1,
-      "metadata": {
-        "os": "Ubuntu 22.04",
-        "cpu_cores": 8,
-        "memory_gb": 32
-      },
-      "created_at": "2025-01-15T10:30:00Z",
-      "updated_at": "2025-09-05T14:20:00Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 156,
-    "total_pages": 8
-  }
-}
-```
-
-#### 創建新資源
+#### 執行通用診斷
 
 ```http
-POST /api/v1/resources
+POST /execute
 Authorization: Bearer <token>
 Content-Type: application/json
 ```
@@ -200,298 +164,80 @@ Content-Type: application/json
 **請求體**:
 ```json
 {
+  "user_query": "分析 payment-service 在過去 2 小時內的性能問題，特別關注延遲和錯誤率",
   "context": {
-    "deployment_id": "deploy-xyz-12345",
-    "service_name": "payment-api",
-    "namespace": "production",
-    "image_tag": "v2.1.3",
-    "trigger_source": "ControlPlane::DeploymentMonitor",
-    "deployment_strategy": "rolling",
-    "replicas": {
-      "desired": 6,
-      "current": 4,
-      "ready": 2
-    }
+    "trigger_source": "ControlPlane::DashboardUI",
+    "user_id": "admin@company.com",
+    "service_name": "payment-service"
   }
 }
 ```
 
-**響應範例**:
+**響應範例 (200 OK)**:
 ```json
 {
   "status": "COMPLETED",
-  "session_id": "deploy-diag-001",
-  "deployment_summary": {
-    "deployment_id": "deploy-xyz-12345",
-    "service_name": "payment-api",
-    "status": "DEGRADED",
-    "health_score": 0.33,
-    "issues_found": 3
-  },
-  "diagnosis_results": {
-    "container_analysis": {
-      "status": "ISSUES_FOUND",
-      "findings": [
-        {
-          "type": "startup_failure", 
-          "severity": "critical",
-          "description": "2 of 6 pods failing to start due to image pull errors",
-          "affected_pods": ["payment-api-78d9c-x4k2p", "payment-api-78d9c-m9n1q"],
-          "error_details": "Failed to pull image: ImagePullBackOff"
-        }
-      ]
+  "summary": "查詢完成",
+  "findings": [],
+  "recommended_action": null,
+  "confidence_score": 0.7
+}
+```
+
+### 🎯 語義化診斷 APIs
+
+#### 部署診斷
+
+專門用於分析部署相關問題的語義化 API。
+
+```http
+POST /diagnostics/deployment
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**請求體**:
+```json
+{
+  "deployment_id": "deploy-xyz-12345",
+  "service_name": "payment-api",
+  "namespace": "production"
+}
+```
+
+**響應範例 (200 OK)**:
+```json
+{
+  "status": "COMPLETED",
+  "summary": "發現 2 個問題: CPU 使用率過高, 最近有配置變更",
+  "findings": [
+    {
+      "source": "Prometheus",
+      "severity": "P1",
+      "data": {
+        "cpu_usage": "85%"
+      },
+      "timestamp": "2025-09-05T14:30:00Z"
     },
-    "resource_analysis": {
-      "status": "WARNING",
-      "findings": [
-        {
-          "type": "resource_constraint",
-          "severity": "medium", 
-          "description": "Memory usage approaching limits",
-          "metrics": {
-            "memory_usage": "1.8GB",
-            "memory_limit": "2GB", 
-            "utilization": "90%"
+    {
+      "source": "Control-Plane",
+      "severity": "P2",
+      "data": {
+        "changes": [
+          {
+            "time": "2025-01-02T10:30:00Z",
+            "user": "admin",
+            "action": "UPDATE_CONFIG",
+            "details": "Modified resource limits"
           }
-        }
-      ]
-    },
-    "network_analysis": {
-      "status": "HEALTHY",
-      "findings": []
-    }
-  },
-  "recommended_actions": [
-    {
-      "priority": "critical",
-      "category": "image_management",
-      "action": "Verify image exists in registry and update image pull policy",
-      "commands": [
-        "kubectl describe pod payment-api-78d9c-x4k2p -n production",
-        "docker pull payment-api:v2.1.3"
-      ]
-    },
-    {
-      "priority": "medium",
-      "category": "resource_tuning",
-      "action": "Increase memory limits to prevent OOM kills",
-      "commands": [
-        "kubectl patch deployment payment-api -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"payment-api\",\"resources\":{\"limits\":{\"memory\":\"3Gi\"}}}]}}}}'"
-      ]
+        ]
+      },
+      "timestamp": "2025-09-05T14:30:00Z"
     }
   ],
-  "confidence_score": 0.92,
-  "metadata": {
-    "execution_time_ms": 2100,
-    "kubernetes_cluster": "prod-cluster-01", 
-    "tools_executed": ["KubernetesAPITool", "PrometheusQueryTool", "ControlPlaneTool"]
-  }
+  "recommended_action": "增加 CPU 限制或優化程式效能 | 審查最近的配置變更",
+  "confidence_score": 0.8
 }
-```
-
-#### 告警診斷
-
-```http
-POST /diagnostics/alerts
-Authorization: Bearer <token>
-Content-Type: application/json
-```
-
-**請求體**:
-```json
-{
-  "context": {
-    "incident_ids": [101, 102, 103],
-    "service_name": "user-service",
-    "trigger_source": "ControlPlane::AlertDashboard",
-    "time_window": "last_30_minutes"
-  }
-}
-```
-
-**響應範例**:
-```json
-{
-  "status": "COMPLETED",
-  "session_id": "alert-diag-001", 
-  "alert_correlation": {
-    "total_alerts": 3,
-    "correlation_score": 0.85,
-    "common_patterns": [
-      "All alerts occurred within 5-minute window",
-      "All alerts related to database connectivity",
-      "Alerts escalated from warning to critical"
-    ]
-  },
-  "incident_analysis": [
-    {
-      "incident_id": 101,
-      "title": "High Database Connection Count",
-      "severity": "critical",
-      "timeline": {
-        "start": "2025-09-05T14:15:00Z",
-        "peak": "2025-09-05T14:18:00Z", 
-        "current": "ongoing"
-      },
-      "metrics": {
-        "db_connections": {
-          "baseline": 45,
-          "peak": 98,
-          "limit": 100
-        }
-      }
-    }
-  ],
-  "root_cause_analysis": {
-    "primary_cause": "Database connection leak in user authentication service",
-    "evidence": [
-      "Connection count increased steadily over 30 minutes",
-      "No corresponding increase in request volume",
-      "Memory usage pattern suggests connection accumulation"
-    ],
-    "blast_radius": {
-      "affected_services": ["user-service", "auth-service"],
-      "affected_users": "~15% of active sessions",
-      "estimated_impact": "Authentication delays averaging 2.3s"
-    }
-  },
-  "recommended_actions": [
-    {
-      "priority": "immediate",
-      "action": "Restart auth-service to release leaked connections",
-      "risk_level": "low",
-      "estimated_downtime": "30 seconds"
-    },
-    {
-      "priority": "urgent", 
-      "action": "Investigate connection leak in authentication code",
-      "suggested_focus": "Database transaction handling in login endpoints"
-    }
-  ],
-  "confidence_score": 0.81
-}
-```
-
-#### 容量分析
-
-```http
-POST /diagnostics/capacity
-Authorization: Bearer <token>
-Content-Type: application/json
-```
-
-**請求體**:
-```json
-{
-  "context": {
-    "device_group_id": 5,
-    "metric_name": "cpu_usage",
-    "analysis_period": "last_30_days",
-    "prediction_horizon": "next_60_days"
-  }
-}
-```
-
-**響應範例**:
-```json
-{
-  "status": "COMPLETED",
-  "session_id": "capacity-001",
-  "capacity_analysis": {
-    "current_status": {
-      "resource_group": "Web Servers Production",
-      "total_resources": 12,
-      "metric": "CPU Usage",
-      "current_utilization": {
-        "average": "68%",
-        "peak": "89%", 
-        "p95": "82%"
-      }
-    },
-    "trend_analysis": {
-      "growth_rate": {
-        "daily": "0.2%",
-        "weekly": "1.4%", 
-        "monthly": "5.8%"
-      },
-      "seasonality": {
-        "detected": true,
-        "pattern": "Business hours peak (09:00-17:00)",
-        "weekend_reduction": "35%"
-      }
-    },
-    "predictions": {
-      "80_percent_threshold": {
-        "estimated_date": "2025-10-15",
-        "days_remaining": 40,
-        "confidence": "high"
-      },
-      "95_percent_threshold": {
-        "estimated_date": "2025-11-20", 
-        "days_remaining": 76,
-        "confidence": "medium"
-      }
-    },
-    "recommendations": [
-      {
-        "type": "scaling",
-        "priority": "medium",
-        "action": "Plan to add 2-3 additional instances by mid-October",
-        "cost_estimate": "$450/month",
-        "performance_impact": "Reduce peak utilization to ~65%"
-      },
-      {
-        "type": "optimization",
-        "priority": "low", 
-        "action": "Implement auto-scaling based on CPU and request metrics",
-        "cost_estimate": "Cost neutral",
-        "performance_impact": "Dynamic scaling during traffic spikes"
-      }
-    ]
-  },
-  "confidence_score": 0.78,
-  "metadata": {
-    "data_points_analyzed": 43200,
-    "prediction_model": "ARIMA + Linear Regression",
-    "historical_accuracy": "89%"
-  }
-}
-```
-
-### 📊 異步任務管理
-
-#### 查詢任務狀態
-
-```http
-GET /sessions/{session_id}
-Authorization: Bearer <token>
-```
-
-**響應範例**:
-```json
-{
-  "session_id": "550e8400-e29b-41d4-a716-446655440001",
-  "status": "PROCESSING",
-  "progress": {
-    "current_step": "Analyzing metrics data",
-    "completed_steps": 3,
-    "total_steps": 7,
-    "percentage": 43
-  },
-  "estimated_completion": "2025-09-05T14:35:30Z",
-  "created_at": "2025-09-05T14:33:00Z",
-  "metadata": {
-    "query_type": "deployment_diagnosis",
-    "priority": "high"
-  }
-}
-```
-
-#### 取消任務
-
-```http
-DELETE /sessions/{session_id}
-Authorization: Bearer <token>
 ```
 
 ---

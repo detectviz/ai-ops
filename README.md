@@ -15,7 +15,7 @@
 
 ## 🎯 專案亮點
 
-- **🧠 AI 驅動診斷**: 整合 Google Gemini AI，提供智能化的根因分析與建議
+- **🧠 智能化診斷**: 提供可擴展的診斷引擎與自動化工作流程
 - **⚡ 零配置啟動**: 一鍵 `make setup-dev` 完成所有環境設定
 - **🔄 實時協作**: Control Plane 與 SRE Assistant 無縫整合，實現秒級響應
 - **📊 全方位監控**: 整合 Prometheus、Loki、Grafana 構建完整可觀測性
@@ -63,7 +63,7 @@ SRE Platform 是一個採用 **Monorepo 架構**的現代化維運平台，專�
 - **角色**: 無介面智能代理
 - **技術**: Python + FastAPI + Google ADK
 - **職責**:
-  - AI 驅動的智能診斷
+  - 可擴展的診斷引擎
   - 複雜分析任務執行
   - 多源數據整合
   - 自動化決策支援
@@ -113,7 +113,9 @@ graph TB
 
     subgraph "💾 共享基礎設施"
         PostgreSQL[(🐘 PostgreSQL<br/>統一元數據庫)]
-        VictoriaMetrics[(📊 VictoriaMetrics<br/>時序數據庫)]  
+        VictoriaMetrics[(📊 VictoriaMetrics<br/>時序數據庫)]
+        Redis[(⚡ Redis<br/>快取與工作隊列)]
+        ChromaDB[(🧠 ChromaDB<br/>AI 知識庫)]
         Grafana[📈 Grafana<br/>可視化平台]
         Keycloak[🔐 Keycloak<br/>身份認證中心]
     end
@@ -136,6 +138,8 @@ graph TB
     %% 數據流
     ControlPlaneAPI <--> PostgreSQL
     SREAssistantAPI <--> PostgreSQL
+    SREAssistantAPI --> Redis
+    SREAssistantAPI --> ChromaDB
     Tools --> VictoriaMetrics
     Tools --> Observability
     ControlPlaneUI --> Grafana
@@ -317,15 +321,13 @@ sequenceDiagram
     participant U as 👨‍💻 SRE 工程師
     participant CP as 🎯 Control Plane
     participant SA as 🤖 SRE Assistant
-    participant AI as 🧠 AI Engine
     
     U->>CP: 🚨 發現部署異常
     CP->>SA: 📤 發起診斷請求 (JWT)
-    SA->>SA: 🔍 並行數據收集
-    Note over SA: Prometheus + Loki + 審計日誌
-    SA->>AI: 🧠 AI 分析診斷
-    AI-->>SA: 💡 智能建議與根因
-    SA-->>CP: 📋 結構化診斷報告
+    SA->>SA: 🔍 執行並行診斷工具
+    Note over SA: Prometheus + Loki + ...
+    SA->>SA: 🔬 分析與綜合結果
+    SA-->>CP: 📋 返回結構化診斷報告
     CP-->>U: ✅ 顯示解決方案
 ```
 
