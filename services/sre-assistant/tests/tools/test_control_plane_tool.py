@@ -57,7 +57,18 @@ async def test_get_resource_details_success(control_plane_tool: ControlPlaneTool
     """測試：成功獲取單一資源的詳情"""
     # 安排
     resource_id = "res-abc-123"
-    mock_response_data = {"id": resource_id, "name": "Detailed Resource", "status": "active"}
+    # 修正：提供完整的 Resource 物件以通過 Pydantic 驗證
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+
+    mock_response_data = {
+        "id": resource_id,
+        "name": "Detailed Resource",
+        "status": "active",
+        "type": "server",
+        "createdAt": now,
+        "updatedAt": now
+    }
     respx.get(f"{BASE_URL}/api/v1/resources/{resource_id}").mock(return_value=Response(200, json=mock_response_data))
 
     # 執行
@@ -66,7 +77,9 @@ async def test_get_resource_details_success(control_plane_tool: ControlPlaneTool
     # 斷言
     assert isinstance(result, ToolResult)
     assert result.success is True
-    assert result.data == mock_response_data
+    # 驗證返回的資料（Pydantic 模型轉換為 dict 後）與模擬資料匹配
+    assert result.data["id"] == mock_response_data["id"]
+    assert result.data["name"] == mock_response_data["name"]
 
 @pytest.mark.asyncio
 @respx.mock

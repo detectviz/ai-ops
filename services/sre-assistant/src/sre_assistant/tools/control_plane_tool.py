@@ -11,7 +11,10 @@ from datetime import datetime, timedelta, timezone
 import jwt
 import time
 
+from pydantic import ValidationError
+
 from ..contracts import ToolResult, ToolError
+from .control_plane_contracts import Resource
 
 logger = logging.getLogger(__name__)
 
@@ -86,17 +89,49 @@ class ControlPlaneTool:
             return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
 
     async def get_resource_details(self, resource_id: str) -> Union[ToolResult, ToolError]:
-        """獲取資源詳情 (GET /api/v1/resources/{resourceId})"""
+        """
+        獲取資源詳情 (GET /api/v1/resources/{resourceId})。
+        此方法現在會將回應驗證為結構化的 Resource 物件。
+        """
         try:
             logger.info(f"🛂 (ControlPlaneTool) 正在獲取資源 {resource_id} 的詳情...")
-            response = await self._make_request(
+
+            # 呼叫底層的 request 方法
+            response_data = await self._make_request(
                 method="GET",
                 endpoint=f"/api/v1/resources/{resource_id}"
             )
-            return ToolResult(success=True, data=response)
+
+            # 使用 Pydantic 模型進行驗證和解析
+            resource = Resource.model_validate(response_data)
+
+            # 確保返回一個包含結構化資料的 ToolResult
+            return ToolResult(success=True, data=resource.model_dump())
+
+        except httpx.HTTPStatusError as e:
+            # 處理 API 回傳的錯誤 (例如 404 Not Found)
+            logger.error(f"❌ (ControlPlaneTool) 獲取資源詳情時 API 錯誤: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolError(
+                code="API_ERROR",
+                message=f"Control Plane API returned status {e.response.status_code}",
+                details={"resource_id": resource_id, "response": e.response.text}
+            )
+        except ValidationError as e:
+            # 處理 Pydantic 驗證失敗的錯誤
+            logger.error(f"❌ (ControlPlaneTool) 資源詳情回應的資料格式無效: {e}", exc_info=True)
+            return ToolError(
+                code="INVALID_DATA_FORMAT",
+                message="從 Control Plane 收到的資料格式不符預期。",
+                details={"resource_id": resource_id, "errors": e.errors()}
+            )
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 獲取資源詳情時發生錯誤: {e}", exc_info=True)
-            return ToolError(code="GET_DETAILS_FAILED", message=str(e), details={"resource_id": resource_id})
+            # 處理其他所有未預期的錯誤
+            logger.error(f"❌ (ControlPlaneTool) 獲取資源詳情時發生未預期錯誤: {e}", exc_info=True)
+            return ToolError(
+                code="UNEXPECTED_ERROR",
+                message=str(e),
+                details={"resource_id": resource_id}
+            )
 
     async def query_resource_groups(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
         """查詢資源群組 (GET /api/v1/resource-groups)"""

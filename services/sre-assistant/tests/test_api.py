@@ -41,8 +41,8 @@ class TestHealthEndpoints:
     """健康檢查端點測試"""
 
     def test_health_check(self, client):
-        """測試 /healthz 端點"""
-        response = client.get("/healthz")
+        """測試 /api/v1/healthz 端點"""
+        response = client.get("/api/v1/healthz")
         # 在測試啟動失敗的情況下，這裡會是 404
         # 在測試啟動成功的情況下，應該是 200
         assert response.status_code == 200
@@ -50,8 +50,8 @@ class TestHealthEndpoints:
         assert data["status"] == "ok"
 
     def test_readiness_check(self, client):
-        """測試 /readyz 端點"""
-        response = client.get("/readyz")
+        """測試 /api/v1/readyz 端點"""
+        response = client.get("/api/v1/readyz")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ready"

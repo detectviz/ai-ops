@@ -171,17 +171,32 @@ func (h *Handlers) ProfilePage(w http.ResponseWriter, r *http.Request)    {}
 func (h *Handlers) SettingsPage(w http.ResponseWriter, r *http.Request)   {}
 func (h *Handlers) ResourcesTable(w http.ResponseWriter, r *http.Request) {}
 func (h *Handlers) ResourcesPage(w http.ResponseWriter, r *http.Request) {
-	// Jules (2025-09-06): 暫時禁用此頁面，因為其依賴的 ListResources 服務層方法
-	// 正在等待資料庫層的完整重構。
-	// TODO: 在資料庫 Repository 層實作 ListResources 後重新啟用。
-	data := map[string]interface{}{
-		"Title":     "資源管理 (施工中)",
-		"Page":      "resources",
-		"Resources": []string{}, // 回傳空列表
-	}
-	err := h.Templates.ExecuteTemplate(w, "resources.html", data)
+	ctx := r.Context()
+	resources, err := h.Services.ListResources(ctx)
 	if err != nil {
-		h.Logger.Ctx(r.Context()).Error("無法渲染資源頁面模板", zap.Error(err))
+		h.Logger.Ctx(ctx).Error("無法獲取資源列表", zap.Error(err))
+		http.Error(w, "無法載入資源頁面", http.StatusInternalServerError)
+		return
+	}
+
+	// Marshal resources to JSON for the script block
+	resourcesJSON, err := json.Marshal(resources)
+	if err != nil {
+		h.Logger.Ctx(ctx).Error("無法將資源序列化為 JSON", zap.Error(err))
+		http.Error(w, "無法準備頁面資料", http.StatusInternalServerError)
+		return
+	}
+
+	data := map[string]interface{}{
+		"Title":         "資源管理",
+		"Page":          "resources",
+		"Resources":     resources,
+		"ResourcesJSON": string(resourcesJSON),
+	}
+
+	err = h.Templates.ExecuteTemplate(w, "resources.html", data)
+	if err != nil {
+		h.Logger.Ctx(ctx).Error("無法渲染資源頁面模板", zap.Error(err))
 		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
 	}
 }
