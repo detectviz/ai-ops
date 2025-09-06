@@ -1,0 +1,37 @@
+{{template "layout.html" .}}
+
+{{define "content"}}
+<div class="flex items-center justify-center h-screen bg-slate-200">
+    <div class="w-full max-w-md">
+      <form action="/auth/login" method="POST" class="bg-white shadow-lg rounded-xl px-8 pt-6 pb-8 mb-4">
+        <div class="mb-8 text-center">
+          <img src="/static/LOGO.png" alt="Control Plane Logo" class="inline-block h-12 w-auto mb-2">
+          <h1 class="text-2xl font-bold text-slate-800">Control Plane</h1>
+        </div>
+        <div class="mb-4">
+          <label class="block text-slate-700 text-sm font-bold mb-2" for="username">
+            帳號
+          </label>
+          <input
+            class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+            id="username" name="username" type="text" placeholder="請輸入帳號" value="admin">
+        </div>
+        <div class="mb-6">
+          <label class="block text-slate-700 text-sm font-bold mb-2" for="password">
+            密碼
+          </label>
+          <input
+            class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+            id="password" name="password" type="password" placeholder="******************" value="admin">
+        </div>
+        <div class="flex items-center justify-between">
+          <button
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline w-full"
+            type="submit">
+            登入
+          </button>
+        </div>
+      </form>
+    </div>
+</div>
+{{end}}

@@ -105,8 +105,89 @@ func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) ReadinessCheck(w http.ResponseWriter, r *http.Request) {
 	h.writeJSON(w, http.StatusOK, map[string]bool{"ready": true})
 }
-func (h *Handlers) AuthCallback(w http.ResponseWriter, r *http.Request)  {}
-func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request)   {}
-func (h *Handlers) HandleLogout(w http.ResponseWriter, r *http.Request)  {}
+
+func (h *Handlers) LoginPage(w http.ResponseWriter, r *http.Request) {
+	// Simple render of the login page
+	err := h.Templates.ExecuteTemplate(w, "login.html", nil)
+	if err != nil {
+		http.Error(w, "無法渲染登入頁面", http.StatusInternalServerError)
+	}
+}
+
+func (h *Handlers) AuthCallback(w http.ResponseWriter, r *http.Request) {}
+
+func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	if h.Services.Config.Auth.Mode == "dev" {
+		// Dev mode: simple form-based login
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "無法解析表單", http.StatusBadRequest)
+			return
+		}
+		username := r.PostFormValue("username")
+		password := r.PostFormValue("password")
+
+		// TODO: Use a more secure way to handle dev credentials
+		if username == "admin" && password == "admin" {
+			session, _ := auth.Store.Get(r, auth.SessionName)
+			session.Values["authenticated"] = true
+			session.Values["user"] = username
+			if err := session.Save(r, w); err != nil {
+				http.Error(w, "無法儲存 Session", http.StatusInternalServerError)
+				return
+			}
+			http.Redirect(w, r, "/", http.StatusFound)
+		} else {
+			// TODO: Add flash messages for errors
+			http.Redirect(w, r, "/auth/login?error=invalid_credentials", http.StatusFound)
+		}
+	} else {
+		// Keycloak mode: redirect to OIDC provider
+		h.AuthService.HandleLogin(w, r)
+	}
+}
+
+func (h *Handlers) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	session, _ := auth.Store.Get(r, auth.SessionName)
+	// Revoke the session
+	session.Values["authenticated"] = false
+	session.Options.MaxAge = -1
+	if err := session.Save(r, w); err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法登出時儲存 session", zap.Error(err))
+		http.Error(w, "登出失敗", http.StatusInternalServerError)
+		return
+	}
+
+	// TODO: Add Keycloak single-sign-out
+	http.Redirect(w, r, "/auth/login", http.StatusFound)
+}
 func (h *Handlers) Dashboard(w http.ResponseWriter, r *http.Request)     {}
-func (h *Handlers) ResourcesPage(w http.ResponseWriter, r *http.Request) {}
+func (h *Handlers) ResourcesPage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	resources, err := h.Services.ListResources(ctx)
+	if err != nil {
+		h.Logger.Ctx(ctx).Error("無法獲取資源列表", zap.Error(err))
+		http.Error(w, "無法載入資源頁面", http.StatusInternalServerError)
+		return
+	}
+
+	// Marshal resources to JSON for the script block
+	resourcesJSON, err := json.Marshal(resources)
+	if err != nil {
+		h.Logger.Ctx(ctx).Error("無法將資源序列化為 JSON", zap.Error(err))
+		http.Error(w, "無法準備頁面資料", http.StatusInternalServerError)
+		return
+	}
+
+	data := map[string]interface{}{
+		"Title":         "資源管理",
+		"Page":          "resources",
+		"Resources":     resources,
+		"ResourcesJSON": string(resourcesJSON),
+	}
+
+	err = h.Templates.ExecuteTemplate(w, "resources.html", data)
+	if err != nil {
+		h.Logger.Ctx(ctx).Error("無法渲染資源頁面模板", zap.Error(err))
+		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
+	}
+}

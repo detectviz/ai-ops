@@ -58,3 +58,8 @@ func (s *Services) TriggerDeploymentDiagnosis(ctx context.Context, deployment *m
 func (s *Services) CheckDiagnosisStatus(ctx context.Context, sessionID string) (*DiagnosticStatus, error) {
 	return s.SreAssistantClient.GetDiagnosticStatus(ctx, sessionID)
 }
+
+// ListResources 獲取資源列表
+func (s *Services) ListResources(ctx context.Context) ([]models.Resource, error) {
+	return database.ListResources(s.DB)
+}

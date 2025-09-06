@@ -105,28 +105,29 @@ func RequireAuth(authSvc *auth.KeycloakService) func(http.Handler) http.Handler 
 }
 
 // RequireSession 是一個保護 Web UI 頁面的中介軟體。
-// 在一個完整的應用中，它會檢查使用者的 session cookie。
-// 為了簡化，我們暫時將其作為一個預留位置。
-func RequireSession(authSvc *auth.KeycloakService) func(http.Handler) http.Handler {
+// 在 dev 模式下，它會檢查一個簡單的 session cookie。
+// 在 keycloak 模式下，它會與 OIDC 整合（TODO）。
+func RequireSession(authSvc *auth.KeycloakService, cfg *config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// TODO: 實作基於 cookie 的 session 管理
-			// 目前，我們可以檢查 session cookie 是否存在
-			// c, err := r.Cookie("session_token")
-			// if err != nil {
-			// 	if err == http.ErrNoCookie {
-			// 		// 重定向到登入頁面
-			// 		http.Redirect(w, r, "/auth/login", http.StatusFound)
-			// 		return
-			// 	}
-			// 	http.Error(w, "內部錯誤", http.StatusBadRequest)
-			// 	return
-			// }
-			//
-			// sessionToken := c.Value
-			// 可以在這裡驗證 session token
+			if cfg.Auth.Mode == "dev" {
+				session, err := auth.Store.Get(r, auth.SessionName)
+				if err != nil {
+					http.Error(w, "無法讀取 Session", http.StatusInternalServerError)
+					return
+				}
 
-			// 簡化版：暫時允許所有請求通過
+				// 檢查 session 中是否有認證標記
+				if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+					http.Redirect(w, r, "/auth/login", http.StatusFound)
+					return
+				}
+			} else {
+				// TODO: 實作 Keycloak 模式下的 session 驗證邏輯
+				// 這可能涉及驗證 OIDC session cookie 或刷新 token
+			}
+
+			// 認證通過
 			next.ServeHTTP(w, r)
 		})
 	}

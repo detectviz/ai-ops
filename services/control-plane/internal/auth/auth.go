@@ -15,9 +15,18 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/detectviz/control-plane/internal/config"
+	"github.com/gorilla/sessions"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
+
+// SessionStore and name configuration
+var (
+	// TODO: The key should be loaded from a secure configuration in production.
+	Store = sessions.NewCookieStore([]byte("secret-key-for-dev-should-be-replaced"))
+)
+
+const SessionName = "control-plane-session"
 
 // KeycloakService 是一個集中管理所有 Keycloak 認證邏輯的服務。
 // 它包含 OIDC 提供者的資訊、用於 Web 登入的 OAuth2 配置，以及用於服務間通訊的 M2M 配置。

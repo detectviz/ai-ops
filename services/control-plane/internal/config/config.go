@@ -26,6 +26,7 @@ type DatabaseConfig struct {
 
 // AuthConfig 包含了 Keycloak 的配置。
 type AuthConfig struct {
+	Mode            string `env:"AUTH_MODE" envDefault:"keycloak"` // "keycloak" or "dev"
 	URL             string `env:"KEYCLOAK_URL" envDefault:"http://localhost:8080"`
 	Realm           string `env:"KEYCLOAK_REALM" envDefault:"sre-platform"`
 	ClientID        string `env:"KEYCLOAK_CLIENT_ID" envDefault:"control-plane-ui"`

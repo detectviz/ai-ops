@@ -54,22 +54,6 @@ func GetIncidents(svcs *services.Services) http.HandlerFunc {
 	}
 }
 
-// GetIncident 處理獲取單筆告警紀錄的請求 (存根)。
-func GetIncident(svcs *services.Services) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: 解析 ID 並從資料庫中查詢
-		mockIncident := map[string]interface{}{
-			"id":     1001,
-			"level":  "error",
-			"time":   time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
-			"name":   "High CPU Usage",
-			"desc":   "The payment-api service is experiencing high CPU usage.",
-			"status": "new",
-		}
-		jsonResponse(w, http.StatusOK, mockIncident)
-	}
-}
-
 // GetExecutions 處理獲取自動化執行日誌的請求 (存根)。
 func GetExecutions(svcs *services.Services) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -241,7 +225,7 @@ func CreateIncident(svcs *services.Services) http.HandlerFunc {
 			jsonResponse(w, http.StatusBadRequest, nil)
 			return
 		}
-		mockIncident := models.Incident{ID: 101, Title: req.Title, Severity: req.Severity, Status: "new"}
+		mockIncident := models.Incident{ID: 101, Name: req.Title, Level: req.Severity, Status: "new"}
 		jsonResponse(w, http.StatusCreated, mockIncident)
 	}
 }
@@ -250,7 +234,7 @@ func CreateIncident(svcs *services.Services) http.HandlerFunc {
 func GetIncident(svcs *services.Services) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: 從 URL 解析 incidentId 並查詢資料庫。
-		mockIncident := models.Incident{ID: 101, Title: "High CPU Usage", Severity: "critical", Status: "new"}
+		mockIncident := models.Incident{ID: 101, Name: "High CPU Usage", Level: "critical", Status: "new"}
 		jsonResponse(w, http.StatusOK, mockIncident)
 	}
 }
@@ -259,7 +243,7 @@ func GetIncident(svcs *services.Services) http.HandlerFunc {
 func UpdateIncident(svcs *services.Services) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: 實現真實的事件更新邏輯。
-		mockIncident := models.Incident{ID: 101, Title: "Updated Incident Title"}
+		mockIncident := models.Incident{ID: 101, Name: "Updated Incident Title"}
 		jsonResponse(w, http.StatusOK, mockIncident)
 	}
 }

@@ -73,7 +73,7 @@ func main() {
 	}
 
 	// 初始化服務層
-	services := services.NewServices(db, cfg, logger, authService)
+	services := services.NewServices(db, cfg, logger, *authService)
 
 	// 載入 HTML 模板
 	templates, err := loadTemplates()
@@ -82,10 +82,10 @@ func main() {
 	}
 
 	// 初始化處理器
-	h := handlers.NewHandlers(services, templates, authService, logger)
+	h := handlers.NewHandlers(services, templates, *authService, logger)
 
 	// 設置路由
-	router := setupRoutes(h, authService, logger)
+	router := setupRoutes(h, authService, logger, cfg)
 
 	// 設置 CORS
 	corsHandler := cors.New(cors.Options{
@@ -175,7 +175,7 @@ func loadTemplates() (*template.Template, error) {
 	return template.ParseGlob("templates/*.html")
 }
 
-func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelzap.Logger) *mux.Router {
+func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelzap.Logger, cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
 
 	// 中介軟體
@@ -232,11 +232,11 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 
 	// Web UI 路由
 	webRouter := r.PathPrefix("/").Subrouter()
-	webRouter.Use(middleware.RequireSession(auth)) // 保護 UI
+	webRouter.Use(middleware.RequireSession(auth, cfg)) // 保護 UI
 	webRouter.HandleFunc("/", h.Dashboard).Methods("GET")
 	// ... 其他頁面路由
 	webRouter.HandleFunc("/resources", h.ResourcesPage).Methods("GET")
-	webRouter.HandleFunc("/personnel", h.PersonnelPage).Methods("GET")
+	// webRouter.HandleFunc("/personnel", h.PersonnelPage).Methods("GET")
 	webRouter.HandleFunc("/teams", h.TeamsPage).Methods("GET")
 	webRouter.HandleFunc("/alerts", h.AlertsPage).Methods("GET")
 	webRouter.HandleFunc("/automation", h.AutomationPage).Methods("GET")
