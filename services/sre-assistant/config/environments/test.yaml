@@ -1,0 +1,16 @@
+# Test environment configuration
+auth:
+  provider: ${AUTH_PROVIDER:"none"} # Default to none for tests
+  keycloak:
+    url: "http://localhost:8080"
+    realm: "sre-platform"
+    audience: "sre-assistant"
+    allowed_client_id: "control-plane"
+
+redis:
+  url: "redis://localhost:6379/1" # Use a different DB for tests
+
+workflow:
+  diagnosis_timeout_seconds: 10
+  max_retries: 1
+  retry_delay_seconds: 0.1

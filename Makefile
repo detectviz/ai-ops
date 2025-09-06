@@ -32,7 +32,7 @@ help:
 # --- 主要指令 ---
 
 # 完整設定
-setup-dev: install-deps setup-postgres start-services verify
+setup-dev: install-deps setup-postgres install-py-deps start-services verify
 	@echo "✅ 本地開發環境已設定完成！"
 
 # 停止所有服務
@@ -93,6 +93,11 @@ test-py:
 	@echo "🧪 執行 SRE Assistant 測試..."
 	cd services/sre-assistant && poetry run pytest -v
 
+# 安裝 Python 依賴
+install-py-deps:
+	@echo "🐍 安裝 SRE Assistant 的 Python 依賴..."
+	cd services/sre-assistant && poetry lock && poetry install
+
 # 清理環境
 clean:
 	@echo "🧹 清理環境..."
@@ -115,5 +120,5 @@ install-deps:
 setup-postgres:
 	@echo "🐘 設定 PostgreSQL..."
 	@sudo -u postgres psql -c "CREATE DATABASE sre_dev;" || true
-	@sudo -u postgres psql -c "CREATE USER postgres WITH PASSWORD 'postgres';" || true
+	@sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';" || true
 	@sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE sre_dev TO postgres;"

@@ -1,181 +1,139 @@
-# services/sre-assistant/tests/test_api.py
 """
-API 端點測試
+API 端點測試 (已重構以匹配目前的實作)
 """
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch, AsyncMock
-import json
+from unittest.mock import patch, AsyncMock
+import uuid
 
-# 確保在 app 匯入前設定環境變數，以進入測試模式
+# 確保在 app 匯入前設定環境變數
 import os
-os.environ["TESTING_MODE"] = "true"
+os.environ["ENVIRONMENT"] = "test"
 
 from sre_assistant.main import app, verify_token
 
-
-# 為了測試方便，我們覆寫 `verify_token` 的依賴
-# 這樣可以隔離認證邏輯，專注於端點本身的測試
+# 全域覆寫 JWT 驗證，用於大部分的端點測試
 async def override_verify_token():
     return {"sub": "test-user", "roles": ["admin"]}
 
 app.dependency_overrides[verify_token] = override_verify_token
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client():
-    """建立測試客戶端"""
+    """建立一個在所有測試中共享的 TestClient 實例"""
     with TestClient(app) as c:
         yield c
 
-
-@pytest.fixture
-def mock_config():
-    """模擬配置"""
-    config = Mock()
-    config.auth.provider = "jwt"  # 強制使用 jwt 供測試
-    config.prometheus.base_url = "http://prometheus:9090"
-    config.loki.base_url = "http://loki:3100"
-    config.control_plane.base_url = "http://control-plane:8081"
-    return config
-
-
 class TestHealthEndpoints:
     """健康檢查端點測試"""
-    
+
     def test_health_check(self, client):
-        """測試健康檢查端點"""
-        response = client.get("/health")
+        """測試 /healthz 端點"""
+        response = client.get("/healthz")
+        # 在測試啟動失敗的情況下，這裡會是 404
+        # 在測試啟動成功的情況下，應該是 200
         assert response.status_code == 200
-        
         data = response.json()
-        assert data["status"] == "healthy"
-        assert data["service"] == "sre-assistant"
-        assert "timestamp" in data
-        assert "version" in data
-    
+        assert data["status"] == "ok"
+
     def test_readiness_check(self, client):
-        """測試就緒檢查端點"""
-        # 在測試模式下，依賴應該是就緒的
-        response = client.get("/ready")
+        """測試 /readyz 端點"""
+        response = client.get("/readyz")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ready"
 
 
 class TestDiagnosticEndpoints:
-    """診斷端點測試"""
+    """非同步診斷端點測試"""
 
-    @patch("sre_assistant.main.workflow")
-    def test_diagnose_deployment(self, mock_workflow, client):
-        """測試部署診斷成功"""
-        # 設定 mock
-        mock_workflow.execute = AsyncMock(return_value={
-            "summary": "診斷完成",
-            "findings": [],
-            "recommended_action": "檢查資源限制",
-            "confidence_score": 0.85
-        })
+    @patch("sre_assistant.main.run_workflow_bg", new_callable=AsyncMock)
+    def test_diagnose_deployment_accepted(self, mock_run_workflow_bg, client):
+        """測試 /diagnostics/deployment 端點是否能正確接受任務"""
+        request_data = {
+            "incident_id": "INC-123",
+            "severity": "P1",
+            "affected_services": ["auth-service"],
+        }
+        response = client.post("/api/v1/diagnostics/deployment", json=request_data)
 
-        # 發送請求
-        response = client.post(
-            "/diagnostics/deployment",
-            json={
-                "context": {
-                    "deployment_id": "test-deploy-001",
-                    "service_name": "test-service",
-                    "namespace": "default"
-                }
-            },
-            headers={"Authorization": "Bearer test-token"} # 即使有覆寫，也帶上 header
-        )
-
-        assert response.status_code == 200
-
+        assert response.status_code == 202
         data = response.json()
-        assert data["status"] == "COMPLETED"
-        assert data["summary"] == "診斷完成"
-        assert data["confidence_score"] == 0.85
-
-    @patch("sre_assistant.main.workflow")
-    def test_diagnose_alerts(self, mock_workflow, client):
-        """測試告警診斷端點"""
-        # 設定 mock
-        mock_workflow.execute = AsyncMock(return_value={
-            "summary": "分析完成",
-            "findings": [{"source": "AlertManager", "data": {"alert_count": 3}}],
-            "recommended_action": "檢查基礎設施",
-            "confidence_score": 0.75
-        })
+        assert data["status"] == "accepted"
+        assert "session_id" in data
         
-        # 發送請求
-        response = client.post(
-            "/diagnostics/alerts",
-            json={
-                "context": {
-                    "incident_ids": [101, 102, 103],
-                    "service_name": "test-service"
-                }
-            },
-            headers={"Authorization": "Bearer test-token"}
-        )
+        # 驗證背景任務是否被呼叫
+        mock_run_workflow_bg.assert_called_once()
+        # 驗證呼叫時的參數
+        call_args = mock_run_workflow_bg.call_args[0]
+        assert isinstance(call_args[0], uuid.UUID) # session_id
+        assert call_args[1].incident_id == "INC-123" # request object
+        assert call_args[2] == "deployment" # request_type
+
+    @patch("sre_assistant.main.redis_client")
+    async def test_get_diagnostic_status_found(self, mock_redis, client):
+        """測試成功獲取任務狀態"""
+        session_id = uuid.uuid4()
+        # 模擬 Redis 返回的 JSON 資料
+        mock_status_json = {
+            "session_id": str(session_id),
+            "status": "processing",
+            "progress": 50,
+            "current_step": "正在執行工具"
+        }
+        mock_redis.get = AsyncMock(return_value=str(mock_status_json).replace("'", '"'))
+
+        response = client.get(f"/api/v1/diagnostics/{session_id}/status")
         
         assert response.status_code == 200
-        
         data = response.json()
-        assert data["status"] == "COMPLETED"
-        assert len(data["findings"]) == 1
-        assert data["confidence_score"] == 0.75
+        assert data["status"] == "processing"
+        assert data["progress"] == 50
+        mock_redis.get.assert_called_once_with(str(session_id))
+
+    @patch("sre_assistant.main.redis_client")
+    async def test_get_diagnostic_status_not_found(self, mock_redis, client):
+        """測試查詢不存在的任務狀態"""
+        session_id = uuid.uuid4()
+        mock_redis.get = AsyncMock(return_value=None)
+
+        response = client.get(f"/api/v1/diagnostics/{session_id}/status")
+
+        assert response.status_code == 404
+        assert "找不到指定的診斷任務" in response.text
 
 
 class TestAuthentication:
-    """認證邏輯的獨立測試"""
+    """測試 JWT 認證邏輯"""
 
-    # 移除全域的依賴覆寫，以便單獨測試認證
     @pytest.fixture(autouse=True)
-    def unpatch_verify_token(self):
+    def setup_auth(self):
+        """為這個測試類別移除全域的 token 覆寫"""
         app.dependency_overrides = {}
         yield
-        app.dependency_overrides = {}
+        # 測試結束後恢復
+        app.dependency_overrides[verify_token] = override_verify_token
 
     def test_missing_token(self, client):
-        """測試在需要認證時缺少 Token"""
-        # 使用一個 mock jwks_client 來強制觸發認證邏輯
-        with patch("sre_assistant.main.jwks_client", new=Mock()):
-            response = client.post(
-                "/diagnostics/deployment",
-                json={
-                    "context": {
-                        "deployment_id": "test-deploy-001",
-                        "service_name": "test-service",
-                        "namespace": "default"
-                    }
-                }
-            )
-            # 在 main.py 中，如果 jwks_client 存在但 header 不存在，會返回 401
-            assert response.status_code == 401
-            assert "缺少認證憑證" in response.text
+        """測試在需要認證時缺少 Token 的情況"""
+        response = client.post("/api/v1/diagnostics/deployment", json={})
+        # Per FastAPI's HTTPBearer, a missing header results in a 403 Forbidden, not 401.
+        assert response.status_code == 403
+        assert "Not authenticated" in response.text
 
-    def test_invalid_token(self, client):
-        """測試提供了無效的 Token"""
-        # 建立一個會引發錯誤的 mock jwks_client
-        from jwt import InvalidTokenError
-        mock_jwks = Mock()
-        mock_jwks.get_signing_key_from_jwt.side_effect = InvalidTokenError("Invalid token signature")
+    @patch("sre_assistant.main.fetch_jwks")
+    def test_invalid_token_structure(self, mock_fetch_jwks, client):
+        """測試提供了無效結構的 Token (非 Bearer)"""
+        # 即使 JWKS 正確，token 格式錯誤也應該失敗
+        mock_fetch_jwks.return_value = [{"kid": "test-kid"}]
 
-        with patch("sre_assistant.main.jwks_client", new=mock_jwks):
-            response = client.post(
-                "/diagnostics/deployment",
-                json={
-                    "context": {
-                        "deployment_id": "test-deploy-001",
-                        "service_name": "test-service",
-                        "namespace": "default"
-                    }
-                },
-                headers={"Authorization": "Bearer invalid-token"}
-            )
-
-            assert response.status_code == 401
-            assert "無效的 Token" in response.text
+        response = client.post(
+            "/api/v1/diagnostics/deployment",
+            json={},
+            headers={"Authorization": "InvalidScheme some-token"}
+        )
+        # An invalid scheme also results in a 403 from HTTPBearer
+        assert response.status_code == 403
+        assert "Invalid authentication credentials" in response.text

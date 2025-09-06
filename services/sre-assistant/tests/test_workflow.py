@@ -1,293 +1,228 @@
-# services/sre-assistant/tests/test_workflow.py
 """
-工作流程測試
+SRE 工作流程測試 (已重構以匹配目前的實作)
 """
 
 import pytest
 import asyncio
+import uuid
 from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone
 
 from sre_assistant.workflow import SREWorkflow
 from sre_assistant.contracts import (
-    SRERequest,
+    DiagnosticRequest,
     ToolResult,
     ToolError,
     Finding,
-    SeverityLevel
+    DiagnosticStatus,
+    DiagnosticResult,
 )
 
 
 @pytest.fixture
 def mock_config():
-    """建立模擬配置"""
+    """建立一個模擬的配置物件"""
     config = Mock()
     config.workflow = {
         "parallel_diagnosis": True,
         "diagnosis_timeout_seconds": 60,
-        "max_retries": 3
+        "max_retries": 2,
+        "retry_delay_seconds": 0.01  # 測試時使用較短的延遲
     }
-    config.prometheus = {
-        "base_url": "http://prometheus:9090",
-        "timeout_seconds": 15
-    }
-    config.loki = {
-        "base_url": "http://loki:3100",
-        "timeout_seconds": 20
-    }
-    config.control_plane = {
-        "base_url": "http://control-plane:8081",
-        "timeout_seconds": 10
-    }
+    # 為工具提供模擬配置，確保巢狀物件也支援屬性存取
+    config.prometheus = Mock(base_url="http://mock-prometheus")
+    config.loki = Mock(base_url="http://mock-loki")
+    config.control_plane = Mock(base_url="http://mock-control-plane")
     return config
 
+@pytest.fixture
+def mock_redis_client():
+    """建立一個模擬的 Redis 客戶端"""
+    client = AsyncMock()
+    # 模擬 get 和 set 方法
+    # 使用一個字典來模擬 Redis 的儲存
+    redis_store = {}
+
+    async def get(key):
+        return redis_store.get(key)
+
+    async def set(key, value, ex=None):
+        redis_store[key] = value
+        return True
+
+    client.get.side_effect = get
+    client.set.side_effect = set
+
+    # 在每次測試前清空 store
+    redis_store.clear()
+
+    return client, redis_store
 
 @pytest.fixture
-def workflow(mock_config):
-    """建立工作流程實例"""
-    return SREWorkflow(mock_config)
+def workflow(mock_config, mock_redis_client):
+    """建立一個帶有模擬依賴的工作流程實例"""
+    redis_client, _ = mock_redis_client
+    return SREWorkflow(mock_config, redis_client)
 
 
-class TestSREWorkflow:
-    """SRE 工作流程測試"""
+@pytest.mark.asyncio
+async def test_diagnose_deployment_success(workflow, mock_redis_client):
+    """
+    測試一個成功的部署診斷流程。
+    驗證：
+    - 所有工具都被正確呼叫。
+    - 任務狀態在 Redis 中被正確更新 (processing -> completed)。
+    - 最終的 DiagnosticResult 包含來自所有工具的綜合結果。
+    """
+    redis_client, redis_store = mock_redis_client
+    session_id = uuid.uuid4()
+    request = DiagnosticRequest(
+        incident_id="test-001",
+        severity="P2",
+        affected_services=["test-service"]
+    )
     
-    @pytest.mark.asyncio
-    async def test_execute_deployment_diagnosis(self, workflow):
-        """測試部署診斷執行"""
-        # 建立請求
-        request = SRERequest(
-            incident_id="test-001",
-            severity=SeverityLevel.P2,
-            input="診斷部署問題",
-            affected_services=["test-service"],
-            context={
-                "type": "deployment_diagnosis",
-                "service_name": "test-service",
-                "namespace": "default",
-                "deployment_id": "deploy-123"
-            }
-        )
-        
-        # Mock 工具查詢方法
-        workflow._query_metrics = AsyncMock(return_value=ToolResult(
-            success=True,
-            data={
-                "cpu_usage": "95%",
-                "memory_usage": "88%",
-                "error_rate": "0.02",
-                "latency_p99": "1200ms"
-            }
-        ))
-        
-        workflow._query_logs = AsyncMock(return_value=ToolResult(
-            success=True,
-            data={
-                "error_count": 10,
-                "critical_errors": ["OOMKilled"],
-                "log_volume": "high"
-            }
-        ))
-        
-        workflow._query_audit_logs = AsyncMock(return_value=ToolResult(
-            success=True,
-            data={
-                "recent_changes": [
-                    {
-                        "time": "2025-01-02T10:00:00Z",
-                        "user": "admin",
-                        "action": "UPDATE_CONFIG",
-                        "details": "Changed memory limit"
-                    }
-                ]
-            }
-        ))
-        
-        # 執行工作流程
-        result = await workflow.execute(request)
-        
-        # 驗證結果
-        assert result["status"] == "COMPLETED"
-        assert "summary" in result
-        assert "findings" in result
-        assert "recommended_action" in result
-        assert "confidence_score" in result
-        assert "execution_time_ms" in result
-        
-        # 驗證工具被調用
-        workflow._query_metrics.assert_called_once()
-        workflow._query_logs.assert_called_once()
-        workflow._query_audit_logs.assert_called_once()
+    # 初始狀態
+    initial_status = DiagnosticStatus(session_id=session_id, status="processing", progress=10, current_step="start")
+    redis_store[str(session_id)] = initial_status.model_dump_json()
+
+    # Mock 工具的 execute 方法
+    workflow.prometheus_tool.execute = AsyncMock(return_value=ToolResult(
+        success=True, data={"cpu_usage": "95%"}
+    ))
+    workflow.loki_tool.execute = AsyncMock(return_value=ToolResult(
+        success=True, data={"critical_errors": 10}
+    ))
+    workflow.control_plane_tool.execute = AsyncMock(return_value=ToolResult(
+        success=True, data={"recent_changes": True}
+    ))
+
+    # 執行工作流程的主要方法
+    await workflow.execute(session_id, request, "deployment")
+
+    # 驗證最終狀態
+    final_status_json = await redis_client.get(str(session_id))
+    assert final_status_json is not None
+    final_status = DiagnosticStatus.model_validate_json(final_status_json)
     
-    @pytest.mark.asyncio
-    async def test_execute_alert_diagnosis(self, workflow):
-        """測試告警診斷執行"""
-        request = SRERequest(
-            incident_id="alert-001",
-            severity=SeverityLevel.P1,
-            input="分析告警",
-            affected_services=["service-a", "service-b"],
-            context={
-                "type": "alert_diagnosis",
-                "incident_ids": [101, 102, 103]
-            }
-        )
-        
-        result = await workflow.execute(request)
-        
-        assert result["status"] == "COMPLETED"
-        assert "分析了 3 個告警事件" in result["summary"]
+    assert final_status.status == "completed"
+    assert final_status.progress == 100
+    assert final_status.result is not None
+    assert len(final_status.result.findings) > 0  # 應該有發現
+    assert final_status.result.summary is not None
+    assert final_status.result.execution_time is not None
     
-    @pytest.mark.asyncio
-    async def test_execute_with_error(self, workflow):
-        """測試執行時發生錯誤"""
-        request = SRERequest(
-            incident_id="error-001",
-            severity=SeverityLevel.P0,
-            input="測試錯誤",
-            affected_services=["test-service"],
-            context={"type": "deployment_diagnosis"}
-        )
-        
-        # Mock 工具查詢拋出異常
-        workflow._query_metrics = AsyncMock(side_effect=Exception("連接失敗"))
-        
-        result = await workflow.execute(request)
-        
-        # 應該優雅地處理錯誤
-        assert result["status"] == "FAILED"
-        assert "診斷過程發生錯誤" in result["summary"]
-        assert result["confidence_score"] == 0.0
+    # 驗證工具是否被呼叫
+    workflow.prometheus_tool.execute.assert_called_once()
+    workflow.loki_tool.execute.assert_called_once()
+    workflow.control_plane_tool.execute.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_diagnose_deployment_with_tool_failure(workflow, mock_redis_client):
+    """
+    測試當一個工具執行失敗時的場景。
+    驗證：
+    - 即使有工具失敗，工作流程也能完成。
+    - 失敗的工具被記錄在最終結果中。
+    - 成功的工具結果仍然被處理。
+    """
+    redis_client, redis_store = mock_redis_client
+    session_id = uuid.uuid4()
+    request = DiagnosticRequest(
+        incident_id="test-002",
+        severity="P1",
+        affected_services=["failing-service"]
+    )
+    initial_status = DiagnosticStatus(session_id=session_id, status="processing", progress=10, current_step="start")
+    redis_store[str(session_id)] = initial_status.model_dump_json()
+
+    # Mock 工具，其中 Loki 會失敗
+    workflow.prometheus_tool.execute = AsyncMock(return_value=ToolResult(
+        success=True, data={"cpu_usage": "95%"}  # 觸發告警的條件
+    ))
+    workflow.loki_tool.execute = AsyncMock(side_effect=Exception("Loki connection failed"))
+    workflow.control_plane_tool.execute = AsyncMock(return_value=ToolResult(
+        success=True, data={"recent_changes": False}
+    ))
+
+    await workflow.execute(session_id, request, "deployment")
+
+    final_status = DiagnosticStatus.model_validate_json(await redis_client.get(str(session_id)))
     
-    @pytest.mark.asyncio
-    async def test_parallel_execution(self, workflow):
-        """測試並行執行"""
-        # 確保並行模式開啟
-        workflow.parallel_diagnosis = True
-        
-        # Mock 工具查詢，每個需要不同時間
-        async def slow_metrics(*args, **kwargs):
-            await asyncio.sleep(0.1)
-            return ToolResult(success=True, data={"metric": "value"})
-        
-        async def fast_logs(*args, **kwargs):
-            await asyncio.sleep(0.01)
-            return ToolResult(success=True, data={"log": "entry"})
-        
-        async def medium_audit(*args, **kwargs):
-            await asyncio.sleep(0.05)
-            return ToolResult(success=True, data={"audit": "log"})
-        
-        workflow._query_metrics = slow_metrics
-        workflow._query_logs = fast_logs
-        workflow._query_audit_logs = medium_audit
-        
-        request = SRERequest(
-            incident_id="parallel-001",
-            severity=SeverityLevel.P2,
-            input="測試並行",
-            affected_services=["test-service"],
-            context={
-                "type": "deployment_diagnosis",
-                "service_name": "test-service"
-            }
-        )
-        
-        # 測量執行時間
-        import time
-        start = time.time()
-        result = await workflow.execute(request)
-        elapsed = time.time() - start
-        
-        # 並行執行應該比串行快
-        # 串行需要 0.1 + 0.01 + 0.05 = 0.16 秒
-        # 並行應該接近最慢的 0.1 秒
-        assert elapsed < 0.15  # 留一些餘地
-        assert result["status"] == "COMPLETED"
+    assert final_status.status == "completed" # 流程應該還是完成了
+    assert final_status.result is not None
     
-    def test_analyze_deployment_results(self, workflow):
-        """測試結果分析"""
-        results = {
-            "prometheus": ToolResult(
-                success=True,
-                data={
-                    "cpu_usage": "85%",
-                    "memory_usage": "92%",
-                    "error_rate": "0.1",
-                    "latency_p99": "2000ms"
-                }
-            ),
-            "loki": ToolResult(
-                success=True,
-                data={
-                    "critical_errors": ["OOMKilled", "Connection timeout"],
-                    "error_count": 50
-                }
-            ),
-            "audit": ToolResult(
-                success=True,
-                data={
-                    "recent_changes": [
-                        {"action": "UPDATE_CONFIG", "user": "admin"}
-                    ]
-                }
-            )
-        }
-        
-        request = SRERequest(
-            incident_id="test",
-            severity=SeverityLevel.P2,
-            input="test",
-            affected_services=["test"]
-        )
-        
-        analysis = workflow._analyze_deployment_results(results, request)
-        
-        assert analysis["status"] == "COMPLETED"
-        assert "發現" in analysis["summary"]
-        assert len(analysis["findings"]) > 0
-        assert analysis["recommended_action"] is not None
-        assert analysis["confidence_score"] > 0
+    # 檢查 Prometheus 的發現是否還在
+    assert any("Prometheus" in f.source for f in final_status.result.findings)
+    # 檢查使用的工具列表
+    assert "PrometheusQueryTool" in final_status.result.tools_used
+    assert "ControlPlaneTool" in final_status.result.tools_used
+    assert "LokiLogQueryTool" not in final_status.result.tools_used # 失敗的工具不應該在 "used" 列表
+
+@pytest.mark.asyncio
+async def test_workflow_catastrophic_failure(workflow, mock_redis_client):
+    """
+    測試當工作流程本身發生未預期錯誤時的場景。
+    驗證：
+    - 任務狀態被更新為 'failed'。
+    - 錯誤訊息被記錄下來。
+    """
+    redis_client, redis_store = mock_redis_client
+    session_id = uuid.uuid4()
+    request = DiagnosticRequest(
+        incident_id="test-003",
+        severity="P0",
+        affected_services=["critical-service"]
+    )
+    initial_status = DiagnosticStatus(session_id=session_id, status="processing", progress=10, current_step="start")
+    redis_store[str(session_id)] = initial_status.model_dump_json()
+
+    # Mock 一個在流程中會引發異常的內部函式
+    with patch.object(workflow, '_diagnose_deployment', new_callable=AsyncMock) as mock_diagnose:
+        mock_diagnose.side_effect = ValueError("Something broke badly")
+
+        await workflow.execute(session_id, request, "deployment")
+
+    final_status = DiagnosticStatus.model_validate_json(await redis_client.get(str(session_id)))
     
-    def test_generate_recommendation(self, workflow):
-        """測試建議生成"""
-        issues = [
-            "OOMKilled",
-            "CPU 使用率過高",
-            "Connection timeout",
-            "最近有配置變更"
+    assert final_status.status == "failed"
+    assert "Something broke badly" in final_status.error
+
+@pytest.mark.asyncio
+async def test_tool_retry_logic(workflow, mock_redis_client):
+    """
+    測試工具的重試邏輯。
+    驗證：
+    - 失敗的工具會被重試指定的次數。
+    - 如果重試後成功，流程會繼續。
+    """
+    redis_client, redis_store = mock_redis_client
+    session_id = uuid.uuid4()
+    request = DiagnosticRequest(
+        incident_id="test-004",
+        severity="P2",
+        affected_services=["flaky-service"]
+    )
+    initial_status = DiagnosticStatus(session_id=session_id, status="processing", progress=10, current_step="start")
+    redis_store[str(session_id)] = initial_status.model_dump_json()
+
+    # Mock Loki 工具，它會先失敗兩次，第三次成功
+    loki_tool_mock = AsyncMock(
+        side_effect=[
+            Exception("Attempt 1 failed"),
+            Exception("Attempt 2 failed"),
+            ToolResult(success=True, data={"log_volume": "normal"})
         ]
-        
-        recommendation = workflow._generate_recommendation(issues)
-        
-        assert "增加記憶體限制" in recommendation
-        assert "增加 CPU 限制" in recommendation
-        assert "檢查網路連接" in recommendation
-        assert "審查最近的配置變更" in recommendation
+    )
+    workflow.loki_tool.execute = loki_tool_mock
+    workflow.prometheus_tool.execute = AsyncMock(return_value=ToolResult(success=True, data={}))
+    workflow.control_plane_tool.execute = AsyncMock(return_value=ToolResult(success=True, data={}))
+
+    await workflow.execute(session_id, request, "deployment")
+
+    # 驗證 Loki 工具被呼叫了三次 (1次原始 + 2次重試)
+    assert loki_tool_mock.call_count == 3
     
-    def test_calculate_confidence(self, workflow):
-        """測試信心分數計算"""
-        # 沒有發現
-        findings = []
-        score = workflow._calculate_confidence(findings)
-        assert score == 0.3
-        
-        # 有嚴重發現
-        findings = [
-            Finding(
-                source="Test",
-                severity=SeverityLevel.P0,
-                data={},
-                timestamp=datetime.now(timezone.utc)
-            )
-        ]
-        score = workflow._calculate_confidence(findings)
-        assert score == 1.0
-        
-        # 混合發現
-        findings = [
-            Finding(source="Test", severity=SeverityLevel.P1, data={}),
-            Finding(source="Test", severity=SeverityLevel.P2, data={}),
-            Finding(source="Test", severity=SeverityLevel.P3, data={})
-        ]
-        score = workflow._calculate_confidence(findings)
-        assert 0 < score < 1
+    final_status = DiagnosticStatus.model_validate_json(await redis_client.get(str(session_id)))
+    assert final_status.status == "completed"
+    assert "LokiLogQueryTool" in final_status.result.tools_used
