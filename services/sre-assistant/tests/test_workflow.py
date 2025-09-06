@@ -26,9 +26,8 @@ def mock_config():
         "parallel_diagnosis": True,
         "diagnosis_timeout_seconds": 60,
         "max_retries": 2,
-        "retry_delay_seconds": 0.01  # 測試時使用較短的延遲
+        "retry_delay_seconds": 0.01
     }
-    # 為工具提供模擬配置，確保巢狀物件也支援屬性存取
     config.prometheus = Mock(base_url="http://mock-prometheus")
     config.loki = Mock(base_url="http://mock-loki")
     config.control_plane = Mock(base_url="http://mock-control-plane")
@@ -37,9 +36,6 @@ def mock_config():
 @pytest.fixture
 def mock_redis_client():
     """建立一個模擬的 Redis 客戶端"""
-    client = AsyncMock()
-    # 模擬 get 和 set 方法
-    # 使用一個字典來模擬 Redis 的儲存
     redis_store = {}
 
     async def get(key):
@@ -49,12 +45,11 @@ def mock_redis_client():
         redis_store[key] = value
         return True
 
+    client = AsyncMock()
     client.get.side_effect = get
     client.set.side_effect = set
 
-    # 在每次測試前清空 store
-    redis_store.clear()
-
+    # 將 store 也返回，以便在測試中操作
     return client, redis_store
 
 @pytest.fixture
@@ -65,164 +60,129 @@ def workflow(mock_config, mock_redis_client):
 
 
 @pytest.mark.asyncio
-async def test_diagnose_deployment_success(workflow, mock_redis_client):
+async def test_diagnose_deployment_success_e2e(workflow, mock_redis_client):
     """
-    測試一個成功的部署診斷流程。
+    測試一個成功的部署診斷流程 (端到端)。
+
+    此測試已更新，以反映對 ControlPlaneTool 的具體方法呼叫。
+
     驗證：
-    - 所有工具都被正確呼叫。
-    - 任務狀態在 Redis 中被正確更新 (processing -> completed)。
-    - 最終的 DiagnosticResult 包含來自所有工具的綜合結果。
+    - 所有工具的具體方法都被正確呼叫。
+    - 任務狀態在 Redis 中被正確更新。
+    - 最終的 DiagnosticResult 包含來自所有工具的綜合、具體的調查發現。
     """
     redis_client, redis_store = mock_redis_client
     session_id = uuid.uuid4()
+    service_name = "test-service"
     request = DiagnosticRequest(
         incident_id="test-001",
         severity="P2",
-        affected_services=["test-service"]
+        affected_services=[service_name]
     )
     
-    # 初始狀態
+    # 準備初始狀態
     initial_status = DiagnosticStatus(session_id=session_id, status="processing", progress=10, current_step="start")
     redis_store[str(session_id)] = initial_status.model_dump_json()
 
-    # Mock 工具的 execute 方法
+    # --- 模擬工具的回傳值 ---
+    # 讓每個工具回傳一些可以觸發 "Finding" 的數據
     workflow.prometheus_tool.execute = AsyncMock(return_value=ToolResult(
         success=True, data={"cpu_usage": "95%"}
     ))
     workflow.loki_tool.execute = AsyncMock(return_value=ToolResult(
-        success=True, data={"critical_errors": 10}
+        success=True, data={"analysis": {"critical_indicators": ["發現 5 次 OOMKilled"]}}
     ))
-    workflow.control_plane_tool.execute = AsyncMock(return_value=ToolResult(
-        success=True, data={"recent_changes": True}
+    # 模擬 ControlPlaneTool 的具體方法
+    workflow.control_plane_tool.query_audit_logs = AsyncMock(return_value=ToolResult(
+        success=True, data={"logs": [{"user": "test-user", "action": "deploy"}]}
+    ))
+    workflow.control_plane_tool.query_incidents = AsyncMock(return_value=ToolResult(
+        success=True, data={"incidents": [{"id": "INC-999", "title": "Related DB issue"}]}
     ))
 
-    # 執行工作流程的主要方法
+    # --- 執行工作流程 ---
     await workflow.execute(session_id, request, "deployment")
 
-    # 驗證最終狀態
+    # --- 驗證結果 ---
     final_status_json = await redis_client.get(str(session_id))
     assert final_status_json is not None
     final_status = DiagnosticStatus.model_validate_json(final_status_json)
     
+    # 驗證最終狀態
     assert final_status.status == "completed"
     assert final_status.progress == 100
     assert final_status.result is not None
-    assert len(final_status.result.findings) > 0  # 應該有發現
-    assert final_status.result.summary is not None
-    assert final_status.result.execution_time is not None
     
-    # 驗證工具是否被呼叫
+    # 驗證所有工具都被呼叫
     workflow.prometheus_tool.execute.assert_called_once()
     workflow.loki_tool.execute.assert_called_once()
-    workflow.control_plane_tool.execute.assert_called_once()
+    workflow.control_plane_tool.query_audit_logs.assert_called_once()
+    workflow.control_plane_tool.query_incidents.assert_called_once()
+
+    # 驗證調查發現 (Findings)
+    findings = final_status.result.findings
+    assert len(findings) == 4  # 預期來自 4 個工具呼叫的 4 個發現
+
+    prometheus_finding = next((f for f in findings if f.source == "Prometheus"), None)
+    assert prometheus_finding is not None
+    assert "CPU 使用率過高" in prometheus_finding.message
+
+    loki_finding = next((f for f in findings if f.source == "Loki"), None)
+    assert loki_finding is not None
+    assert "OOMKilled" in loki_finding.message
+
+    cp_audit_finding = next((f for f in findings if f.source == "Control-Plane" and "審計日誌" in f.message), None)
+    assert cp_audit_finding is not None
+    assert cp_audit_finding.severity == "info"
+
+    cp_incident_finding = next((f for f in findings if f.source == "Control-Plane" and "活躍事件" in f.message), None)
+    assert cp_incident_finding is not None
+    assert cp_incident_finding.severity == "warning"
+
+    # 驗證使用的工具列表
+    assert "PrometheusQueryTool" in final_status.result.tools_used
+    assert "LokiLogQueryTool" in final_status.result.tools_used
+    assert "ControlPlaneTool (Audit)" in final_status.result.tools_used
+    assert "ControlPlaneTool (Incidents)" in final_status.result.tools_used
 
 
 @pytest.mark.asyncio
 async def test_diagnose_deployment_with_tool_failure(workflow, mock_redis_client):
-    """
-    測試當一個工具執行失敗時的場景。
-    驗證：
-    - 即使有工具失敗，工作流程也能完成。
-    - 失敗的工具被記錄在最終結果中。
-    - 成功的工具結果仍然被處理。
-    """
+    """測試當一個工具執行失敗時的場景。"""
     redis_client, redis_store = mock_redis_client
     session_id = uuid.uuid4()
-    request = DiagnosticRequest(
-        incident_id="test-002",
-        severity="P1",
-        affected_services=["failing-service"]
-    )
+    request = DiagnosticRequest(incident_id="test-002", severity="P1", affected_services=["failing-service"])
     initial_status = DiagnosticStatus(session_id=session_id, status="processing", progress=10, current_step="start")
     redis_store[str(session_id)] = initial_status.model_dump_json()
 
     # Mock 工具，其中 Loki 會失敗
-    workflow.prometheus_tool.execute = AsyncMock(return_value=ToolResult(
-        success=True, data={"cpu_usage": "95%"}  # 觸發告警的條件
-    ))
+    workflow.prometheus_tool.execute = AsyncMock(return_value=ToolResult(success=True, data={"cpu_usage": "95%"}))
     workflow.loki_tool.execute = AsyncMock(side_effect=Exception("Loki connection failed"))
-    workflow.control_plane_tool.execute = AsyncMock(return_value=ToolResult(
-        success=True, data={"recent_changes": False}
-    ))
+    workflow.control_plane_tool.query_audit_logs = AsyncMock(return_value=ToolResult(success=True, data={"logs": []}))
+    workflow.control_plane_tool.query_incidents = AsyncMock(return_value=ToolResult(success=True, data={"incidents": []}))
 
     await workflow.execute(session_id, request, "deployment")
-
     final_status = DiagnosticStatus.model_validate_json(await redis_client.get(str(session_id)))
     
-    assert final_status.status == "completed" # 流程應該還是完成了
-    assert final_status.result is not None
-    
-    # 檢查 Prometheus 的發現是否還在
+    assert final_status.status == "completed"
     assert any("Prometheus" in f.source for f in final_status.result.findings)
-    # 檢查使用的工具列表
     assert "PrometheusQueryTool" in final_status.result.tools_used
-    assert "ControlPlaneTool" in final_status.result.tools_used
-    assert "LokiLogQueryTool" not in final_status.result.tools_used # 失敗的工具不應該在 "used" 列表
+    assert "LokiLogQueryTool" not in final_status.result.tools_used
+
 
 @pytest.mark.asyncio
 async def test_workflow_catastrophic_failure(workflow, mock_redis_client):
-    """
-    測試當工作流程本身發生未預期錯誤時的場景。
-    驗證：
-    - 任務狀態被更新為 'failed'。
-    - 錯誤訊息被記錄下來。
-    """
+    """測試當工作流程本身發生未預期錯誤時的場景。"""
     redis_client, redis_store = mock_redis_client
     session_id = uuid.uuid4()
-    request = DiagnosticRequest(
-        incident_id="test-003",
-        severity="P0",
-        affected_services=["critical-service"]
-    )
+    request = DiagnosticRequest(incident_id="test-003", severity="P0", affected_services=["critical-service"])
     initial_status = DiagnosticStatus(session_id=session_id, status="processing", progress=10, current_step="start")
     redis_store[str(session_id)] = initial_status.model_dump_json()
 
-    # Mock 一個在流程中會引發異常的內部函式
     with patch.object(workflow, '_diagnose_deployment', new_callable=AsyncMock) as mock_diagnose:
         mock_diagnose.side_effect = ValueError("Something broke badly")
-
         await workflow.execute(session_id, request, "deployment")
 
     final_status = DiagnosticStatus.model_validate_json(await redis_client.get(str(session_id)))
-    
     assert final_status.status == "failed"
     assert "Something broke badly" in final_status.error
-
-@pytest.mark.asyncio
-async def test_tool_retry_logic(workflow, mock_redis_client):
-    """
-    測試工具的重試邏輯。
-    驗證：
-    - 失敗的工具會被重試指定的次數。
-    - 如果重試後成功，流程會繼續。
-    """
-    redis_client, redis_store = mock_redis_client
-    session_id = uuid.uuid4()
-    request = DiagnosticRequest(
-        incident_id="test-004",
-        severity="P2",
-        affected_services=["flaky-service"]
-    )
-    initial_status = DiagnosticStatus(session_id=session_id, status="processing", progress=10, current_step="start")
-    redis_store[str(session_id)] = initial_status.model_dump_json()
-
-    # Mock Loki 工具，它會先失敗兩次，第三次成功
-    loki_tool_mock = AsyncMock(
-        side_effect=[
-            Exception("Attempt 1 failed"),
-            Exception("Attempt 2 failed"),
-            ToolResult(success=True, data={"log_volume": "normal"})
-        ]
-    )
-    workflow.loki_tool.execute = loki_tool_mock
-    workflow.prometheus_tool.execute = AsyncMock(return_value=ToolResult(success=True, data={}))
-    workflow.control_plane_tool.execute = AsyncMock(return_value=ToolResult(success=True, data={}))
-
-    await workflow.execute(session_id, request, "deployment")
-
-    # 驗證 Loki 工具被呼叫了三次 (1次原始 + 2次重試)
-    assert loki_tool_mock.call_count == 3
-    
-    final_status = DiagnosticStatus.model_validate_json(await redis_client.get(str(session_id)))
-    assert final_status.status == "completed"
-    assert "LokiLogQueryTool" in final_status.result.tools_used

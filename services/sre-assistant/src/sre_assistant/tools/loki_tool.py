@@ -472,17 +472,17 @@ class LokiLogQueryTool:
     async def _execute_aggregation_query(self, query: str, time_range: int) -> int:
         """
         執行 Loki 聚合查詢 (如 count_over_time)。
-        
+
         Args:
             query: 完整的 LogQL 聚合查詢語句。
             time_range: 查詢的時間範圍（分鐘）。
-            
+
         Returns:
             聚合後的計數，失敗則返回 0。
         """
         end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(minutes=time_range)
-        
+
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 params = {
@@ -515,12 +515,12 @@ class LokiLogQueryTool:
     ) -> Dict[str, int]:
         """
         使用 LogQL 在伺服器端按日誌級別聚合日誌數量。
-        
+
         這是一個探索性功能，用於與客戶端分析進行比較。
         它透過為每個級別執行並行的 count_over_time 查詢來工作。
         """
         logger.info(f"🧪 執行 Loki 伺服器端日誌聚合: service={service}, time_range={time_range}m")
-        
+
         base_selector = "{" + f'app="{service}",namespace="{namespace}"' + "}"
         time_filter = f"[{time_range}m]"
 
@@ -529,18 +529,18 @@ class LokiLogQueryTool:
             "warn": '(?i)(warn|warning)',
             "info": '(?i)(info|information)',
         }
-        
+
         tasks = {}
         for level, pattern in level_patterns.items():
             # LogQL for count_over_time with a filter
             query = f"count_over_time({base_selector} |~ `{pattern}` {time_filter})"
             tasks[level] = self._execute_aggregation_query(query, time_range)
-            
+
         # 並行執行所有聚合查詢
         results = await asyncio.gather(*tasks.values())
-        
+
         # 將結果與級別名稱對應起來
         level_counts = {level: count for level, count in zip(tasks.keys(), results)}
-        
+
         logger.info(f"📊 Loki 伺服器端聚合結果: {level_counts}")
         return level_counts

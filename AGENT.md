@@ -165,7 +165,6 @@ curl -H "Authorization: Bearer <jwt_token>" \
 - ✅ **低耦合**: 保持服務間的低耦合設計
 - ✅ **環境變數**: 統一使用環境變數管理配置
 - ✅ **文件優先**: OpenAPI 文件為唯一真實來源
-- ✅ **同步更新**: 當本文件中的 **API 任務標記為完成** (`[x]`) 時，**必須同步更新** [`API_REFERENCE.md`](./docs/API_REFERENCE.md) 中的對應端點狀態
 
 ---
 
@@ -182,7 +181,7 @@ curl -H "Authorization: Bearer <jwt_token>" \
 
 ## 📚 相關文件
 
-- 📖 **API 參考**: [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md)
-- 🗺️ **開發路線圖**: [`docs/ROADMAP.md`](./docs/ROADMAP.md)
-- 🏗️ **架構說明**: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
-- 📋 **開發指南**: [`docs/DEV_GUIDE.md`](./docs/DEV_GUIDE.md)
+- 📖 **API 參考**: [`docs/API_REFERENCE.md`](../docs/API_REFERENCE.md)
+- 🗺️ **開發路線圖**: [`docs/ROADMAP.md`](../docs/ROADMAP.md)
+- 🏗️ **架構說明**: [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
+- 📋 **開發指南**: [`docs/dev-guide.md`](../docs/dev-guide.md)

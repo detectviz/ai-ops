@@ -20,9 +20,20 @@ async def override_verify_token():
 app.dependency_overrides[verify_token] = override_verify_token
 
 
-@pytest.fixture(scope="module")
-def client():
-    """建立一個在所有測試中共享的 TestClient 實例"""
+@pytest.fixture(scope="function")
+def client(mocker):
+    """
+    為每個測試建立一個新的 TestClient 實例。
+
+    透過模擬 redis.from_url 來防止在測試期間嘗試連接真實的 Redis，
+    從而確保應用程式的 lifespan 能夠成功完成，並使 /readyz 端點通過。
+    """
+    # 模擬 redis.from_url 回傳一個可用的 AsyncMock 物件
+    mock_redis_client = AsyncMock()
+    mock_redis_client.ping = AsyncMock() # 確保 ping() 是可 await 的
+    mocker.patch('sre_assistant.main.redis.from_url', return_value=mock_redis_client)
+
+    # 現在，當 TestClient 初始化 app 時，lifespan 會使用模擬的 redis client
     with TestClient(app) as c:
         yield c
 
@@ -44,6 +55,14 @@ class TestHealthEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ready"
+
+    def test_metrics_endpoint(self, client):
+        """測試 /api/v1/metrics 端點"""
+        response = client.get("/api/v1/metrics")
+        assert response.status_code == 200
+        assert "text/plain" in response.headers["content-type"]
+        # 檢查一些預期的指標是否存在
+        assert "python_info" in response.text
 
 
 class TestDiagnosticEndpoints:

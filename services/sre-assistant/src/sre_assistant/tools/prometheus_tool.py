@@ -43,7 +43,7 @@ class PrometheusQueryTool:
         # 快取設定
         self.redis_client = redis_client
         self.cache_ttl_seconds = config.prometheus.get("cache_ttl_seconds", 300) # 預設 5 分鐘
-        
+
         if self.redis_client:
             logger.info(f"✅ Prometheus 工具初始化 (含 Redis 快取): {self.base_url}")
         else:
@@ -347,7 +347,7 @@ class PrometheusQueryTool:
                         logger.info(f"CACHE SET: 已快取範圍查詢結果: {query}")
                     except Exception as e:
                         logger.error(f"Redis 快取寫入失敗: {e}")
-                
+
                 return result_to_cache
                 
         except httpx.HTTPStatusError as e:

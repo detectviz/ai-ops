@@ -6,7 +6,7 @@ Control Plane 整合工具
 
 import logging
 import httpx
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from datetime import datetime, timedelta, timezone
 import jwt
 import time
@@ -69,7 +69,7 @@ class ControlPlaneTool:
 
     # --- Roadmap Task 1.3: ControlPlaneTool Implementation ---
 
-    async def query_resources(self, params: Optional[Dict] = None) -> ToolResult:
+    async def query_resources(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
         """查詢資源狀態 (GET /api/v1/resources)"""
         try:
             logger.info("🛂 (ControlPlaneTool) 正在查詢資源...")
@@ -78,12 +78,14 @@ class ControlPlaneTool:
                 endpoint="/api/v1/resources",
                 params=params
             )
-            return ToolResult(is_successful=True, data=response.get("data", []), source="control_plane_tool")
+            # 修正：data 應為 dict
+            return ToolResult(success=True, data={"resources": response.get("data", [])})
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢資源時發生錯誤: {e}")
-            return ToolError(error_message=str(e), source="control_plane_tool")
+            logger.error(f"❌ (ControlPlaneTool) 查詢資源時發生錯誤: {e}", exc_info=True)
+            # 修正：使用正確的 ToolError 模型
+            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
 
-    async def get_resource_details(self, resource_id: str) -> ToolResult:
+    async def get_resource_details(self, resource_id: str) -> Union[ToolResult, ToolError]:
         """獲取資源詳情 (GET /api/v1/resources/{resourceId})"""
         try:
             logger.info(f"🛂 (ControlPlaneTool) 正在獲取資源 {resource_id} 的詳情...")
@@ -91,12 +93,12 @@ class ControlPlaneTool:
                 method="GET",
                 endpoint=f"/api/v1/resources/{resource_id}"
             )
-            return ToolResult(is_successful=True, data=response, source="control_plane_tool")
+            return ToolResult(success=True, data=response)
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 獲取資源詳情時發生錯誤: {e}")
-            return ToolError(error_message=str(e), source="control_plane_tool")
+            logger.error(f"❌ (ControlPlaneTool) 獲取資源詳情時發生錯誤: {e}", exc_info=True)
+            return ToolError(code="GET_DETAILS_FAILED", message=str(e), details={"resource_id": resource_id})
 
-    async def query_resource_groups(self, params: Optional[Dict] = None) -> ToolResult:
+    async def query_resource_groups(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
         """查詢資源群組 (GET /api/v1/resource-groups)"""
         try:
             logger.info("🛂 (ControlPlaneTool) 正在查詢資源群組...")
@@ -105,12 +107,12 @@ class ControlPlaneTool:
                 endpoint="/api/v1/resource-groups",
                 params=params
             )
-            return ToolResult(is_successful=True, data=response.get("data", []), source="control_plane_tool")
+            return ToolResult(success=True, data={"groups": response.get("data", [])})
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢資源群組時發生錯誤: {e}")
-            return ToolError(error_message=str(e), source="control_plane_tool")
+            logger.error(f"❌ (ControlPlaneTool) 查詢資源群組時發生錯誤: {e}", exc_info=True)
+            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
 
-    async def query_audit_logs(self, params: Optional[Dict] = None) -> ToolResult:
+    async def query_audit_logs(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
         """查詢部署相關的審計日誌 (GET /api/v1/audit-logs)"""
         try:
             logger.info("🛂 (ControlPlaneTool) 正在查詢審計日誌...")
@@ -119,12 +121,12 @@ class ControlPlaneTool:
                 endpoint="/api/v1/audit-logs",
                 params=params
             )
-            return ToolResult(is_successful=True, data=response.get("data", []), source="control_plane_tool")
+            return ToolResult(success=True, data={"logs": response.get("data", [])})
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢審計日誌時發生錯誤: {e}")
-            return ToolError(error_message=str(e), source="control_plane_tool")
+            logger.error(f"❌ (ControlPlaneTool) 查詢審計日誌時發生錯誤: {e}", exc_info=True)
+            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
 
-    async def query_incidents(self, params: Optional[Dict] = None) -> ToolResult:
+    async def query_incidents(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
         """查詢相關事件 (GET /api/v1/incidents)"""
         try:
             logger.info("🛂 (ControlPlaneTool) 正在查詢事件...")
@@ -133,12 +135,12 @@ class ControlPlaneTool:
                 endpoint="/api/v1/incidents",
                 params=params
             )
-            return ToolResult(is_successful=True, data=response.get("data", []), source="control_plane_tool")
+            return ToolResult(success=True, data={"incidents": response.get("data", [])})
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢事件時發生錯誤: {e}")
-            return ToolError(error_message=str(e), source="control_plane_tool")
+            logger.error(f"❌ (ControlPlaneTool) 查詢事件時發生錯誤: {e}", exc_info=True)
+            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
 
-    async def get_alert_rules(self, params: Optional[Dict] = None) -> ToolResult:
+    async def get_alert_rules(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
         """獲取告警規則狀態 (GET /api/v1/alert-rules)"""
         try:
             logger.info("🛂 (ControlPlaneTool) 正在查詢告警規則...")
@@ -147,12 +149,12 @@ class ControlPlaneTool:
                 endpoint="/api/v1/alert-rules",
                 params=params
             )
-            return ToolResult(is_successful=True, data=response.get("data", []), source="control_plane_tool")
+            return ToolResult(success=True, data={"rules": response.get("data", [])})
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢告警規則時發生錯誤: {e}")
-            return ToolError(error_message=str(e), source="control_plane_tool")
+            logger.error(f"❌ (ControlPlaneTool) 查詢告警規則時發生錯誤: {e}", exc_info=True)
+            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
 
-    async def query_automation_executions(self, params: Optional[Dict] = None) -> ToolResult:
+    async def query_automation_executions(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
         """查詢自動化腳本執行歷史 (GET /api/v1/automation/executions)"""
         try:
             logger.info("🛂 (ControlPlaneTool) 正在查詢自動化腳本執行歷史...")
@@ -161,10 +163,10 @@ class ControlPlaneTool:
                 endpoint="/api/v1/automation/executions",
                 params=params
             )
-            return ToolResult(is_successful=True, data=response.get("data", []), source="control_plane_tool")
+            return ToolResult(success=True, data={"executions": response.get("data", [])})
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢自動化腳本執行歷史時發生錯誤: {e}")
-            return ToolError(error_message=str(e), source="control_plane_tool")
+            logger.error(f"❌ (ControlPlaneTool) 查詢自動化腳本執行歷史時發生錯誤: {e}", exc_info=True)
+            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
 
     async def _get_auth_token(self) -> Optional[str]:
         """

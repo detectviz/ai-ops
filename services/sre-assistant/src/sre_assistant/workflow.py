@@ -48,7 +48,8 @@ class SREWorkflow:
         """初始化工作流程"""
         self.config = config
         self.redis_client = redis_client
-        self.prometheus_tool = PrometheusQueryTool(config)
+        # 將 redis_client 傳遞給 Prometheus 工具以啟用快取
+        self.prometheus_tool = PrometheusQueryTool(config, self.redis_client)
         self.loki_tool = LokiLogQueryTool(config)
         self.control_plane_tool = ControlPlaneTool(config)
         self.parallel_diagnosis = config.workflow.get("parallel_diagnosis", True)
@@ -138,10 +139,13 @@ class SREWorkflow:
         await self._update_task_status(session_id, status)
         
         # 使用 functools.partial 來創建可重複呼叫的任務工廠
+        # 修正：呼叫 ControlPlaneTool 中具體、存在的方法
+        service_name = request.affected_services[0]
         tool_tasks = [
-            ("prometheus", functools.partial(self.prometheus_tool.execute, {"service": request.affected_services[0]})),
-            ("loki", functools.partial(self.loki_tool.execute, {"service": request.affected_services[0]})),
-            ("audit", functools.partial(self.control_plane_tool.execute, {"service": request.affected_services[0]}))
+            ("prometheus", functools.partial(self.prometheus_tool.execute, {"service": service_name})),
+            ("loki", functools.partial(self.loki_tool.execute, {"service": service_name})),
+            ("cp_audit_logs", functools.partial(self.control_plane_tool.query_audit_logs, {"service_name": service_name, "limit": 10})),
+            ("cp_incidents", functools.partial(self.control_plane_tool.query_incidents, {"service": service_name, "status": "active"}))
         ]
         
         status.current_step = "並行執行診斷工具 (含重試)"
@@ -226,33 +230,64 @@ class SREWorkflow:
                 results[name] = result
         return results
     
-    def _analyze_deployment_results(self, results: Dict[str, ToolResult], request: DiagnosticRequest) -> DiagnosticResult:
-        """分析部署診斷結果"""
+    def _analyze_deployment_results(self, results: Dict[str, Union[ToolResult, ToolError]], request: DiagnosticRequest) -> DiagnosticResult:
+        """
+        分析部署診斷結果。
+
+        修正：
+        - 處理來自 ControlPlaneTool 的更具體的結果。
+        - 檢查結果物件的類型，而不僅僅是 .success 屬性。
+        """
         all_findings = []
         tools_used = []
         
-        if "prometheus" in results and results["prometheus"].success:
+        # 分析 Prometheus 結果
+        prometheus_result = results.get("prometheus")
+        if isinstance(prometheus_result, ToolResult) and prometheus_result.success:
             tools_used.append("PrometheusQueryTool")
-            metrics = results["prometheus"].data
-            if float(metrics.get("cpu_usage", "0%").replace("%", "")) > 80:
+            metrics = prometheus_result.data
+            if metrics and float(metrics.get("cpu_usage", "0%").replace("%", "")) > 80:
                 all_findings.append(Finding(source="Prometheus", severity="critical", message="CPU 使用率過高", evidence=metrics))
-            if float(metrics.get("memory_usage", "0%").replace("%", "")) > 90:
+            if metrics and float(metrics.get("memory_usage", "0%").replace("%", "")) > 90:
                 all_findings.append(Finding(source="Prometheus", severity="critical", message="記憶體使用率過高", evidence=metrics))
 
-        if "loki" in results and results["loki"].success:
+        # 分析 Loki 結果
+        loki_result = results.get("loki")
+        if isinstance(loki_result, ToolResult) and loki_result.success:
             tools_used.append("LokiLogQueryTool")
-            logs = results["loki"].data
-            if logs.get("critical_errors"):
-                all_findings.append(Finding(source="Loki", severity="critical", message=f"發現嚴重錯誤日誌: {logs['critical_errors']}", evidence=logs))
+            log_analysis = loki_result.data.get("analysis", {})
+            if log_analysis.get("critical_indicators"):
+                msg = ", ".join(log_analysis["critical_indicators"])
+                all_findings.append(Finding(source="Loki", severity="critical", message=f"發現嚴重日誌指標: {msg}", evidence=log_analysis))
 
-        if "audit" in results and results["audit"].success:
-            tools_used.append("ControlPlaneTool")
-            audit = results["audit"].data
-            if audit.get("recent_changes"):
-                all_findings.append(Finding(source="Control-Plane", severity="warning", message=f"發現最近有配置變更", evidence=audit))
+        # 分析 Control Plane 審計日誌結果
+        cp_audit_result = results.get("cp_audit_logs")
+        if isinstance(cp_audit_result, ToolResult) and cp_audit_result.success:
+            tools_used.append("ControlPlaneTool (Audit)")
+            audit_logs = cp_audit_result.data.get("logs", [])
+            if audit_logs:
+                all_findings.append(Finding(
+                    source="Control-Plane",
+                    severity="info",
+                    message=f"在過去一段時間內發現 {len(audit_logs)} 筆相關的審計日誌。",
+                    evidence={"sample_log": audit_logs[0]}
+                ))
+
+        # 分析 Control Plane 事件結果
+        cp_incidents_result = results.get("cp_incidents")
+        if isinstance(cp_incidents_result, ToolResult) and cp_incidents_result.success:
+            tools_used.append("ControlPlaneTool (Incidents)")
+            incidents = cp_incidents_result.data.get("incidents", [])
+            if incidents:
+                all_findings.append(Finding(
+                    source="Control-Plane",
+                    severity="warning",
+                    message=f"發現 {len(incidents)} 個與此服務相關的活躍事件。",
+                    evidence={"sample_incident": incidents[0]}
+                ))
 
         if all_findings:
-            summary = f"診斷完成，共發現 {len(all_findings)} 個問題點。"
+            summary = f"診斷完成，共產生 {len(all_findings)} 項調查發現。"
             recommended_actions = ["請根據發現的詳細資訊進行深入調查。"]
             confidence_score = 0.8
         else:

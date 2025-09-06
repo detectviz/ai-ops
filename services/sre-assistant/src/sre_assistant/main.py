@@ -257,6 +257,8 @@ async def run_workflow_bg(session_id: uuid.UUID, request: SREWorkflowRequest, re
 def check_liveness():
     return {"status": "ok"}
 
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
 @app.get("/readyz", tags=["Health"])
 def check_readiness(response: Response):
     if app_ready and workflow is not None:
@@ -264,6 +266,11 @@ def check_readiness(response: Response):
     else:
         response.status_code = 503
         return {"status": "not_ready", "reason": "Workflow engine not initialized"}
+
+@app.get("/api/v1/metrics", tags=["Health"])
+def get_metrics():
+    """提供 Prometheus 格式的指標"""
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 @app.post("/api/v1/diagnostics/deployment", tags=["Diagnostics"], status_code=202, response_model=DiagnosticResponse)
 async def diagnose_deployment(
