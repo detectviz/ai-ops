@@ -3,16 +3,18 @@ package database
 import (
 	"database/sql"
 	"github.com/detectviz/control-plane/internal/models"
+	"github.com/google/uuid"
 )
 
 // ListResources 模擬從資料庫獲取資源列表
 func ListResources(db *sql.DB) ([]models.Resource, error) {
+	// 註解：此處的模擬資料應與 models.Resource 結構和 OpenAPI 規範保持一致
 	mockResources := []models.Resource{
-		{ID: 1, Status: "normal", Name: "Edge SW13", IP: "88.201.0.13", Branch: "仁愛分行", Type: "Switch", Monitored: true},
-		{ID: 2, Status: "warning", Name: "Backup Server", IP: "88.201.0.14", Branch: "仁愛分行", Type: "Server", Monitored: true},
-		{ID: 3, Status: "error", Name: "DATA Router", IP: "88.255.252.101", Branch: "林口分行", Type: "Router", Monitored: false},
-        {ID: 4, Status: "normal", Name: "VG Router", IP: "88.99.33.12", Branch: "林口分行", Type: "Router", Monitored: true},
-        {ID: 5, Status: "error", Name: "Delta PDU", IP: "88.99.33.15", Branch: "林口分行", Type: "Server", Monitored: true},
+		{ID: uuid.NewString(), Status: "healthy", Name: "Edge SW13", IPAddress: "88.201.0.13", Type: "network"},
+		{ID: uuid.NewString(), Status: "warning", Name: "Backup Server", IPAddress: "88.201.0.14", Type: "server"},
+		{ID: uuid.NewString(), Status: "critical", Name: "DATA Router", IPAddress: "88.255.252.101", Type: "network"},
+        {ID: uuid.NewString(), Status: "healthy", Name: "VG Router", IPAddress: "88.99.33.12", Type: "network"},
+        {ID: uuid.NewString(), Status: "critical", Name: "Delta PDU", IPAddress: "88.99.33.15", Type: "server"},
 	}
 	return mockResources, nil
 }
