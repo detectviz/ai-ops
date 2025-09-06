@@ -20,12 +20,13 @@ import (
 	"golang.org/x/oauth2/clientcredentials"
 )
 
-// SessionStore and name configuration
+// SessionStore 和名稱設定
 var (
-	// TODO: The key should be loaded from a secure configuration in production.
+	// TODO: 在生產環境中，金鑰應從安全的設定源載入。
 	Store = sessions.NewCookieStore([]byte("secret-key-for-dev-should-be-replaced"))
 )
 
+// SessionName 是儲存在 cookie 中的 session 名稱。
 const SessionName = "control-plane-session"
 
 // KeycloakService 是一個集中管理所有 Keycloak 認證邏輯的服務。

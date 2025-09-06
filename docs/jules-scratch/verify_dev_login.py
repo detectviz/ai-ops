@@ -5,19 +5,19 @@ from playwright.sync_api import sync_playwright, expect
 
 def verify_dev_login_flow():
     """
-    Tests the dev login/logout flow and screenshots the resources page.
+    測試開發模式的登入/登出流程，並截取資源頁面的螢幕截圖。
     """
     server_process = None
-    # Add AUTH_MODE=dev to the environment
+    # 將 AUTH_MODE=dev 加入環境變數
     env = os.environ.copy()
     env["AUTH_MODE"] = "dev"
 
     try:
-        # --- 1. Start the server in dev mode ---
+        # --- 1. 在開發模式下啟動伺服器 ---
         server_dir = "services/control-plane"
         server_command = ["go", "run", "cmd/server/main.go"]
 
-        print(f"🚀 Starting server in '{server_dir}' with AUTH_MODE=dev...")
+        print(f"🚀 在 '{server_dir}' 中以 AUTH_MODE=dev 啟動伺服器...")
         server_process = subprocess.Popen(
             server_command,
             cwd=server_dir,
@@ -27,65 +27,65 @@ def verify_dev_login_flow():
             env=env
         )
 
-        print("⏳ Waiting for server to become ready (15 seconds)...")
+        print("⏳ 等待伺服器就緒 (15 秒)...")
         time.sleep(15)
 
-        # Check if the server started successfully
+        # 檢查伺服器是否成功啟動
         if server_process.poll() is not None:
             stdout, stderr = server_process.communicate()
-            print("❌ Server failed to start.")
+            print("❌ 伺服器啟動失敗。")
             print("--- STDERR ---")
             print(stderr.decode('utf-8'))
             print("--- STDOUT ---")
             print(stdout.decode('utf-8'))
             return
 
-        print("✅ Server is running in dev mode.")
+        print("✅ 伺服器正在開發模式下運行。")
 
-        # --- 2. Run Playwright ---
+        # --- 2. 執行 Playwright ---
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
             page.set_viewport_size({"width": 1440, "height": 900})
-
-            # The middleware should redirect to /auth/login
-            print("Navigating to http://localhost:8081/resources...")
+            
+            # 中介軟體應將我們重定向到 /auth/login
+            print("導航至 http://localhost:8081/resources...")
             page.goto("http://localhost:8081/resources", timeout=15000)
-
-            print("Waiting for redirection to login page...")
+            
+            print("等待重定向至登入頁面...")
             expect(page).to_have_url(lambda url: "/auth/login" in url, timeout=10000)
-            print("✅ Successfully redirected to login page.")
+            print("✅ 成功重定向至登入頁面。")
 
-            print("Filling in credentials (admin/admin)...")
+            print("填寫憑證 (admin/admin)...")
             page.locator("#username").fill("admin")
             page.locator("#password").fill("admin")
 
-            print("Submitting login form...")
+            print("提交登入表單...")
             page.get_by_role("button", name="登入").click()
 
-            print("Waiting for navigation to dashboard...")
+            print("等待導航至儀表板...")
             expect(page).to_have_url("http://localhost:8081/", timeout=10000)
-            print("✅ Successfully logged in and redirected to dashboard.")
+            print("✅ 成功登入並重定向至儀表板。")
 
-            print("Navigating to /resources page again...")
+            print("再次導航至 /resources 頁面...")
             page.goto("http://localhost:8081/resources")
             expect(page.locator("#resources-grid")).to_be_visible(timeout=10000)
-            print("✅ Successfully navigated to resources page.")
-
-            time.sleep(2) # Wait for grid.js to potentially render
+            print("✅ 成功導航至資源頁面。")
+            
+            time.sleep(2) # 等待 grid.js 渲染
 
             screenshot_path = "resources_page_dev_auth.png"
             page.screenshot(path=screenshot_path)
-            print(f"📸 Screenshot of resources page saved to '{screenshot_path}'")
-
+            print(f"📸 資源頁面截圖已儲存至 '{screenshot_path}'")
+            
             browser.close()
 
     finally:
-        # --- 3. Stop the server ---
+        # --- 3. 停止伺服器 ---
         if server_process:
-            print("🛑 Stopping server...")
+            print("🛑 停止伺服器...")
             os.killpg(os.getpgid(server_process.pid), 9)
-            print("✅ Server stopped.")
+            print("✅ 伺服器已停止。")
 
 if __name__ == "__main__":
     verify_dev_login_flow()
