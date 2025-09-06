@@ -1,110 +1,50 @@
-<!DOCTYPE html>
-<html lang="zh-TW" class="h-full bg-gray-50">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .Title }} - SRE Control Plane</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="/static/css/app.css" rel="stylesheet">
-    <style>
-        .sidebar-active {
-            background: linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, transparent 100%);
-            border-left: 3px solid rgb(99, 102, 241);
-        }
-        .htmx-indicator { display: none; }
-        .htmx-request .htmx-indicator { display: inline-block; }
-    </style>
-</head>
-<body class="h-full bg-slate-100">
-<div class="min-h-full flex" x-data="{ sidebarOpen: true, userMenuOpen: false }">
-    <nav class="w-64 bg-white shadow-lg fixed inset-y-0 left-0 z-40 transform transition-transform duration-300 lg:translate-x-0"
-         :class="{ '-translate-x-full': !sidebarOpen, 'translate-x-0': sidebarOpen }">
-        <div class="flex flex-col h-full">
-            <div class="flex items-center justify-between h-16 px-6 border-b">
-                <div class="flex items-center">
-                    <i data-lucide="activity" class="w-8 h-8 text-indigo-600"></i>
-                    <span class="ml-2 text-xl font-bold">Control Plane</span>
-                </div>
-                <button @click="sidebarOpen = false" class="lg:hidden"><i data-lucide="x" class="w-6 h-6"></i></button>
+{{template "layouts/app.html" .}}
+
+{{define "content"}}
+<section id="page-resources" class="page">
+    <div class="bg-white p-6 rounded-xl shadow-md">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
+            <div class="w-full md:w-auto">
+                <h2 class="text-2xl font-bold text-gray-900">資源管理</h2>
+                <p class="mt-1 text-sm text-gray-600">管理和監控所有系統資源</p>
             </div>
-            <div class="flex-1 overflow-y-auto py-4">
-                <nav class="px-3">
-                    <a href="/" class="sidebar-item flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 {{if eq .Page "dashboard"}}sidebar-active{{end}}"><i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i><span>總覽儀表板</span></a>
-                    <a href="/resources" class="sidebar-item flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 mt-1 {{if eq .Page "resources"}}sidebar-active{{end}}"><i data-lucide="server" class="w-5 h-5 mr-3"></i><span>資源管理</span></a>
-                    <a href="/incidents" class="sidebar-item flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 mt-1 {{if eq .Page "incidents"}}sidebar-active{{end}}"><i data-lucide="alert-circle" class="w-5 h-5 mr-3"></i><span>事件管理</span></a>
-                    <a href="/teams" class="sidebar-item flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 mt-1 {{if eq .Page "teams"}}sidebar-active{{end}}"><i data-lucide="users" class="w-5 h-5 mr-3"></i><span>團隊管理</span></a>
-                    <a href="/alerts" class="sidebar-item flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 mt-1 {{if eq .Page "alerts"}}sidebar-active{{end}}"><i data-lucide="bell" class="w-5 h-5 mr-3"></i><span>告警規則</span></a>
-                </nav>
+            <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
+                <input type="text"
+                       id="resource-search-input"
+                       name="q"
+                       placeholder="搜尋資源名稱或 IP..."
+                       class="w-48 md:w-64 mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 flex-shrink-0"
+                       hx-get="/htmx/resources/table"
+                       hx-trigger="keyup changed delay:500ms, search"
+                       hx-target="#resource-table-container"
+                       hx-swap="outerHTML"
+                       hx-indicator="#search-spinner">
+                <i id="search-spinner" class="htmx-indicator ml-2" data-lucide="loader-2"></i>
+                <button id="add-resource-btn"
+                        class="mt-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0"
+                        hx-get="/htmx/resources/new"
+                        hx-target="body"
+                        hx-swap="beforeend">
+                    新增資源
+                    <i class="htmx-indicator ml-1" data-lucide="loader-2"></i>
+                </button>
             </div>
         </div>
-    </nav>
-    <div class="flex flex-col flex-1 lg:ml-64">
-        <header class="flex items-center justify-between h-16 bg-white border-b px-6">
-            <button @click.stop="sidebarOpen = !sidebarOpen" class="lg:hidden"><i data-lucide="menu" class="w-6 h-6"></i></button>
-            <div class="flex-1"></div>
-            <div class="flex items-center">
-                 <span class="text-sm mr-4">你好, {{ .User.Name }}</span>
-                 <a href="/logout" class="text-sm text-gray-600 hover:text-indigo-600">登出</a>
-            </div>
-        </header>
-        <main class="flex-1 p-6">
-            <section id="page-resources" class="page">
-                <div class="bg-white p-6 rounded-xl shadow-md">
-                    <div class="flex flex-col md:flex-row justify-between items-center mb-2 gap-4">
-                        <div class="w-full md:w-auto">
-                            <h2 class="text-2xl font-bold text-gray-900">資源管理</h2>
-                            <p class="mt-1 text-sm text-gray-600">管理和監控所有系統資源</p>
-                        </div>
-                        <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
-                            <input type="text"
-                                   id="resource-search-input"
-                                   name="q" {{/* 'name' 屬性是必需的，這樣它的值才能作為查詢參數發送 */}}
-                                   placeholder="搜尋資源名稱或 IP..."
-                                   class="w-48 md:w-64 mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 flex-shrink-0"
-                                   hx-get="/htmx/resources/table"
-                                   hx-trigger="keyup changed delay:500ms, search"
-                                   hx-target="#resource-table-container"
-                                   hx-swap="outerHTML"
-                                   hx-indicator="#search-spinner">
-                            <i id="search-spinner" class="htmx-indicator ml-2" data-lucide="loader-2"></i>
-                            <button id="add-resource-btn"
-                                    class="mt-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0"
-                                    hx-get="/htmx/resources/new"
-                                    hx-target="body"
-                                    hx-swap="beforeend">
-                                新增資源
-                                <i class="htmx-indicator ml-1" data-lucide="loader-2"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="overflow-x-auto">
-                        {{/*
-                          這個 div 是 HTMX 的目標容器。
-                          - hx-get: 指定後端 API 端點。
-                          - hx-trigger: "load" 表示在頁面載入時自動觸發請求。
-                          - hx-swap: "outerHTML" 表示用伺服器返回的內容完整替換此 div。
-                        */}}
-                        <div id="resource-table-container"
-                             hx-get="/htmx/resources/table"
-                             hx-trigger="load"
-                             hx-swap="outerHTML">
-                            {{/* <!-- 初始載入時顯示一個 spinner 或提示訊息 --> */}}
-                            <div class="flex justify-center items-center p-8">
-                                <i data-lucide="loader-2" class="animate-spin h-8 w-8 text-gray-500"></i>
-                                <span class="ml-2 text-gray-500">正在載入資源...</span>
-                            </div>
-                        </div>
-                    </div>
+        <div class="overflow-x-auto">
+            <div id="resource-table-container"
+                 hx-get="/htmx/resources/table"
+                 hx-trigger="load"
+                 hx-swap="outerHTML">
+                <div class="flex justify-center items-center p-8">
+                    <i data-lucide="loader-2" class="animate-spin h-8 w-8 text-gray-500"></i>
+                    <span class="ml-2 text-gray-500">正在載入資源...</span>
                 </div>
-            </section>
-        </main>
+            </div>
+        </div>
     </div>
-</div>
-<script>
-    lucide.createIcons();
-</script>
-</body>
-</html>
+</section>
+{{end}}
+
+{{define "scripts"}}
+{{/* <!-- 此頁面目前沒有特定的腳本 --> */}}
+{{end}}

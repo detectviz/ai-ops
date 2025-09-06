@@ -202,6 +202,7 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 	webRouter.HandleFunc("/settings", h.SettingsPage).Methods("GET")
 
 	htmxRouter := webRouter.PathPrefix("/htmx").Subrouter()
+	htmxRouter.HandleFunc("/dashboard/cards", h.DashboardCards).Methods("GET") // 儀表板指標卡
 	htmxRouter.HandleFunc("/resources/table", h.ResourcesTable).Methods("GET")
 	htmxRouter.HandleFunc("/resources/new", h.AddResourceForm).Methods("GET")
 	htmxRouter.HandleFunc("/resources/create", h.CreateResource).Methods("POST")
