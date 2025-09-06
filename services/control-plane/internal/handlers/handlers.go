@@ -7,6 +7,7 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"strings"
 
 	"github.com/detectviz/control-plane/internal/auth"
 	"github.com/detectviz/control-plane/internal/services"
@@ -107,10 +108,11 @@ func (h *Handlers) ReadinessCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) LoginPage(w http.ResponseWriter, r *http.Request) {
-	// Simple render of the login page
-	err := h.Templates.ExecuteTemplate(w, "login.html", nil)
+	// 註解：渲染登入頁面，現在使用新的佈局模板路徑
+	err := h.Templates.ExecuteTemplate(w, "layouts/auth.html", nil)
 	if err != nil {
 		http.Error(w, "無法渲染登入頁面", http.StatusInternalServerError)
+		h.Logger.Error("渲染 auth.html 失敗", zap.Error(err))
 	}
 }
 
@@ -169,7 +171,91 @@ func (h *Handlers) IncidentsPage(w http.ResponseWriter, r *http.Request)  {}
 func (h *Handlers) ChannelsPage(w http.ResponseWriter, r *http.Request)   {}
 func (h *Handlers) ProfilePage(w http.ResponseWriter, r *http.Request)    {}
 func (h *Handlers) SettingsPage(w http.ResponseWriter, r *http.Request)   {}
-func (h *Handlers) ResourcesTable(w http.ResponseWriter, r *http.Request) {}
+
+func (h *Handlers) AddResourceForm(w http.ResponseWriter, r *http.Request) {
+	// 註解：此處理器負責回傳用於新增資源的模態框和表單。
+	// 它執行 resource-form.html 模板，該模板內部會引用 modal.html 組件。
+	err := h.Templates.ExecuteTemplate(w, "partials/resource-form.html", nil)
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染資源表單模板", zap.Error(err))
+	}
+}
+
+// resource 用於模擬的資源資料結構
+type resource struct {
+	Name      string
+	IPAddress string
+	Type      string
+	Status    string
+}
+
+// mockResources 作為一個包級變數，模擬一個記憶體中的資料庫。
+var mockResources = []resource{
+	{"control-plane-db", "10.0.1.5", "PostgreSQL", "healthy"},
+	{"sre-assistant-api", "10.0.1.6", "Python FastAPI", "healthy"},
+	{"monitoring-prometheus", "10.0.2.10", "Prometheus", "warning"},
+	{"data-pipeline-kafka", "10.0.3.8", "Kafka", "critical"},
+	{"legacy-app-server", "192.168.1.100", "JBoss EAP", "unknown"},
+}
+
+func (h *Handlers) CreateResource(w http.ResponseWriter, r *http.Request) {
+	// 註解：此處理器處理新增資源的 POST 請求。
+	if err := r.ParseForm(); err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法解析表單", zap.Error(err))
+		return
+	}
+
+	// 從表單中獲取新資源的資料
+	newRes := resource{
+		Name:      r.PostFormValue("name"),
+		IPAddress: r.PostFormValue("ip_address"),
+		Type:      r.PostFormValue("type"),
+		Status:    "unknown", // 新資源的初始狀態
+	}
+
+	// 將新資源添加到共享的 mockResources 切片中
+	mockResources = append(mockResources, newRes)
+
+	h.Logger.Ctx(r.Context()).Info("成功創建新資源 (模擬)",
+		zap.String("name", newRes.Name),
+		zap.String("ip", newRes.IPAddress),
+	)
+
+	// 重新渲染整個表格並回傳
+	h.ResourcesTable(w, r)
+}
+
+func (h *Handlers) ResourcesTable(w http.ResponseWriter, r *http.Request) {
+	// 註解：此為 HTMX 請求的處理器，負責回傳資源表格的 HTML 片段。
+
+	// 從請求中獲取搜尋查詢
+	query := r.URL.Query().Get("q")
+
+	var filteredResources []resource
+	if query != "" {
+		// 執行不區分大小寫的搜尋
+		query = strings.ToLower(query)
+		for _, res := range mockResources { // 從共享的 mockResources 讀取
+			if strings.Contains(strings.ToLower(res.Name), query) || strings.Contains(strings.ToLower(res.IPAddress), query) {
+				filteredResources = append(filteredResources, res)
+			}
+		}
+	} else {
+		filteredResources = mockResources // 從共享的 mockResources 讀取
+	}
+
+	// 準備要傳遞給模板的資料
+	data := map[string]interface{}{
+		"Resources": filteredResources,
+	}
+
+	// 註解：執行 partials/resource-table.html 模板，只回傳表格的 HTML。
+	err := h.Templates.ExecuteTemplate(w, "partials/resource-table.html", data)
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染資源表格模板", zap.Error(err))
+	}
+}
+
 func (h *Handlers) ResourcesPage(w http.ResponseWriter, r *http.Request) {
 	// Jules (2025-09-06): 暫時禁用此頁面，因為其依賴的 ListResources 服務層方法
 	// 正在等待資料庫層的完整重構。
@@ -179,7 +265,7 @@ func (h *Handlers) ResourcesPage(w http.ResponseWriter, r *http.Request) {
 		"Page":      "resources",
 		"Resources": []string{}, // 回傳空列表
 	}
-	err := h.Templates.ExecuteTemplate(w, "resources.html", data)
+	err := h.Templates.ExecuteTemplate(w, "pages/resources.html", data)
 	if err != nil {
 		h.Logger.Ctx(r.Context()).Error("無法渲染資源頁面模板", zap.Error(err))
 		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)

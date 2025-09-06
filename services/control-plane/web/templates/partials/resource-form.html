@@ -1,0 +1,52 @@
+{{/*
+  檔案路徑: services/control-plane/web/templates/partials/resource-form.html
+  說明: 用於新增或編輯資源的表單。它會被載入到 modal.html 組件中。
+*/}}
+
+{{template "components/modal.html" .}}
+
+{{define "modal-title"}}
+新增資源
+{{end}}
+
+{{define "modal-body"}}
+<form id="add-resource-form"
+      hx-post="/htmx/resources/create"
+      hx-target="#resource-table-container"
+      hx-swap="outerHTML">
+    <div class="space-y-4">
+        <div>
+            <label for="name" class="block mb-2 text-sm font-medium text-gray-900">資源名稱</label>
+            <input type="text" name="name" id="name" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" placeholder="例如: my-database-server" required>
+        </div>
+        <div>
+            <label for="ip_address" class="block mb-2 text-sm font-medium text-gray-900">IP 位址</label>
+            <input type="text" name="ip_address" id="ip_address" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" placeholder="例如: 192.168.1.10" required>
+        </div>
+        <div>
+            <label for="type" class="block mb-2 text-sm font-medium text-gray-900">資源類型</label>
+            <select name="type" id="type" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                <option>PostgreSQL</option>
+                <option>Python FastAPI</option>
+                <option>Prometheus</option>
+                <option>Kafka</option>
+                <option>JBoss EAP</option>
+                <option>Other</option>
+            </select>
+        </div>
+    </div>
+</form>
+{{end}}
+
+{{define "modal-footer"}}
+{{/* <!--
+    將提交按鈕放在模態框的頁腳。
+    `form` 屬性讓這個按鈕可以觸發表單提交，即使它在 <form> 標籤之外。
+--> */}}
+<button type="submit" form="add-resource-form" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
+    儲存資源
+</button>
+<button @click="open = false" type="button" class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg border border-gray-200 text-sm font-medium px-5 py-2.5 hover:text-gray-900 focus:z-10">
+    取消
+</button>
+{{end}}
