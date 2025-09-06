@@ -1,7 +1,7 @@
 # SRE Platform API 參考文件
 
 **版本:** 1.0.0
-**最後更新:** 2025-09-05
+**最後更新:** 2025-09-06
 
 本文件為 SRE Platform 的 API 提供了包含 UI 截圖的全面參考，旨在建立前端功能與後端 API 之間的清晰對照。平台由兩個主要服務組成，每個服務都有其獨立的 API。
 
@@ -23,11 +23,11 @@
 
 ![儀表板](jules-scratch/gif_frames/frame_001_02_dashboard.png)
 
-| 方法 | 端點 | 摘要 |
-|---|---|---|
-| `GET` | `/api/v1/dashboard/summary` | 獲取儀表板摘要數據 |
-| `GET` | `/api/v1/dashboard/trends` | 獲取指標趨勢數據 |
-| `GET` | `/api/v1/dashboard/resource-distribution` | 獲取資源分佈統計 |
+| 進度 | 方法 | 端點 | 摘要 |
+|---|---|---|---|
+| 🚧 僅有路由 | `GET` | `/api/v1/dashboard/summary` | 獲取儀表板摘要數據 |
+| ❌ 未實現 | `GET` | `/api/v1/dashboard/trends` | 獲取指標趨勢數據 |
+| ❌ 未實現 | `GET` | `/api/v1/dashboard/resource-distribution` | 獲取資源分佈統計 |
 
 ### 1.2. 資源管理 (Resource Management)
 
@@ -37,101 +37,131 @@
 ![資源批次操作](jules-scratch/gif_frames/frame_010_11_resources_batch_selection.png)
 ![網段掃描](jules-scratch/gif_frames/frame_008_09_scan_network_initial_modal.png)
 
-| 方法 | 端點 | 摘要 |
-|---|---|---|
-| `GET` | `/api/v1/resources` | 獲取資源列表 |
-| `POST` | `/api/v1/resources` | 創建新資源 |
-| `GET` | `/api/v1/resources/{resourceId}` | 獲取特定資源詳情 |
-| `PUT` | `/api/v1/resources/{resourceId}` | 更新資源資訊 |
-| `DELETE` | `/api/v1/resources/{resourceId}` | 刪除資源 |
-| `POST` | `/api/v1/resources/batch` | 批次操作資源 |
-| `POST` | `/api/v1/resources/scan` | 掃描網段以發現新資源 |
-| `GET` | `/api/v1/resources/scan/{taskId}` | 獲取網段掃描結果 |
+| 進度 | 方法 | 端點 | 摘要 |
+|---|---|---|---|
+| ✅ 已實現 | `GET` | `/api/v1/resources` | 獲取資源列表 |
+| 🚧 僅有路由 | `POST` | `/api/v1/resources` | 創建新資源 |
+| 🚧 僅有路由 | `GET` | `/api/v1/resources/{resourceId}` | 獲取特定資源詳情 |
+| 🚧 僅有路由 | `PUT` | `/api/v1/resources/{resourceId}` | 更新資源資訊 |
+| 🚧 僅有路由 | `DELETE` | `/api/v1/resources/{resourceId}` | 刪除資源 |
+| 🚧 僅有路由 | `POST` | `/api/v1/resources/batch` | 批次操作資源 |
+| 🚧 僅有路由 | `POST` | `/api/v1/resources/scan` | 掃描網段以發現新資源 |
+| 🚧 僅有路由 | `GET` | `/api/v1/resources/scan/{taskId}` | 獲取網段掃描結果 |
 
-### 1.3. 告警與事件管理 (Incidents & Logs)
+### 1.3. 資源群組管理 (Resource Groups)
+
+| 進度 | 方法 | 端點 | 摘要 |
+|---|---|---|---|
+| ❌ 未實現 | `GET` | `/api/v1/resource-groups` | 獲取群組列表 |
+| ❌ 未實現 | `POST` | `/api/v1/resource-groups` | 創建群組 |
+| ❌ 未實現 | `PUT` | `/api/v1/resource-groups/{groupId}` | 更新群組 |
+| ❌ 未實現 | `DELETE` | `/api/v1/resource-groups/{groupId}` | 刪除群組 |
+| ❌ 未實現 | `POST` | `/api/v1/resource-groups/{groupId}/members` | 管理群組成員 |
+
+### 1.4. 告警與事件管理 (Incidents & Alerts)
 
 提供一個集中介面來查看、篩選、管理所有告警事件，並利用 AI 生成分析報告。
 
 ![告警紀錄](jules-scratch/gif_frames/frame_003_04_logs_page.png)
 ![AI 輔助報告](jules-scratch/gif_frames/frame_006_07_logs_ai_report.png)
 
-| 方法 | 端點 | 摘要 |
-|---|---|---|
-| `GET` | `/api/v1/incidents` | 獲取事件列表 |
-| `POST` | `/api/v1/incidents` | 手動創建事件 |
-| `GET` | `/api/v1/incidents/{incidentId}` | 獲取事件詳情 |
-| `POST` | `/api/v1/incidents/{incidentId}/acknowledge` | 確認事件 |
-| `POST` | `/api/v1/incidents/{incidentId}/resolve` | 解決事件 |
-| `POST` | `/api/v1/incidents/{incidentId}/assign` | 指派處理人員 |
-| `POST` | `/api/v1/incidents/{incidentId}/comments` | 新增註記 |
-| `POST` | `/api/v1/incidents/generate-report` | **(SRE Assistant 驅動)** AI 生成事件報告 |
+| 進度 | 方法 | 端點 | 摘要 |
+|---|---|---|---|
+| 🚧 僅有路由 | `GET` | `/api/v1/incidents` | 獲取事件列表 |
+| 🚧 僅有路由 | `POST` | `/api/v1/incidents` | 手動創建事件 |
+| 🚧 僅有路由 | `GET` | `/api/v1/incidents/{incidentId}` | 獲取事件詳情 |
+| ❌ 未實現 | `PUT` | `/api/v1/incidents/{incidentId}` | 更新事件資訊 |
+| 🚧 僅有路由 | `POST` | `/api/v1/incidents/{incidentId}/acknowledge` | 確認事件 |
+| 🚧 僅有路由 | `POST` | `/api/v1/incidents/{incidentId}/resolve` | 解決事件 |
+| 🚧 僅有路由 | `POST` | `/api/v1/incidents/{incidentId}/assign` | 指派處理人員 |
+| 🚧 僅有路由 | `POST` | `/api/v1/incidents/{incidentId}/comments` | 新增註記 |
+| 🚧 僅有路由 | `POST` | `/api/v1/incidents/generate-report` | **(SRE Assistant 驅動)** AI 生成事件報告 |
+| ❌ 未實現 | `GET` | `/api/v1/alerts` | 獲取當前活躍告警 |
 
-### 1.4. 告警規則 (Alert Rules)
+### 1.5. 告警規則 (Alert Rules)
 
 定義告警觸發條件，並可綁定自動化腳本進行響應。
 
 ![告警規則](jules-scratch/gif_frames/frame_022_23_rules_page.png)
 ![新增告警規則](jules-scratch/gif_frames/frame_023_24_add_rule_modal.png)
 
-| 方法 | 端點 | 摘要 |
-|---|---|---|
-| `GET` | `/api/v1/alert-rules` | 獲取告警規則列表 |
-| `POST` | `/api/v1/alert-rules` | 創建告警規則 |
-| `GET` | `/api/v1/alert-rules/{ruleId}` | 獲取規則詳情 |
-| `PUT` | `/api/v1/alert-rules/{ruleId}` | 更新告警規則 |
-| `DELETE` | `/api/v1/alert-rules/{ruleId}` | 刪除告警規則 |
-| `POST` | `/api/v1/alert-rules/{ruleId}/test` | 測試告警規則 |
+| 進度 | 方法 | 端點 | 摘要 |
+|---|---|---|---|
+| 🚧 僅有路由 | `GET` | `/api/v1/alert-rules` | 獲取告警規則列表 |
+| 🚧 僅有路由 | `POST` | `/api/v1/alert-rules` | 創建告警規則 |
+| 🚧 僅有路由 | `GET` | `/api/v1/alert-rules/{ruleId}` | 獲取規則詳情 |
+| 🚧 僅有路由 | `PUT` | `/api/v1/alert-rules/{ruleId}` | 更新告警規則 |
+| 🚧 僅有路由 | `DELETE` | `/api/v1/alert-rules/{ruleId}` | 刪除告警規則 |
+| 🚧 僅有路由 | `POST` | `/api/v1/alert-rules/{ruleId}/test` | 測試告警規則 |
+| ❌ 未實現 | `POST` | `/api/v1/alert-rules/{ruleId}/enable` | 啟用規則 |
+| ❌ 未實現 | `POST` | `/api/v1/alert-rules/{ruleId}/disable` | 停用規則 |
 
-### 1.5. 自動化 (Automation)
+### 1.6. 自動化 (Automation)
 
 管理自動化腳本庫與查看執行歷史。
 
 ![自動化腳本庫](jules-scratch/gif_frames/frame_026_27_automation_scripts_tab.png)
 ![自動化日誌](jules-scratch/gif_frames/frame_027_28_automation_logs_tab.png)
 
-| 方法 | 端點 | 摘要 |
-|---|---|---|
-| `GET` | `/api/v1/automation/scripts` | 獲取腳本列表 |
-| `POST` | `/api/v1/automation/scripts` | 創建腳本 |
-| `PUT` | `/api/v1/automation/scripts/{scriptId}` | 更新腳本 |
-| `POST` | `/api/v1/automation/execute` | 執行腳本 |
-| `GET` | `/api/v1/automation/executions` | 查詢執行歷史 |
+| 進度 | 方法 | 端點 | 摘要 |
+|---|---|---|---|
+| 🚧 僅有路由 | `GET` | `/api/v1/automation/scripts` | 獲取腳本列表 |
+| 🚧 僅有路由 | `POST` | `/api/v1/automation/scripts` | 創建腳本 |
+| ❌ 未實現 | `GET` | `/api/v1/automation/scripts/{scriptId}` | 獲取腳本詳情 |
+| 🚧 僅有路由 | `PUT` | `/api/v1/automation/scripts/{scriptId}` | 更新腳本 |
+| 🚧 僅有路由 | `POST` | `/api/v1/automation/execute` | 執行腳本 |
+| 🚧 僅有路由 | `GET` | `/api/v1/automation/executions` | 查詢執行歷史 |
 
-### 1.6. 組織管理 (Organization)
+### 1.7. 組織管理 (Organization)
 
 管理平台中的人員、團隊及其權限。
 
 ![人員管理](jules-scratch/gif_frames/frame_015_16_personnel_page.png)
 ![團隊管理](jules-scratch/gif_frames/frame_018_19_teams_page.png)
 
-| 方法 | 端點 | 摘要 |
-|---|---|---|
-| `GET` | `/api/v1/users` | 獲取使用者列表 |
-| `POST` | `/api/v1/users` | 創建使用者 |
-| `PUT` | `/api/v1/users/{userId}` | 更新使用者 |
-| `DELETE` | `/api/v1/users/{userId}` | 刪除使用者 |
-| `GET` | `/api/v1/teams` | 獲取團隊列表 |
-| `POST` | `/api/v1/teams` | 創建團隊 |
-| `PUT` | `/api/v1/teams/{teamId}` | 更新團隊 |
-| `POST` | `/api/v1/teams/{teamId}/members` | 管理團隊成員 |
+| 進度 | 方法 | 端點 | 摘要 |
+|---|---|---|---|
+| 🚧 僅有路由 | `GET` | `/api/v1/users` | 獲取使用者列表 |
+| 🚧 僅有路由 | `POST` | `/api/v1/users` | 創建使用者 |
+| ❌ 未實現 | `GET` | `/api/v1/users/{userId}` | 獲取使用者詳情 |
+| 🚧 僅有路由 | `PUT` | `/api/v1/users/{userId}` | 更新使用者 |
+| ❌ 未實現 | `DELETE` | `/api/v1/users/{userId}` | 刪除使用者 |
+| 🚧 僅有路由 | `GET` | `/api/v1/teams` | 獲取團隊列表 |
+| 🚧 僅有路由 | `POST` | `/api/v1/teams` | 創建團隊 |
+| ❌ 未實現 | `GET` | `/api/v1/teams/{teamId}` | 獲取團隊詳情 |
+| 🚧 僅有路由 | `PUT` | `/api/v1/teams/{teamId}` | 更新團隊 |
+| ❌ 未實現 | `DELETE` | `/api/v1/teams/{teamId}` | 刪除團隊 |
+| 🚧 僅有路由 | `POST` | `/api/v1/teams/{teamId}/members` | 管理團隊成員 |
 
-### 1.7. 通知與設定 (Notifications & Settings)
+### 1.8. 通知與設定 (Notifications & Settings)
 
 管理通知管道、個人資料與系統級設定。
 
 ![通知管道](jules-scratch/gif_frames/frame_020_21_channels_page.png)
 ![個人通知設定](jules-scratch/gif_frames/frame_034_35_profile_notifications_tab.png)
 
-| 方法 | 端點 | 摘要 |
-|---|---|---|
-| `GET` | `/api/v1/notification-channels` | 獲取通知管道列表 |
-| `POST` | `/api/v1/notification-channels` | 創建通知管道 |
-| `PUT` | `/api/v1/notification-channels/{channelId}` | 更新通知管道 |
-| `POST` | `/api/v1/notification-channels/{channelId}/test` | 測試通知管道 |
-| `GET` | `/api/v1/users/profile` | 獲取個人資料 |
-| `PUT` | `/api/v1/users/profile` | 更新個人資料 |
-| `GET` | `/api/v1/settings` | 獲取系統設定 |
-| `PUT` | `/api/v1/settings` | 更新系統設定 |
+| 進度 | 方法 | 端點 | 摘要 |
+|---|---|---|---|
+| 🚧 僅有路由 | `GET` | `/api/v1/notification-channels` | 獲取通知管道列表 |
+| 🚧 僅有路由 | `POST` | `/api/v1/notification-channels` | 創建通知管道 |
+| ❌ 未實現 | `GET` | `/api/v1/notification-channels/{channelId}` | 獲取管道詳情 |
+| 🚧 僅有路由 | `PUT` | `/api/v1/notification-channels/{channelId}` | 更新通知管道 |
+| ❌ 未實現 | `DELETE` | `/api/v1/notification-channels/{channelId}` | 刪除通知管道 |
+| 🚧 僅有路由 | `POST` | `/api/v1/notification-channels/{channelId}/test` | 測試通知管道 |
+| 🚧 僅有路由 | `GET` | `/api/v1/users/profile` | 獲取個人資料 |
+| 🚧 僅有路由 | `PUT` | `/api/v1/users/profile` | 更新個人資料 |
+| ❌ 未實現 | `POST` | `/api/v1/users/profile/change-password` | 修改密碼 |
+| ❌ 未實現 | `PUT` | `/api/v1/users/profile/notifications` | 更新通知設定 |
+| ❌ 未實現 | `POST` | `/api/v1/users/profile/verify-contact` | 驗證聯絡方式 |
+| 🚧 僅有路由 | `GET` | `/api/v1/settings` | 獲取系統設定 |
+| 🚧 僅有路由 | `PUT` | `/api/v1/settings` | 更新系統設定 |
+
+### 1.9. 審計與回調 (Audit & Callbacks)
+
+| 進度 | 方法 | 端點 | 摘要 |
+|---|---|---|---|
+| ❌ 未實現 | `GET` | `/api/v1/audit-logs` | 查詢審計日誌 |
+| ❌ 未實現 | `POST` | `/api/v1/callbacks/diagnosis-complete` | 接收診斷完成的回調 |
 
 ---
 
@@ -150,7 +180,7 @@ SRE Assistant 的核心功能，提供由 AI 驅動的非同步診斷與分析�
 |---|---|---|
 | `POST` | `/api/v1/diagnostics/deployment` | **(非同步)** 觸發部署診斷 |
 | `POST` | `/api/v1/diagnostics/alerts` | **(非同步)** 觸發告警分析 |
-| `POST` | `/api/v1/diagnostics/capacity` | **(同步)** 執行容量分析與預測 |
+| `POST` | `/api/v1/diagnostics/capacity` | **(非同步)** 執行容量分析與預測 |
 | `GET` | `/api/v1/diagnostics/{sessionId}/status` | 查詢非同步任務的狀態與結果 |
 | `GET` | `/api/v1/diagnostics/history` | 查詢歷史診斷記錄 |
 | `POST` | `/api/v1/execute` | 處理自然語言查詢 |

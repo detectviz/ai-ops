@@ -909,7 +909,7 @@ sre-platform/
 ├── 📁 docs/                        # 專案文件
 │   ├── ARCHITECTURE.md             # 架構設計文件
 │   ├── USER_GUIDE.md              # 使用者指南
-│   ├── SRE_ASSISTANT.md           # SRE Assistant 開發指南
+│   ├── dev-guide.md               # 開發者完整指南 (本文件)
 │   ├── ROADMAP.md                 # 開發路線圖
 │   └── api/                       # API 文件
 ├── 📁 local/                       # 本地開發工具
@@ -932,6 +932,29 @@ sre-platform/
 ├── 🤖 AGENT.md                     # AI 代理開發指南
 └── .gitignore                      # Git 忽略檔案
 ```
+
+### 🤖 SRE Assistant 架構深度分析
+
+SRE Assistant 是一個無介面 (headless) 的智能化站點可靠性工程代理，作為 SRE Platform Monorepo 的核心服務之一。它接收來自 Control Plane 的診斷請求，執行複雜的分析任務，並返回結構化的診斷結果。
+
+#### API 端點設計
+
+本服務採用「兩層式 API」設計，以兼顧彈性與穩定性。
+
+- **第一層：通用入口 (`POST /execute`)**: 為探索性、Ad-hoc 或尚未產品化的查詢提供高度彈性。
+- **第二層：語義化端點 (`POST /diagnostics/*`)**: 為固定的、高頻的使用場景提供結構清晰、語義明確的 API，例如部署診斷和告警分析。所有這些端點都採用非同步處理模式，立即返回 `202 Accepted` 和一個 `session_id` 供客戶端輪詢。
+
+> **唯一真實來源**: 所有 API 的最終規格以專案根目錄下的 `pkg/api/sre-assistant-openapi.yaml` 為準。
+
+#### 內部設計模式
+
+**標準化工具介面**:
+為了確保系統的穩定性和可預測性，所有診斷工具 (`Tool`) 的 `execute` 方法都必須返回一個標準化的 `ToolResult` 物件。這使得工作流程能夠以統一的方式處理成功與失敗。
+
+**最近的改進 (Jules, 2025-09-06)**:
+- **快取機制**: 為 `PrometheusQueryTool` 和 `LokiLogQueryTool` 增加了記憶體快取，以避免在短時間內對相同查詢的重複請求，顯著提高性能。
+- **錯誤處理**: 增強了工具層的錯誤處理，能更清晰地區分 API 連線錯誤、查詢失敗和無數據等情況。
+- **ControlPlaneTool**: 擴充了 `ControlPlaneTool`，使其包含查詢資源、事件、告警規則等多種方法，為 SRE Assistant 提供了更豐富的上下文獲取能力。
 
 ### 🎯 Control Plane 架構深度分析
 

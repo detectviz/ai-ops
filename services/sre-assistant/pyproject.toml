@@ -81,6 +81,7 @@ rich = "^13.7.0"
 # 文件生成
 mkdocs = "^1.5.3"
 mkdocs-material = "^9.5.3"
+respx = "^0.22.0"
 
 [tool.poetry.scripts]
 sre-assistant = "sre_assistant.main:main"
