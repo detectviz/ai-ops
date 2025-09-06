@@ -77,7 +77,12 @@ class ConfigManager:
             environment: 環境名稱 (development/production/test)
         """
         self.environment = environment or os.getenv("ENVIRONMENT", "development")
-        self.config_dir = Path(__file__).parent / "environments"
+        # The config directory is at the root of the service, not inside the src folder.
+        # Path(__file__).parent -> .../config
+        # .parent -> .../sre_assistant
+        # .parent -> .../src
+        # .parent -> services/sre-assistant/
+        self.config_dir = Path(__file__).parent.parent.parent.parent / "config" / "environments"
         self.config = self._load_config()
         
         logger.info(f"✅ 配置管理器初始化: environment={self.environment}")
