@@ -6,6 +6,7 @@ Prometheus 查詢工具
 
 import logging
 import httpx
+import json
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
@@ -26,14 +27,27 @@ class PrometheusQueryTool:
     - Saturation (飽和度)
     """
     
-    def __init__(self, config):
-        """初始化 Prometheus 工具"""
+    def __init__(self, config, redis_client=None):
+        """
+        初始化 Prometheus 工具
+
+        Args:
+            config: 應用程式設定物件。
+            redis_client: 非同步 Redis 客戶端，用於快取。
+        """
         self.base_url = config.prometheus.base_url
         self.timeout = config.prometheus.timeout_seconds
         self.default_step = config.prometheus.default_step
         self.max_points = config.prometheus.max_points
         
-        logger.info(f"✅ Prometheus 工具初始化: {self.base_url}")
+        # 快取設定
+        self.redis_client = redis_client
+        self.cache_ttl_seconds = config.prometheus.get("cache_ttl_seconds", 300) # 預設 5 分鐘
+        
+        if self.redis_client:
+            logger.info(f"✅ Prometheus 工具初始化 (含 Redis 快取): {self.base_url}")
+        else:
+            logger.info(f"✅ Prometheus 工具初始化 (無快取): {self.base_url}")
     
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         """
@@ -197,7 +211,7 @@ class PrometheusQueryTool:
     
     async def _execute_instant_query(self, query: str) -> Optional[float]:
         """
-        執行即時查詢
+        執行即時查詢，並增加 Redis 快取機制。
         
         Args:
             query: PromQL 查詢語句
@@ -205,21 +219,33 @@ class PrometheusQueryTool:
         Returns:
             查詢結果的數值，如果無結果則返回 None
         """
+        cache_key = f"prometheus:instant:{query}"
+
+        # 1. 檢查快取
+        if self.redis_client:
+            try:
+                cached_result = await self.redis_client.get(cache_key)
+                if cached_result:
+                    logger.info(f"CACHE HIT: 從 Redis 獲取即時查詢結果: {query}")
+                    # Redis 儲存的是 JSON 字串，需要解析
+                    data = json.loads(cached_result)
+                    return float(data) if data is not None else None
+            except Exception as e:
+                logger.error(f"Redis 快取讀取失敗: {e}")
+
+        # 2. 快取未命中，執行實際查詢
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                params = {
-                    "query": query,
-                    "time": datetime.now(timezone.utc).isoformat()
-                }
-                
-                response = await client.get(
-                    f"{self.base_url}/api/v1/query",
-                    params=params
-                )
+                params = {"query": query, "time": datetime.now(timezone.utc).isoformat()}
+                response = await client.get(f"{self.base_url}/api/v1/query", params=params)
                 
                 if response.status_code != 200:
-                    logger.error(f"Prometheus 回應錯誤: {response.status_code}")
-                    return None
+                    # 增加對 HTTP 狀態碼的錯誤處理
+                    raise httpx.HTTPStatusError(
+                        f"Prometheus 回應錯誤: {response.status_code}",
+                        request=response.request,
+                        response=response,
+                    )
                 
                 data = response.json()
                 
@@ -227,22 +253,38 @@ class PrometheusQueryTool:
                     logger.error(f"查詢失敗: {data.get('error', 'Unknown error')}")
                     return None
                 
-                # 提取第一個結果的值
+                value_to_cache = None
                 results = data.get("data", {}).get("result", [])
                 if results and len(results) > 0:
                     value = results[0].get("value", [])
                     if len(value) > 1:
-                        return float(value[1])
+                        value_to_cache = float(value[1])
+
+                # 3. 儲存結果到快取
+                if self.redis_client and value_to_cache is not None:
+                    try:
+                        # 將結果序列化為 JSON 字串進行儲存
+                        await self.redis_client.set(
+                            cache_key,
+                            json.dumps(value_to_cache),
+                            ex=self.cache_ttl_seconds,
+                        )
+                        logger.info(f"CACHE SET: 已快取即時查詢結果: {query}")
+                    except Exception as e:
+                        logger.error(f"Redis 快取寫入失敗: {e}")
                 
-                return None
+                return value_to_cache
                 
+        except httpx.HTTPStatusError as e:
+            logger.error(f"執行即時查詢時發生 HTTP 錯誤: {e.response.status_code} - {e.response.text}")
+            return None
         except Exception as e:
-            logger.error(f"執行查詢時發生錯誤: {e}")
+            logger.error(f"執行即時查詢時發生未知錯誤: {e}")
             return None
     
     async def _execute_range_query(self, query: str, start: datetime, end: datetime, step: str = "1m") -> List[Dict]:
         """
-        執行範圍查詢
+        執行範圍查詢，並增加 Redis 快取機制。
         
         Args:
             query: PromQL 查詢語句
@@ -253,6 +295,22 @@ class PrometheusQueryTool:
         Returns:
             時間序列數據列表
         """
+        # 為快取鍵標準化時間，避免因微秒差異導致快取失效
+        start_key = start.strftime('%Y-%m-%dT%H:%M')
+        end_key = end.strftime('%Y-%m-%dT%H:%M')
+        cache_key = f"prometheus:range:{query}:{start_key}:{end_key}:{step}"
+
+        # 1. 檢查快取
+        if self.redis_client:
+            try:
+                cached_result = await self.redis_client.get(cache_key)
+                if cached_result:
+                    logger.info(f"CACHE HIT: 從 Redis 獲取範圍查詢結果: {query}")
+                    return json.loads(cached_result)
+            except Exception as e:
+                logger.error(f"Redis 快取讀取失敗: {e}")
+
+        # 2. 快取未命中，執行實際查詢
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 params = {
@@ -261,15 +319,14 @@ class PrometheusQueryTool:
                     "end": end.isoformat(),
                     "step": step
                 }
-                
-                response = await client.get(
-                    f"{self.base_url}/api/v1/query_range",
-                    params=params
-                )
+                response = await client.get(f"{self.base_url}/api/v1/query_range", params=params)
                 
                 if response.status_code != 200:
-                    logger.error(f"Prometheus 回應錯誤: {response.status_code}")
-                    return []
+                    raise httpx.HTTPStatusError(
+                        f"Prometheus 回應錯誤: {response.status_code}",
+                        request=response.request,
+                        response=response,
+                    )
                 
                 data = response.json()
                 
@@ -277,8 +334,25 @@ class PrometheusQueryTool:
                     logger.error(f"查詢失敗: {data.get('error', 'Unknown error')}")
                     return []
                 
-                return data.get("data", {}).get("result", [])
+                result_to_cache = data.get("data", {}).get("result", [])
+
+                # 3. 儲存結果到快取
+                if self.redis_client and result_to_cache:
+                    try:
+                        await self.redis_client.set(
+                            cache_key,
+                            json.dumps(result_to_cache),
+                            ex=self.cache_ttl_seconds,
+                        )
+                        logger.info(f"CACHE SET: 已快取範圍查詢結果: {query}")
+                    except Exception as e:
+                        logger.error(f"Redis 快取寫入失敗: {e}")
                 
+                return result_to_cache
+                
+        except httpx.HTTPStatusError as e:
+            logger.error(f"執行範圍查詢時發生 HTTP 錯誤: {e.response.status_code} - {e.response.text}")
+            return []
         except Exception as e:
-            logger.error(f"執行範圍查詢時發生錯誤: {e}")
+            logger.error(f"執行範圍查詢時發生未知錯誤: {e}")
             return []

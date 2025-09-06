@@ -184,21 +184,32 @@ class LokiLogQueryTool:
                     params=params
                 )
                 
-                if response.status_code != 200:
-                    logger.error(f"Loki 回應錯誤: {response.status_code} - {response.text}")
-                    return []
+                # 拋出 HTTP 狀態錯誤，以便更具體地捕捉
+                response.raise_for_status()
                 
                 data = response.json()
                 
                 if data.get("status") != "success":
-                    logger.error(f"查詢失敗: {data.get('error', 'Unknown error')}")
+                    # Loki 查詢本身可能失敗 (例如語法錯誤)
+                    error_msg = data.get('error', 'Unknown Loki query error')
+                    logger.error(f"Loki 查詢語法或執行失敗: {error_msg}")
+                    # 這種情況下也返回空列表，因為它是一個有效的“無結果”場景
                     return []
                 
                 # 解析日誌
                 return self._parse_log_results(data.get("data", {}).get("result", []))
-                
+
+        except httpx.HTTPStatusError as e:
+            # 捕獲並記錄詳細的 HTTP 錯誤
+            logger.error(
+                f"查詢日誌時發生 HTTP 錯誤: "
+                f"狀態碼={e.response.status_code}, "
+                f"回應='{e.response.text}'"
+            )
+            return []
         except Exception as e:
-            logger.error(f"查詢日誌時發生錯誤: {e}")
+            # 捕獲其他所有錯誤 (例如網路問題、JSON 解碼錯誤)
+            logger.error(f"查詢日誌時發生未知錯誤: {e}", exc_info=True)
             return []
     
     def _build_logql_query(self, service: str, namespace: str, log_level: str, pattern: str) -> str:
@@ -455,3 +466,81 @@ class LokiLogQueryTool:
                 indicators.append(f"錯誤率過高: {error_rate:.1f}%")
         
         return indicators
+
+    # --- Roadmap Task 1.3: Log Aggregation ---
+
+    async def _execute_aggregation_query(self, query: str, time_range: int) -> int:
+        """
+        執行 Loki 聚合查詢 (如 count_over_time)。
+        
+        Args:
+            query: 完整的 LogQL 聚合查詢語句。
+            time_range: 查詢的時間範圍（分鐘）。
+            
+        Returns:
+            聚合後的計數，失敗則返回 0。
+        """
+        end_time = datetime.now(timezone.utc)
+        start_time = end_time - timedelta(minutes=time_range)
+        
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                params = {
+                    "query": query,
+                    "start": str(int(start_time.timestamp() * 1e9)),
+                    "end": str(int(end_time.timestamp() * 1e9)),
+                    "step": f"{time_range}m" # 使用整個範圍作為單一步長
+                }
+                response = await client.get(f"{self.base_url}/loki/api/v1/query", params=params)
+                response.raise_for_status()
+                data = response.json()
+
+                if data.get("status") != "success":
+                    logger.warning(f"Loki 聚合查詢失敗: {data.get('error', 'Unknown error')}")
+                    return 0
+
+                result = data.get("data", {}).get("result", [])
+                if result and result[0] and len(result[0].get("value", [])) > 1:
+                    return int(result[0]["value"][1])
+                return 0
+        except httpx.HTTPStatusError as e:
+            logger.error(f"執行聚合查詢時發生 HTTP 錯誤: {e.response.status_code}")
+            return 0
+        except Exception as e:
+            logger.error(f"執行聚合查詢時發生未知錯誤: {e}", exc_info=True)
+            return 0
+
+    async def aggregate_logs_by_level(
+        self, service: str, namespace: str, time_range: int
+    ) -> Dict[str, int]:
+        """
+        使用 LogQL 在伺服器端按日誌級別聚合日誌數量。
+        
+        這是一個探索性功能，用於與客戶端分析進行比較。
+        它透過為每個級別執行並行的 count_over_time 查詢來工作。
+        """
+        logger.info(f"🧪 執行 Loki 伺服器端日誌聚合: service={service}, time_range={time_range}m")
+        
+        base_selector = "{" + f'app="{service}",namespace="{namespace}"' + "}"
+        time_filter = f"[{time_range}m]"
+
+        level_patterns = {
+            "error": '(?i)(error|err|fatal|panic|critical)',
+            "warn": '(?i)(warn|warning)',
+            "info": '(?i)(info|information)',
+        }
+        
+        tasks = {}
+        for level, pattern in level_patterns.items():
+            # LogQL for count_over_time with a filter
+            query = f"count_over_time({base_selector} |~ `{pattern}` {time_filter})"
+            tasks[level] = self._execute_aggregation_query(query, time_range)
+            
+        # 並行執行所有聚合查詢
+        results = await asyncio.gather(*tasks.values())
+        
+        # 將結果與級別名稱對應起來
+        level_counts = {level: count for level, count in zip(tasks.keys(), results)}
+        
+        logger.info(f"📊 Loki 伺服器端聚合結果: {level_counts}")
+        return level_counts

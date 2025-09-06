@@ -8,6 +8,25 @@
 
 ---
 
+## 📋 重要同步說明
+
+### 🔄 API 狀態同步機制
+當本文件中的 **API 任務標記為完成** (`[x]`) 時，**必須同步更新** [`API_REFERENCE.md`](./API_REFERENCE.md) 中的對應端點狀態：
+
+- ✅ **已實現**: 將端點狀態從 `🚧 僅有路由` 或 `❌ 未實現` 更新為 `✅ 已實現`
+- 📊 **統計更新**: 同步更新 API 總覽統計表格中的數量和實現率
+- 📝 **發現更新**: 更新關鍵發現部分以反映新的統計數據
+
+**同步檢查清單**:
+- [ ] 確認 ROADMAP.md 中的完成標記 `[x]`
+- [ ] 在 API_REFERENCE.md 中找到對應端點
+- [ ] 更新端點狀態為 `✅ 已實現`
+- [ ] 更新統計數據 (已實現/僅有路由/未實現/實現率)
+- [ ] 更新關鍵發現部分
+- [ ] 驗證兩個文件的統計數據一致性
+
+---
+
 ## Phase 1: 核心整合 (Core Integration)
 
 - **主題**: 專注於完成 `sre-assistant` 與 `control-plane` 之間的所有技術對接工作，確保兩者能夠安全、可靠地協同工作。
@@ -18,8 +37,8 @@
 - **[🚧] 1.1. API 契約符合性 (API Contract Compliance)**:
     - **任務**: 確保 `sre-assistant` 的 FastAPI 服務嚴格遵守 `pkg/api/sre-assistant-openapi.yaml` 中定義的所有端點、請求格式和回應格式。
     - **當前狀態**:
-        - ✅ SRE Assistant: 91% 完成 (10/11 個端點)
-        - ⚠️ Control Plane: 6% 完成 (4/67 個端點)
+        - ✅ SRE Assistant: 91% 完成 (10/11 個端點) - 缺少 `/api/v1/metrics`
+        - ⚠️ Control Plane: 49% 完成 (24/49 個端點) - 使用模擬數據實現
     - **相關子任務**:
         - [x] 在 `DiagnosticResult` 中添加 `execution_plan` 欄位
         - [x] 定義 `AlertAnalysisRequest` 資料模型
@@ -115,12 +134,88 @@
         - [序列式工作流代理 | ADK 文件](./references/adk-docs/agents-workflow-agents-sequential-agents.md)
         - [Dispatcher 工作流範例（程式碼）](./references/adk-agent-samples/google-adk-workflows/dispatcher/agent.py)
 
-- **[ ] 2.2. Control Plane Go 服務完善**:
-    - **任務**: 實現 Control Plane 的真實業務邏輯，取代所有模擬資料。
+- **[ ] 2.2. 資料庫架構設計與實現 (Database Architecture & Implementation)**:
+    - **任務**: 設計並實現完整的 PostgreSQL 資料庫架構，包含所有業務實體的 schema、關聯和 migration 腳本。
+    - **前置條件**: Phase 1.5 核心服務本地化完成
     - **相關子任務**:
-        - [ ] 實作實際的業務邏輯（非模擬資料）
-        - [ ] 完成批次操作功能
+        - [ ] 設計核心實體 schema (Resources, Incidents, AlertRules, Users, Teams)
+        - [ ] 定義實體間關聯和約束 (Foreign Keys, Indexes)
+        - [ ] 實作資料庫 migration 腳本 (Up/Down migrations)
+        - [ ] 建立資料庫連接池和配置管理
+        - [ ] 實作基本的 CRUD Repository 層
+    - **參考**:
+        - **SRE 理論 - 資料庫設計**: [`docs/references/google-sre-book/Chapter-18-Databases.md`](./references/google-sre-book/Chapter-18-Databases.md)
+        - **專案結構範本**: [`docs/references/agent-starter-pack/src/`](./references/agent-starter-pack/src/)
+    - 補充參考（ADK 最佳實踐）:
+        - [ADK 專案結構指南 | ADK 文件](./references/adk-docs/get-started-about.md)
+
+- **[ ] 2.3. Control Plane Go 服務完善**:
+    - **任務**: 實現 Control Plane 的真實業務邏輯，取代所有模擬資料。
+    - **前置條件**: Phase 2.2 資料庫架構完成
+    - **當前狀態**: 7/49 個端點已實現 (14%)
+    - **相關子任務**:
+        - [x] 實作核心健康檢查端點 (`/healthz`, `/readyz`, `/metrics`)
+        - [x] 實作資源列表查詢 (`GET /resources`)
+        - [ ] **儀表板功能** (2個端點未實現)
+            - [ ] `GET /api/v1/dashboard/trends` - 趨勢數據
+            - [ ] `GET /api/v1/dashboard/resource-distribution` - 資源分佈統計
+        - [ ] **資源管理 CRUD** (7個端點未實現)
+            - [ ] `POST /api/v1/resources` - 創建資源
+            - [ ] `GET /api/v1/resources/{resourceId}` - 獲取資源詳情
+            - [ ] `PUT /api/v1/resources/{resourceId}` - 更新資源
+            - [ ] `DELETE /api/v1/resources/{resourceId}` - 刪除資源
+            - [ ] `POST /api/v1/resources/batch` - 批次操作
+            - [ ] `POST /api/v1/resources/scan` - 網段掃描
+            - [ ] `GET /api/v1/resources/scan/{taskId}` - 掃描結果
+        - [ ] **資源群組管理** (5個端點未實現)
+            - [ ] `GET /api/v1/resource-groups` - 群組列表
+            - [ ] `POST /api/v1/resource-groups` - 創建群組
+            - [ ] `PUT /api/v1/resource-groups/{groupId}` - 更新群組
+            - [ ] `DELETE /api/v1/resource-groups/{groupId}` - 刪除群組
+            - [ ] `POST /api/v1/resource-groups/{groupId}/members` - 管理成員
+        - [ ] **事件與告警管理** (10個端點未實現)
+            - [ ] `PUT /api/v1/incidents/{incidentId}` - 更新事件
+            - [ ] `GET /api/v1/alerts` - 獲取活躍告警
+            - [ ] 其他 8 個事件管理端點...
+        - [ ] **告警規則管理** (8個端點未實現)
+            - [ ] `GET /api/v1/alert-rules` - 規則列表
+            - [ ] `POST /api/v1/alert-rules` - 創建規則
+            - [ ] `GET /api/v1/alert-rules/{ruleId}` - 規則詳情
+            - [ ] `PUT /api/v1/alert-rules/{ruleId}` - 更新規則
+            - [ ] `DELETE /api/v1/alert-rules/{ruleId}` - 刪除規則
+            - [ ] `POST /api/v1/alert-rules/{ruleId}/test` - 測試規則
+            - [ ] `POST /api/v1/alert-rules/{ruleId}/enable` - 啟用規則
+            - [ ] `POST /api/v1/alert-rules/{ruleId}/disable` - 停用規則
+        - [ ] **自動化腳本管理** (9個端點未實現)
+            - [ ] `GET /api/v1/automation/scripts` - 腳本列表
+            - [ ] `POST /api/v1/automation/scripts` - 創建腳本
+            - [ ] `GET /api/v1/automation/scripts/{scriptId}` - 腳本詳情
+            - [ ] `PUT /api/v1/automation/scripts/{scriptId}` - 更新腳本
+            - [ ] `DELETE /api/v1/automation/scripts/{scriptId}` - 刪除腳本
+            - [ ] `POST /api/v1/automation/execute` - 執行腳本
+            - [ ] `GET /api/v1/automation/executions` - 執行歷史
+            - [ ] `GET /api/v1/automation/executions/{executionId}` - 執行詳情
+            - [ ] `POST /api/v1/automation/schedules` - 創建排程
+        - [ ] **用戶與團隊管理** (16個端點未實現)
+            - [ ] 用戶 CRUD 操作 (5個端點)
+            - [ ] 用戶個人資料管理 (5個端點)
+            - [ ] 團隊 CRUD 操作 (6個端點)
+        - [ ] **通知管道管理** (6個端點未實現)
+            - [ ] `GET /api/v1/notification-channels` - 管道列表
+            - [ ] `POST /api/v1/notification-channels` - 創建管道
+            - [ ] `GET /api/v1/notification-channels/{channelId}` - 管道詳情
+            - [ ] `PUT /api/v1/notification-channels/{channelId}` - 更新管道
+            - [ ] `DELETE /api/v1/notification-channels/{channelId}` - 刪除管道
+            - [ ] `POST /api/v1/notification-channels/{channelId}/test` - 測試管道
+        - [ ] **系統設定管理** (3個端點未實現)
+            - [ ] `GET /api/v1/settings` - 獲取設定
+            - [ ] `PUT /api/v1/settings` - 更新設定
+            - [ ] `GET /api/v1/settings/maintenance-windows` - 維護時段
+        - [ ] **審計與回調** (2個端點未實現)
+            - [ ] `GET /api/v1/audit-logs` - 審計日誌
+            - [ ] `POST /api/v1/callbacks/diagnosis-complete` - 診斷回調
         - [ ] 實作與 SRE Assistant 的完整整合
+        - [ ] 實現中間件和認證機制
     - **參考**:
         - **全端架構範本**: [`docs/references/agent-starter-pack/`](./references/agent-starter-pack/)
         - **前端實作參考**: [`docs/references/adk-agent-samples/gemini-fullstack/frontend/`](./references/adk-agent-samples/gemini-fullstack/frontend/)
@@ -130,7 +225,7 @@
         - [Gemini Fullstack 前端（串流與事件驅動）](./references/adk-agent-samples/gemini-fullstack/frontend/index.html)
         - [FastAPI 範例（事件串流與 Runner 整合）](./references/adk-agent-samples/personal-expense-assistant-adk/backend.py)
 
-- **[ ] 2.3. 測試覆蓋率提升**:
+- **[ ] 2.4. 測試覆蓋率提升**:
     - **任務**: 為所有在 Phase 1 和 Phase 2 中實現的核心模組與工具增加單元測試與整合測試，目標覆蓋率 > 80%。
     - **相關子任務**:
         - [ ] **SRE Assistant Python 服務測試**: 各診斷工具的單元測試。
@@ -144,8 +239,14 @@
         - [HelloWorld 代理測試（程式碼）](./references/adk-agent-samples/helloworld/test_client.py)
         - [LangGraph 範例測試（程式碼）](./references/adk-agent-samples/langgraph/app/test_client.py)
 
-- **[ ] 2.4. 建立串流式前端資料模型 (Create Streaming Frontend Data Model)**:
+- **[ ] 2.5. 建立串流式前端資料模型 (Create Streaming Frontend Data Model)**:
     - **任務**: 根據 `gemini-fullstack` 範例，為前端定義一個能夠處理來自 `sre-assistant` 串流事件的資料模型。此模型應能區分不同的事件類型 (如 `tool_call`, `thought`, `final_result`) 並在 UI 中呈現一個豐富的、即時的活動時間軸。
+    - **前置條件**: Phase 2.1 診斷後端邏輯完成
+    - **相關子任務**:
+        - [ ] 定義前端事件資料模型 (Event Types, Streaming States)
+        - [ ] 實作事件處理器 (Event Handlers for tool_call, thought, final_result)
+        - [ ] 建立即時活動時間軸組件 (Real-time Activity Timeline Component)
+        - [ ] 整合 WebSocket 或 SSE 連接管理
     - **參考**:
         - **核心範本**: [`docs/references/adk-agent-samples/gemini-fullstack/frontend/src/App.tsx`](./references/adk-agent-samples/gemini-fullstack/frontend/src/App.tsx)
         - **串流概念**: [`docs/references/adk-docs/get-started-streaming.md`](./references/adk-docs/get-started-streaming.md)
@@ -232,17 +333,11 @@
         - [Observability - 結構化日誌 | ADK 文件](./references/adk-docs/observability-logging.md)
         - [工具認證與安全 | ADK 文件](./references/adk-docs/tools-authentication.md)
 
-- **[ ] 4.2. 從 OpenAPI 自動生成客戶端**:
-    - **任務**: 從 `pkg/api/control-plane-openapi.yaml` 自動生成 Go 客戶端程式碼。
-    - **參考**:
-        - **ADK OpenAPI 工具**: [`docs/references/adk-docs/tools-openapi.md`](./references/adk-docs/tools-openapi.md)
-        - **Go Code Gen (外部參考)**: `https://github.com/deepmap/oapi-codegen`
-    - 補充參考（ADK 最佳實踐）:
-        - [OpenAPI 工具指南 | ADK 文件](./references/adk-docs/tools-openapi-tools.md)
-        - [OpenAPI 工具範例（程式碼片段）](./references/snippets/tools/openapi_tool.py)
-
-- **[ ] 4.3. 清理技術債 (Clean Up Technical Debt)**:
-    - **任務**: 解決程式碼庫中的小問題：1) 刪除重複的 `tools/workflow.py` 檔案。2) 完整實現 `main.py` 中的健康檢查 (`check_database`, `check_redis`)。3) 將 `main.py` 中的認證邏輯重構到獨立的模組中。
+- **[ ] 4.2. 清理技術債 (Clean Up Technical Debt)**:
+    - **任務**: 解決程式碼庫中的小問題：
+    1. 刪除重複的 `tools/workflow.py` 檔案。
+    2. 完整實現 `main.py` 中的健康檢查 (`check_database`, `check_redis`)。
+    3. 將 `main.py` 中的認證邏輯重構到獨立的模組中。
     - **參考**:
         - **專案結構**: [`docs/references/agent-starter-pack/`](./references/agent-starter-pack/)
         - **SRE 理論 - 消除瑣事**: [`docs/references/google-sre-book/Chapter-05-Eliminating-Toil.md`](./references/google-sre-book/Chapter-05-Eliminating-Toil.md)
@@ -251,8 +346,27 @@
         - [FastAPI + ADK Runner 實作（包含健康檢查與壽命）](./references/adk-agent-samples/personal-expense-assistant-adk/backend.py)
         - [ADK 入門與專案結構 | ADK 文件](./references/adk-docs/get-started-about.md)
 
+- **[ ] 4.3. 建立 CI/CD 管道 (Establish CI/CD Pipeline)**:
+    - **任務**: 建立完整的持續整合和持續部署管道，包含自動化測試、建置、部署和監控。
+    - **前置條件**: Phase 2.4 測試覆蓋率提升完成
+    - **相關子任務**:
+        - [ ] 設定 GitHub Actions 或 GitLab CI 工作流
+        - [ ] 實作自動化單元測試和整合測試
+        - [ ] 設定自動建置和容器化 (Docker)
+        - [ ] 實作自動部署到測試/生產環境
+        - [ ] 建立部署回滾機制
+        - [ ] 整合監控和告警通知
+    - **參考**:
+        - **SRE 理論 - 持續部署**: [`docs/references/google-sre-book/Chapter-07-The-Evolution-of-Automation-at-Google.md`](./references/google-sre-book/Chapter-07-The-Evolution-of-Automation-at-Google.md)
+        - **專案範本**: [`docs/references/agent-starter-pack/`](./references/agent-starter-pack/)
+    - 補充參考（ADK 最佳實踐）:
+        - [ADK 專案結構與部署 | ADK 文件](./references/adk-docs/get-started-about.md)
+
 - **[ ] 4.4. 增強 ControlPlaneTool (Enhance ControlPlaneTool)**:
-    - **任務**: 將 `ControlPlaneTool` 重構為一個功能完整的工具集。1) 為所有輸入和輸出定義 Pydantic 模型。2) 返回結構化的成功/錯誤回應。3) 增加寫入/修改操作，例如 `restart_deployment`, `acknowledge_alert` 等，使其不僅僅是唯讀的。
+    - **任務**: 將 `ControlPlaneTool` 重構為一個功能完整的工具集。
+        1.為所有輸入和輸出定義 Pydantic 模型。
+        2.返回結構化的成功/錯誤回應。
+        3.增加寫入/修改操作，例如 `restart_deployment`, `acknowledge_alert` 等，使其不僅僅是唯讀的。
     - **參考**:
         - **工具集結構**: [`docs/references/adk-agent-samples/github-agent/github_toolset.py`](./references/adk-agent-samples/github-agent/github_toolset.py)
         - **工具設計指南**: [`docs/references/adk-docs/tools-overview.md`](./references/adk-docs/tools-overview.md)
@@ -266,7 +380,7 @@
 
 | 指標 | 當前狀態 | 目標 | 測量方式 |
 |------|---------|------|----------|
-| API 合規性 | 48% | 100% | OpenAPI 契約測試 |
+| API 合規性 | 70% | 100% | OpenAPI 契約測試 |
 | 測試覆蓋率 | ~10% | 80% | Coverage 工具 |
 | P99 延遲 | N/A | <500ms | APM 監控 |
 | 錯誤率 | N/A | <0.1% | 錯誤監控 |
@@ -274,7 +388,8 @@
 
 ### 業務指標
 - [x] **API 完整性** (第1週) ✅
-  - 所有 OpenAPI 定義的端點都已實作
+  - SRE Assistant: 10/11 個端點已實作 (91%) - 缺少 `/api/v1/metrics`
+  - Control Plane: 24/49 個端點已實作 (49%) - 使用模擬數據實現
 - [ ] **MVP 功能完成** (第4週)
   - 核心診斷功能可用
   - 基本 UI 可操作
@@ -307,13 +422,16 @@
 ## 已完成項目歸檔
 
 ### ✅ 第一週完成項目
-1. **SRE Assistant API 實作** - 91% 完成 (10/11 個端點)
+1. **SRE Assistant API 實作** - 91% 完成 (10/11 個端點) - 缺少 `/api/v1/metrics`
 2. **資料模型定義** - 關鍵資料模型已定義並對齊 OpenAPI
 3. **任務持久化** - Redis 存儲已實作，24 小時過期
 4. **環境變數配置** - 基本的配置管理已完成
 5. **服務間認證** - JWT 驗證邏輯已實作
+6. **核心工具開發** - Prometheus, Loki, ControlPlane 工具已實作
 
 ### ⚠️ 需要修正的項目狀態
-- Control Plane API 實現率僅 6% (遠低於預期)
-- 測試覆蓋率約 10% (遠低於 30% 目標)
-- 核心工具雖有實作但需要完善錯誤處理和快取機制
+- **SRE Assistant**: 缺少 `/api/v1/metrics` 端點實現
+- **Control Plane**: 25個端點使用模擬數據，需要連接真實資料庫
+- **測試覆蓋率**: 約 10% (遠低於 80% 目標)
+- **資料庫架構**: 需要建立完整的 PostgreSQL schema 和 migration
+- **業務邏輯**: 需要將模擬實現替換為真實的業務邏輯
