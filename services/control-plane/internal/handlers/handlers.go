@@ -7,6 +7,8 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"strings"
+	"sync" // 引入 sync 套件
 
 	"github.com/detectviz/control-plane/internal/auth"
 	"github.com/detectviz/control-plane/internal/services"
@@ -21,6 +23,7 @@ type Handlers struct {
 	Templates   *template.Template
 	AuthService auth.KeycloakService
 	Logger      *otelzap.Logger
+	mu          sync.RWMutex // 用於保護 mockResources 的讀寫鎖
 }
 
 // NewHandlers 建立並返回一個新的 Handlers 實例。
@@ -107,10 +110,11 @@ func (h *Handlers) ReadinessCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) LoginPage(w http.ResponseWriter, r *http.Request) {
-	// Simple render of the login page
-	err := h.Templates.ExecuteTemplate(w, "login.html", nil)
+	// 註解：渲染登入頁面，現在使用新的佈局模板路徑
+	err := h.Templates.ExecuteTemplate(w, "layouts/auth.html", nil)
 	if err != nil {
 		http.Error(w, "無法渲染登入頁面", http.StatusInternalServerError)
+		h.Logger.Error("渲染 auth.html 失敗", zap.Error(err))
 	}
 }
 
@@ -160,16 +164,165 @@ func (h *Handlers) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	// TODO: Add Keycloak single-sign-out
 	http.Redirect(w, r, "/auth/login", http.StatusFound)
 }
-func (h *Handlers) Dashboard(w http.ResponseWriter, r *http.Request)      {}
-func (h *Handlers) TeamsPage(w http.ResponseWriter, r *http.Request)      {}
-func (h *Handlers) AlertsPage(w http.ResponseWriter, r *http.Request)     {}
-func (h *Handlers) AutomationPage(w http.ResponseWriter, r *http.Request) {}
-func (h *Handlers) CapacityPage(w http.ResponseWriter, r *http.Request)   {}
-func (h *Handlers) IncidentsPage(w http.ResponseWriter, r *http.Request)  {}
-func (h *Handlers) ChannelsPage(w http.ResponseWriter, r *http.Request)   {}
-func (h *Handlers) ProfilePage(w http.ResponseWriter, r *http.Request)    {}
-func (h *Handlers) SettingsPage(w http.ResponseWriter, r *http.Request)   {}
-func (h *Handlers) ResourcesTable(w http.ResponseWriter, r *http.Request) {}
+func (h *Handlers) Dashboard(w http.ResponseWriter, r *http.Request) {
+	data := map[string]interface{}{
+		"Title": "總覽儀表板",
+		"Page":  "dashboard",
+		// 初始頁面渲染時不需要卡片資料，因為它們將由 HTMX 載入
+	}
+	err := h.Templates.ExecuteTemplate(w, "pages/dashboard.html", data)
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染儀表板頁面", zap.Error(err))
+		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
+	}
+}
+func (h *Handlers) renderPlaceholder(w http.ResponseWriter, r *http.Request, title, page string) {
+	data := map[string]interface{}{"Title": title, "Page": page}
+	err := h.Templates.ExecuteTemplate(w, "pages/placeholder.html", data)
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染佔位頁面", zap.Error(err), zap.String("page", page))
+		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
+	}
+}
+
+func (h *Handlers) TeamsPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "團隊管理", "teams")
+}
+func (h *Handlers) AlertsPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "告警規則", "alerts")
+}
+func (h *Handlers) AutomationPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "自動化", "automation")
+}
+func (h *Handlers) CapacityPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "容量規劃", "capacity")
+}
+func (h *Handlers) IncidentsPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "事件管理", "incidents")
+}
+func (h *Handlers) ChannelsPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "通知管道", "channels")
+}
+func (h *Handlers) ProfilePage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "個人資料", "profile")
+}
+func (h *Handlers) SettingsPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "系統設定", "settings")
+}
+
+func (h *Handlers) DashboardCards(w http.ResponseWriter, r *http.Request) {
+	// 註解：此為 HTMX 請求的處理器，負責回傳儀表板上的指標卡片。
+
+	type cardData struct {
+		Name       string
+		Value      string
+		Change     string
+		ChangeType string // "increase" 或 "decrease"
+		Icon       string
+	}
+
+	cards := []cardData{
+		{Name: "新告警 (New)", Value: "7", Change: "+11%", ChangeType: "increase", Icon: "siren"},
+		{Name: "處理中 (In Progress)", Value: "7", Change: "+6%", ChangeType: "increase", Icon: "loader-circle"},
+		{Name: "今日已解決 (Resolved Today)", Value: "8", Change: "+0%", ChangeType: "increase", Icon: "check-circle-2"},
+		{Name: "資源健康度", Value: "99.8%", Change: "", ChangeType: "", Icon: "shield-check"},
+		{Name: "總資源數", Value: "1,204", Change: "", ChangeType: "", Icon: "database"},
+		{Name: "平均網路延遲", Value: "23 ms", Change: "", ChangeType: "", Icon: "bar-chart-horizontal"},
+	}
+
+	data := map[string]interface{}{
+		"Cards": cards,
+	}
+
+	err := h.Templates.ExecuteTemplate(w, "partials/dashboard-cards.html", data)
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染儀表板卡片模板", zap.Error(err))
+	}
+}
+
+func (h *Handlers) AddResourceForm(w http.ResponseWriter, r *http.Request) {
+	// 註解：此處理器負責回傳用於新增資源的模態框和表單。
+	// 它執行 resource-form.html 模板，該模板內部會引用 modal.html 組件。
+	err := h.Templates.ExecuteTemplate(w, "partials/resource-form.html", nil)
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染資源表單模板", zap.Error(err))
+	}
+}
+
+// resource 用於模擬的資源資料結構
+type resource struct {
+	Name      string
+	IPAddress string
+	Type      string
+	Status    string
+}
+
+// mockResources 作為一個包級變數，模擬一個記憶體中的資料庫。
+var mockResources = []resource{
+	{"control-plane-db", "10.0.1.5", "PostgreSQL", "healthy"},
+	{"sre-assistant-api", "10.0.1.6", "Python FastAPI", "healthy"},
+	{"monitoring-prometheus", "10.0.2.10", "Prometheus", "warning"},
+	{"data-pipeline-kafka", "10.0.3.8", "Kafka", "critical"},
+	{"legacy-app-server", "192.168.1.100", "JBoss EAP", "unknown"},
+}
+
+func (h *Handlers) CreateResource(w http.ResponseWriter, r *http.Request) {
+	// 註解：此處理器處理新增資源的 POST 請求。
+	if err := r.ParseForm(); err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法解析表單", zap.Error(err))
+		return
+	}
+
+	newRes := resource{
+		Name:      r.PostFormValue("name"),
+		IPAddress: r.PostFormValue("ip_address"),
+		Type:      r.PostFormValue("type"),
+		Status:    "unknown",
+	}
+
+	h.mu.Lock() // 寫入前鎖定
+	mockResources = append(mockResources, newRes)
+	h.mu.Unlock() // 完成後解鎖
+
+	h.Logger.Ctx(r.Context()).Info("成功創建新資源 (模擬)",
+		zap.String("name", newRes.Name),
+		zap.String("ip", newRes.IPAddress),
+	)
+
+	h.ResourcesTable(w, r)
+}
+
+func (h *Handlers) ResourcesTable(w http.ResponseWriter, r *http.Request) {
+	h.mu.RLock() // 讀取前鎖定
+	defer h.mu.RUnlock() // 確保函數結束時解鎖
+
+	query := r.URL.Query().Get("q")
+
+	var filteredResources []resource
+	if query != "" {
+		query = strings.ToLower(query)
+		for _, res := range mockResources {
+			if strings.Contains(strings.ToLower(res.Name), query) || strings.Contains(strings.ToLower(res.IPAddress), query) {
+				filteredResources = append(filteredResources, res)
+			}
+		}
+	} else {
+		// 複製一份以避免在模板渲染時發生競爭條件
+		filteredResources = make([]resource, len(mockResources))
+		copy(filteredResources, mockResources)
+	}
+
+	data := map[string]interface{}{
+		"Resources": filteredResources,
+	}
+
+	// 註解：執行 partials/resource-table.html 模板，只回傳表格的 HTML。
+	err := h.Templates.ExecuteTemplate(w, "partials/resource-table.html", data)
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染資源表格模板", zap.Error(err))
+	}
+}
+
 func (h *Handlers) ResourcesPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	resources, err := h.Services.ListResources(ctx)
@@ -194,7 +347,7 @@ func (h *Handlers) ResourcesPage(w http.ResponseWriter, r *http.Request) {
 		"ResourcesJSON": string(resourcesJSON),
 	}
 
-	err = h.Templates.ExecuteTemplate(w, "resources.html", data)
+	err := h.Templates.ExecuteTemplate(w, "pages/resources.html", data)
 	if err != nil {
 		h.Logger.Ctx(ctx).Error("無法渲染資源頁面模板", zap.Error(err))
 		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
