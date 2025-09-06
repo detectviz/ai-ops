@@ -15,16 +15,17 @@
 
 ### 主要交付物 (Key Deliverables):
 
-- **[🚧] 1.1. API 契約符合性 (API Contract Compliance)**:
+- **[✅] 1.1. API 契約符合性 (API Contract Compliance)**:
     - **任務**: 確保 `sre-assistant` 的 FastAPI 服務嚴格遵守 `pkg/api/sre-assistant-openapi.yaml` 中定義的所有端點、請求格式和回應格式。
     - **當前狀態**:
-        - ✅ SRE Assistant: 91% 完成 (10/11 個端點)
+        - ✅ **SRE Assistant: 100% 完成 (11/11 個端點)**
         - ⚠️ Control Plane: 6% 完成 (4/67 個端點)
     - **相關子任務**:
         - [x] 在 `DiagnosticResult` 中添加 `execution_plan` 欄位
         - [x] 定義 `AlertAnalysisRequest` 資料模型
         - [x] 定義 `CapacityAnalysisRequest` 資料模型
         - [x] 定義 `ExecuteRequest` 資料模型
+        - [x] **修正 `healthz` 和 `readyz` 的 API 路徑以符合 OpenAPI 規範。**
     - 補充參考（ADK 最佳實踐）:
         - [OpenAPI 工具指南 | ADK 文件](./references/adk-docs/tools-openapi-tools.md)
         - [契約測試與測試入門 | ADK 文件](./references/adk-docs/get-started-testing.md)
@@ -45,24 +46,24 @@
 - **[🚧] 1.3. 核心工具開發 (`Prometheus`, `Loki`, `ControlPlane`)**:
     - **任務**: 實現 `PrometheusQueryTool`、`LokiLogQueryTool` 和 `ControlPlaneTool`，為診斷流程提供數據來源。
     - **對應 API**: 這些工具是 `/diagnostics/deployment` 端點的基礎。
-    - **當前狀態**: 工具代碼已存在且包含真實 HTTP 請求邏輯 (非模擬數據)
+    - **當前狀態**: 工具代碼已存在且包含真實 HTTP 請求邏輯 (非模擬數據)。`ControlPlaneTool` 已引入 Pydantic 模型進行資料驗證。
     - **子任務 (PrometheusQueryTool)**:
         - [x] 實作實際的 Prometheus 查詢邏輯 (已完成)
         - [x] 移除模擬資料，使用真實 API 調用 (已完成)
-        - [ ] 添加查詢優化和錯誤處理
-        - [ ] 實作查詢結果快取機制
+        - [x] **添加查詢優化和錯誤處理**: 已重構錯誤處理，使其更穩健並返回結構化錯誤。
+        - [x] **實作查詢結果快取機制**: 已驗證並啟用 Redis 快取，以減少對 Prometheus 的重複查詢。
     - **子任務 (LokiLogQueryTool)**:
         - [x] 實作動態查詢參數設定 (已完成)
         - [ ] 添加完整的錯誤處理機制
         - [ ] 實作日誌過濾和聚合功能
     - **子任務 (ControlPlaneTool)**:
-        - [ ] 查詢資源狀態 (`GET /api/v1/resources`)
-        - [ ] 獲取資源詳情 (`GET /api/v1/resources/{resourceId}`)
-        - [ ] 查詢資源群組 (`GET /api/v1/resource-groups`)
-        - [ ] 查詢部署相關的審計日誌 (`GET /api/v1/audit-logs`)
-        - [ ] 查詢相關事件 (`GET /api/v1/incidents`)
-        - [ ] 獲取告警規則狀態 (`GET /api/v1/alert-rules`)
-        - [ ] 查詢自動化腳本執行歷史 (`GET /api/v1/automation/executions`)
+        - [x] **查詢資源狀態 (`GET /api/v1/resources`)**: 已實現，並引入 Pydantic 模型進行結構化錯誤處理。
+        - [x] **獲取資源詳情 (`GET /api/v1/resources/{resourceId}`)**: 已實現，並引入 Pydantic 模型進行結構化錯誤處理。
+        - [x] **查詢資源群組 (`GET /api/v1/resource-groups`)**: 已實現，並引入 Pydantic 模型進行結構化錯誤處理。
+        - [x] **查詢部署相關的審計日誌 (`GET /api/v1/audit-logs`)**: 已整合至 `_diagnose_deployment` 工作流程。
+        - [x] **查詢相關事件 (`GET /api/v1/incidents`)**: 已整合至 `_diagnose_deployment` 工作流程。
+        - [x] **獲取告警規則狀態 (`GET /api/v1/alert-rules`)**: 已實現，並引入 Pydantic 模型進行結構化錯誤處理。
+        - [x] **查詢自動化腳本執行歷史 (`GET /api/v1/automation/executions`)**: 已實現，並引入 Pydantic 模型進行結構化錯誤處理。
     - **參考**: `docs/reference-adk-examples.md` (jira_agent, bigquery)
     - 補充參考（ADK 最佳實踐）:
         - [工具設計與 Function Tools | ADK 文件](./references/adk-docs/tools-function-tools.md)
@@ -74,7 +75,7 @@
     - **對應 API**: `/diagnostics/deployment`。
     - **相關子任務**:
         - [x] **修復工作流程錯誤處理**: `asyncio.gather` 中已添加異常處理、容錯、超時和重試機制。
-        - [ ] **API 整合測試**: 端到端診斷流程測試, 非同步任務狀態追蹤測試, 錯誤情境測試。
+        - [x] **API 整合測試**: 端到端診斷流程測試, 非同步任務狀態追蹤測試, 錯誤情境測試。 (註：`test_diagnose_deployment_success_e2e` 和 `test_async_task_status_polling` 等測試已新增並通過。)
         - [ ] **外部服務整合測試**: Prometheus, Loki, Keycloak 整合測試。
     - **參考**: `docs/reference-adk-examples.md` (parallel_functions, workflow_agent_seq)
     - 補充參考（ADK 最佳實踐）:
@@ -241,8 +242,14 @@
         - [OpenAPI 工具指南 | ADK 文件](./references/adk-docs/tools-openapi-tools.md)
         - [OpenAPI 工具範例（程式碼片段）](./references/snippets/tools/openapi_tool.py)
 
-- **[ ] 4.3. 清理技術債 (Clean Up Technical Debt)**:
+- **[🚧] 4.3. 清理技術債 (Clean Up Technical Debt)**:
     - **任務**: 解決程式碼庫中的小問題：1) 刪除重複的 `tools/workflow.py` 檔案。2) 完整實現 `main.py` 中的健康檢查 (`check_database`, `check_redis`)。3) 將 `main.py` 中的認證邏輯重構到獨立的模組中。
+    - **相關子任務**:
+        - [ ] 刪除重複的 `tools/workflow.py`
+        - [ ] **健康檢查 (`/readyz`)**:
+            - [x] 實現對 Redis 的即時連線檢查
+            - [ ] 實現對 Database 的連線檢查
+        - [ ] 將認證邏輯重構到獨立模組
     - **參考**:
         - **專案結構**: [`docs/references/agent-starter-pack/`](./references/agent-starter-pack/)
         - **SRE 理論 - 消除瑣事**: [`docs/references/google-sre-book/Chapter-05-Eliminating-Toil.md`](./references/google-sre-book/Chapter-05-Eliminating-Toil.md)

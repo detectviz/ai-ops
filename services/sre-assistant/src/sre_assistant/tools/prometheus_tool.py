@@ -95,12 +95,22 @@ class PrometheusQueryTool:
                 }
             )
             
-        except Exception as e:
-            logger.error(f"❌ Prometheus 查詢失敗: {e}")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ Prometheus API 查詢失敗: {e.response.status_code} - {e.response.text}", exc_info=True)
             return ToolResult(
                 success=False,
                 error=ToolError(
-                    code="PROMETHEUS_QUERY_ERROR",
+                    code="API_ERROR",
+                    message=f"Prometheus API returned status {e.response.status_code}: {e.response.text}",
+                    details={"params": params}
+                )
+            )
+        except Exception as e:
+            logger.error(f"❌ Prometheus 工具執行時發生未預期錯誤: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="UNEXPECTED_ERROR",
                     message=str(e),
                     details={"params": params}
                 )
@@ -234,53 +244,38 @@ class PrometheusQueryTool:
                 logger.error(f"Redis 快取讀取失敗: {e}")
 
         # 2. 快取未命中，執行實際查詢
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                params = {"query": query, "time": datetime.now(timezone.utc).isoformat()}
-                response = await client.get(f"{self.base_url}/api/v1/query", params=params)
-                
-                if response.status_code != 200:
-                    # 增加對 HTTP 狀態碼的錯誤處理
-                    raise httpx.HTTPStatusError(
-                        f"Prometheus 回應錯誤: {response.status_code}",
-                        request=response.request,
-                        response=response,
-                    )
-                
-                data = response.json()
-                
-                if data["status"] != "success":
-                    logger.error(f"查詢失敗: {data.get('error', 'Unknown error')}")
-                    return None
-                
-                value_to_cache = None
-                results = data.get("data", {}).get("result", [])
-                if results and len(results) > 0:
-                    value = results[0].get("value", [])
-                    if len(value) > 1:
-                        value_to_cache = float(value[1])
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            params = {"query": query, "time": datetime.now(timezone.utc).isoformat()}
+            response = await client.get(f"{self.base_url}/api/v1/query", params=params)
+            response.raise_for_status() # 如果狀態碼不是 2xx，則拋出 HTTPStatusError
 
-                # 3. 儲存結果到快取
-                if self.redis_client and value_to_cache is not None:
-                    try:
-                        # 將結果序列化為 JSON 字串進行儲存
-                        await self.redis_client.set(
-                            cache_key,
-                            json.dumps(value_to_cache),
-                            ex=self.cache_ttl_seconds,
-                        )
-                        logger.info(f"CACHE SET: 已快取即時查詢結果: {query}")
-                    except Exception as e:
-                        logger.error(f"Redis 快取寫入失敗: {e}")
-                
-                return value_to_cache
-                
-        except httpx.HTTPStatusError as e:
-            logger.error(f"執行即時查詢時發生 HTTP 錯誤: {e.response.status_code} - {e.response.text}")
-            return None
-        except Exception as e:
-            logger.error(f"執行即時查詢時發生未知錯誤: {e}")
-            return None
+            data = response.json()
+
+            if data["status"] != "success":
+                # 如果 Prometheus 回應成功但查詢本身失敗，記錄錯誤但繼續（避免使整個工具失敗）
+                logger.warning(f"Prometheus 查詢 '{query}' 成功執行但未返回 'success' 狀態: {data.get('error', 'Unknown error')}")
+                return None
+
+            value_to_cache = None
+            results = data.get("data", {}).get("result", [])
+            if results and len(results) > 0:
+                value = results[0].get("value", [])
+                if len(value) > 1:
+                    value_to_cache = float(value[1])
+
+            # 3. 儲存結果到快取
+            if self.redis_client and value_to_cache is not None:
+                try:
+                    await self.redis_client.set(
+                        cache_key,
+                        json.dumps(value_to_cache),
+                        ex=self.cache_ttl_seconds,
+                    )
+                    logger.info(f"CACHE SET: 已快取即時查詢結果: {query}")
+                except Exception as e:
+                    logger.error(f"Redis 快取寫入失敗: {e}") # 快取失敗不應中斷主流程
+
+            return value_to_cache
     
     async def _execute_range_query(self, query: str, start: datetime, end: datetime, step: str = "1m") -> List[Dict]:
         """
@@ -311,48 +306,34 @@ class PrometheusQueryTool:
                 logger.error(f"Redis 快取讀取失敗: {e}")
 
         # 2. 快取未命中，執行實際查詢
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                params = {
-                    "query": query,
-                    "start": start.isoformat(),
-                    "end": end.isoformat(),
-                    "step": step
-                }
-                response = await client.get(f"{self.base_url}/api/v1/query_range", params=params)
-                
-                if response.status_code != 200:
-                    raise httpx.HTTPStatusError(
-                        f"Prometheus 回應錯誤: {response.status_code}",
-                        request=response.request,
-                        response=response,
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            params = {
+                "query": query,
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "step": step
+            }
+            response = await client.get(f"{self.base_url}/api/v1/query_range", params=params)
+            response.raise_for_status() # 如果狀態碼不是 2xx，則拋出 HTTPStatusError
+
+            data = response.json()
+
+            if data["status"] != "success":
+                logger.warning(f"Prometheus 查詢 '{query}' 成功執行但未返回 'success' 狀態: {data.get('error', 'Unknown error')}")
+                return []
+
+            result_to_cache = data.get("data", {}).get("result", [])
+
+            # 3. 儲存結果到快取
+            if self.redis_client and result_to_cache:
+                try:
+                    await self.redis_client.set(
+                        cache_key,
+                        json.dumps(result_to_cache),
+                        ex=self.cache_ttl_seconds,
                     )
-                
-                data = response.json()
-                
-                if data["status"] != "success":
-                    logger.error(f"查詢失敗: {data.get('error', 'Unknown error')}")
-                    return []
-                
-                result_to_cache = data.get("data", {}).get("result", [])
+                    logger.info(f"CACHE SET: 已快取範圍查詢結果: {query}")
+                except Exception as e:
+                    logger.error(f"Redis 快取寫入失敗: {e}") # 快取失敗不應中斷主流程
 
-                # 3. 儲存結果到快取
-                if self.redis_client and result_to_cache:
-                    try:
-                        await self.redis_client.set(
-                            cache_key,
-                            json.dumps(result_to_cache),
-                            ex=self.cache_ttl_seconds,
-                        )
-                        logger.info(f"CACHE SET: 已快取範圍查詢結果: {query}")
-                    except Exception as e:
-                        logger.error(f"Redis 快取寫入失敗: {e}")
-
-                return result_to_cache
-                
-        except httpx.HTTPStatusError as e:
-            logger.error(f"執行範圍查詢時發生 HTTP 錯誤: {e.response.status_code} - {e.response.text}")
-            return []
-        except Exception as e:
-            logger.error(f"執行範圍查詢時發生未知錯誤: {e}")
-            return []
+            return result_to_cache
