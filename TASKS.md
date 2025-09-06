@@ -303,8 +303,8 @@
 
 以下是根據 `sre-platform-review-report-2025.md` 整理出的待辦技術債務，需要在後續的開發週期中解決。
 
-- [ ] **重構硬編碼配置**: 將程式碼中所有硬編碼的 URL（如 Prometheus, Loki 的位址）和其他配置參數遷移到環境變數或集中的設定檔中。
-- [ ] **完善工作流程錯誤處理**: 在 `workflow.py` 的並行工具呼叫（`asyncio.gather`）中加入完整的錯誤處理和容錯機制。
-- [ ] **實現任務持久化**: 將目前記憶體內的任務狀態管理（`Dict`）替換為更可靠的持久化方案，如 Redis 或 PostgreSQL，以防止服務重啟後任務遺失。
-- [ ] **完成 SRE Assistant 的 JWT 驗證**: 在 `main.py` 中實現完整的 JWT Token 驗證邏輯，而不僅僅是模擬驗證。
-- [ ] **補全缺失的 API 端點**: 根據 `sre-assistant-openapi.yaml` 實現 `/diagnostics/alerts`, `/capacity/analyze`, 和 `/execute` 端點的完整邏輯。
+- [x] **重構硬編碼配置**: 將程式碼中所有硬編碼的 URL（如 Prometheus, Loki 的位址）和其他配置參數遷移到環境變數或集中的設定檔中。
+- [x] **完善工作流程錯誤處理**: 在 `workflow.py` 的並行工具呼叫（`asyncio.gather`）中加入完整的錯誤處理和容錯機制。
+- [x] **實現任務持久化**: 將目前記憶體內的任務狀態管理（`Dict`）替換為更可靠的持久化方案，如 Redis 或 PostgreSQL，以防止服務重啟後任務遺失。
+- [x] **完成 SRE Assistant 的 JWT 驗證**: 在 `main.py` 中實現完整的 JWT Token 驗證邏輯，而不僅僅是模擬驗證。
+- [x] **補全缺失的 API 端點**: 根據 `sre-assistant-openapi.yaml` 實現 `/diagnostics/alerts`, `/capacity/analyze`, 和 `/execute` 端點的完整邏輯。

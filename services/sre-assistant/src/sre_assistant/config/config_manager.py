@@ -133,10 +133,13 @@ class ConfigManager:
     
     def _get_default_config(self) -> Dict[str, Any]:
         """
-        獲取預設配置
+        獲取預設配置。
+
+        此函式定義了在找不到環境特定設定檔 (如 development.yaml) 時的後備設定。
+        這主要用於本地開發和測試，確保服務在最基本的環境下也能啟動。
         
         Returns:
-            預設配置字典
+            一個包含預設設定的字典。
         """
         return {
             "deployment": {
@@ -159,19 +162,28 @@ class ConfigManager:
             "auth": {
                 "provider": "none",
                 "enable_rbac": False,
-                "enable_rate_limiting": False
+                "enable_rate_limiting": False,
+                "keycloak": {
+                    "token_url": "http://localhost:8080/realms/sre-platform/protocol/openid-connect/token"
+                }
             },
             "control_plane": {
                 "base_url": "http://localhost:8081/api",
-                "timeout_seconds": 10
+                "timeout_seconds": 10,
+                "client_id": "sre-assistant",
+                "client_secret": os.getenv("SRE_ASSISTANT_CLIENT_SECRET", "")
             },
             "prometheus": {
                 "base_url": "http://localhost:9090",
-                "timeout_seconds": 15
+                "timeout_seconds": 15,
+                "default_step": "1m",
+                "max_points": 1000
             },
             "loki": {
                 "base_url": "http://localhost:3100",
-                "timeout_seconds": 20
+                "timeout_seconds": 20,
+                "default_limit": 1000,
+                "max_time_range": "24h"
             },
             "workflow": {
                 "parallel_diagnosis": True,

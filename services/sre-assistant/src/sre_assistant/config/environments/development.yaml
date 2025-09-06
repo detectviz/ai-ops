@@ -1,0 +1,15 @@
+auth:
+  provider: keycloak
+  keycloak:
+    url: ${KEYCLOAK_URL:"http://localhost:8080"}
+    realm: ${KEYCLOAK_REALM:"sre-platform"}
+    # The audience for the SRE Assistant service
+    audience: "sre-assistant"
+    # The client ID of the service that is allowed to call this API
+    allowed_client_id: "control-plane"
+
+redis:
+  url: ${REDIS_URL:"redis://localhost:6379/0"}
+
+workflow:
+  diagnosis_timeout_seconds: 120

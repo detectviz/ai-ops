@@ -200,9 +200,32 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 	// API 路由
 	apiRouter := r.PathPrefix("/api/v1").Subrouter()
 	apiRouter.Use(middleware.RequireAuth(auth)) // 保護 API
+	apiRouter.HandleFunc("/dashboard/summary", api.GetDashboardSummary(h.Services)).Methods("GET") // 新增的路由
+
+	// Resource Routes
+	apiRouter.HandleFunc("/resources", api.ListResources(h.Services)).Methods("GET")
+	apiRouter.HandleFunc("/resources", api.CreateResource(h.Services)).Methods("POST")
+	apiRouter.HandleFunc("/resources/{resourceId}", api.GetResource(h.Services)).Methods("GET")
+	apiRouter.HandleFunc("/resources/{resourceId}", api.UpdateResource(h.Services)).Methods("PUT")
+	apiRouter.HandleFunc("/resources/{resourceId}", api.DeleteResource(h.Services)).Methods("DELETE")
+	apiRouter.HandleFunc("/resources/batch", api.BatchOperateResources(h.Services)).Methods("POST")
+	apiRouter.HandleFunc("/resources/scan", api.ScanNetwork(h.Services)).Methods("POST")
+	apiRouter.HandleFunc("/resources/scan/{taskId}", api.GetScanResult(h.Services)).Methods("GET")
+
 	apiRouter.HandleFunc("/audit-logs", api.GetAuditLogs(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/incidents", api.GetIncidents(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/incidents/{id}", api.GetIncident(h.Services)).Methods("GET")
+
+	// Incident Routes
+	apiRouter.HandleFunc("/incidents", api.ListIncidents(h.Services)).Methods("GET")
+	apiRouter.HandleFunc("/incidents", api.CreateIncident(h.Services)).Methods("POST")
+	apiRouter.HandleFunc("/incidents/{incidentId}", api.GetIncident(h.Services)).Methods("GET")
+	apiRouter.HandleFunc("/incidents/{incidentId}", api.UpdateIncident(h.Services)).Methods("PUT")
+	apiRouter.HandleFunc("/incidents/{incidentId}/acknowledge", api.AcknowledgeIncident(h.Services)).Methods("POST")
+	apiRouter.HandleFunc("/incidents/{incidentId}/resolve", api.ResolveIncident(h.Services)).Methods("POST")
+	apiRouter.HandleFunc("/incidents/{incidentId}/assign", api.AssignIncident(h.Services)).Methods("POST")
+	apiRouter.HandleFunc("/incidents/{incidentId}/comments", api.AddIncidentComment(h.Services)).Methods("POST")
+	apiRouter.HandleFunc("/incidents/generate-report", api.GenerateIncidentReport(h.Services)).Methods("POST")
+	apiRouter.HandleFunc("/alerts", api.ListAlerts(h.Services)).Methods("GET")
+
 	apiRouter.HandleFunc("/executions", api.GetExecutions(h.Services)).Methods("GET")
 	apiRouter.HandleFunc("/executions", api.CreateExecution(h.Services)).Methods("POST")
 	apiRouter.HandleFunc("/executions/{id}", api.UpdateExecution(h.Services)).Methods("PATCH")

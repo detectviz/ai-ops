@@ -28,10 +28,10 @@ class PrometheusQueryTool:
     
     def __init__(self, config):
         """初始化 Prometheus 工具"""
-        self.base_url = config.prometheus.get("base_url", "http://prometheus:9090")
-        self.timeout = config.prometheus.get("timeout_seconds", 15)
-        self.default_step = config.prometheus.get("default_step", "1m")
-        self.max_points = config.prometheus.get("max_points", 1000)
+        self.base_url = config.prometheus.base_url
+        self.timeout = config.prometheus.timeout_seconds
+        self.default_step = config.prometheus.default_step
+        self.max_points = config.prometheus.max_points
         
         logger.info(f"✅ Prometheus 工具初始化: {self.base_url}")
     

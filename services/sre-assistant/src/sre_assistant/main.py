@@ -11,14 +11,28 @@ from contextlib import asynccontextmanager
 import os
 import logging
 import uuid
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+import redis.asyncio as redis
+from jose import jwt, jwk
+from jose.exceptions import JOSEError
+import httpx
+import time
 
 from .contracts import (
     DiagnosticRequest,
     DiagnosticResponse,
     DiagnosticStatus,
+    AlertAnalysisRequest,
+    CapacityAnalysisRequest,
+    CapacityAnalysisResponse,
+    ExecuteRequest,
+    DiagnosticHistoryList,
+    DiagnosticHistoryItem,
+    WorkflowTemplate,
+    ToolStatus,
+    Pagination,
 )
-from .workflow import SREWorkflow
+from .workflow import SREWorkflow, SREWorkflowRequest
 from .config.config_manager import ConfigManager
 
 # 設定日誌
@@ -28,14 +42,19 @@ logger = logging.getLogger(__name__)
 # 全域變數
 config_manager: Optional[ConfigManager] = None
 workflow: Optional[SREWorkflow] = None
-# 注意: 在生產環境中，應使用 Redis 或資料庫來儲存任務狀態
-tasks: Dict[uuid.UUID, DiagnosticStatus] = {} # In-memory store for task status
+redis_client: Optional[redis.Redis] = None
 app_ready = False
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """應用程式生命週期管理"""
-    global config_manager, workflow, tasks, app_ready
+    """
+    應用程式生命週期管理 (Application Lifespan Management)。
+
+    這個異步上下文管理器會在 FastAPI 應用啟動時執行 `try` 區塊中的程式碼，
+    並在應用關閉時執行 `finally` 區塊中的程式碼。
+    這對於初始化和清理資源 (如資料庫連接、背景任務) 非常有用。
+    """
+    global config_manager, workflow, redis_client, app_ready
     
     logger.info("🚀 正在啟動 SRE Assistant...")
     
@@ -43,8 +62,18 @@ async def lifespan(app: FastAPI):
         config_manager = ConfigManager()
         config = config_manager.get_config()
 
-        workflow = SREWorkflow(config)
-        tasks = {}
+        # 初始化 Redis Client
+        redis_client = redis.from_url(
+            config.redis.url,
+            encoding="utf-8",
+            decode_responses=True
+        )
+        await redis_client.ping()
+        logger.info("✅ 已成功連接到 Redis")
+
+        # 初始化工作流程引擎，並傳入 Redis client
+        workflow = SREWorkflow(config, redis_client)
+
         app_ready = True
         logger.info("✅ 工作流程引擎與任務儲存已初始化")
 
@@ -55,6 +84,9 @@ async def lifespan(app: FastAPI):
         app_ready = False
         yield # Still yield to allow the app to run and report not ready
     finally:
+        if redis_client:
+            await redis_client.close()
+            logger.info("Redis 連線已關閉")
         logger.info("🛑 正在關閉 SRE Assistant...")
         app_ready = False
 
@@ -76,19 +108,147 @@ app.add_middleware(
 
 security = HTTPBearer()
 
+# --- JWT 驗證邏輯 ---
+
+# JWKS (JSON Web Key Set) 的記憶體快取。
+# 為了避免每次驗證 token 都需要向 Keycloak 請求公鑰，我們將公鑰集快取在記憶體中。
+# ttl (Time-To-Live) 設定為一小時，過期後會重新獲取。
+jwks_cache = {
+    "keys": None,
+    "last_updated": 0,
+    "ttl": 3600
+}
+
+async def fetch_jwks(jwks_url: str) -> List[Dict[str, Any]]:
+    """
+    從 Keycloak 的 JWKS 端點獲取公鑰集。
+
+    實現了簡單的時間快取機制，以降低對 Keycloak 的請求頻率。
+
+    Args:
+        jwks_url: Keycloak 的 JWKS 端點 URL。
+
+    Returns:
+        一個包含多個公鑰的列表。
+    """
+    now = time.time()
+    if jwks_cache["keys"] and (now - jwks_cache["last_updated"] < jwks_cache["ttl"]):
+        return jwks_cache["keys"]
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(jwks_url)
+            response.raise_for_status()
+            jwks = response.json()
+            jwks_cache["keys"] = jwks.get("keys", [])
+            jwks_cache["last_updated"] = now
+            logger.info("✅ 成功獲取並快取 JWKS")
+            return jwks_cache["keys"]
+        except httpx.HTTPStatusError as e:
+            logger.error(f"從 Keycloak 獲取 JWKS 失敗: {e}")
+            raise HTTPException(status_code=500, detail="無法獲取認證金鑰")
+        except Exception as e:
+            logger.error(f"處理 JWKS 時發生未知錯誤: {e}")
+            raise HTTPException(status_code=500, detail="認證服務內部錯誤")
+
+
 async def verify_token(creds: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
-    # 為簡化，我們假設它能正常運作
-    return {"sub": "service-account-control-plane"}
+    """
+    驗證來自 Control Plane 的 M2M JWT Token。
+
+    這是一個 FastAPI 的依賴項 (Dependency)，會被注入到需要保護的 API 端點中。
+    它會執行以下步驟：
+    1. 檢查設定檔，如果 auth provider 不是 keycloak，則跳過驗證。
+    2. 從 HTTP Authorization 標頭中提取 Bearer Token。
+    3. 獲取 Keycloak 的 JWKS 公鑰集。
+    4. 從 Token 的標頭中解析出 `kid` (Key ID)。
+    5. 在 JWKS 中尋找與 `kid` 匹配的公鑰。
+    6. 使用公鑰驗證 Token 的簽名、發行者 (issuer)、受眾 (audience) 和過期時間。
+    7. 如果驗證成功，返回解碼後的 Token payload；否則，拋出 HTTPException。
+    """
+    config = config_manager.get_config()
+    if config.auth.provider != "keycloak":
+        logger.warning("Auth provider 不是 keycloak，跳過 JWT 驗證")
+        return {"sub": "service-account-control-plane"}
+
+    token = creds.credentials
+    try:
+        keycloak_url = config.auth.keycloak.url
+        realm = config.auth.keycloak.realm
+        audience = config.auth.keycloak.audience
+
+        jwks_url = f"{keycloak_url}/realms/{realm}/protocol/openid-connect/certs"
+
+        jwks_keys = await fetch_jwks(jwks_url)
+        if not jwks_keys:
+            raise HTTPException(status_code=503, detail="無法加載認證服務公鑰")
+
+        unverified_header = jwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
+        if not kid:
+            raise HTTPException(status_code=401, detail="Token 標頭中缺少 'kid'")
+
+        rsa_key = {}
+        for key in jwks_keys:
+            if key["kid"] == kid:
+                rsa_key = {
+                    "kty": key["kty"],
+                    "kid": key["kid"],
+                    "use": key["use"],
+                    "n": key["n"],
+                    "e": key.get("e"), # 'e' is optional for some key types
+                }
+                break
+
+        if not rsa_key:
+            raise HTTPException(status_code=401, detail="找不到對應的公鑰")
+
+        public_key = jwk.construct(rsa_key)
+
+        payload = jwt.decode(
+            token,
+            public_key,
+            algorithms=["RS256"],
+            audience=audience,
+            issuer=f"{keycloak_url}/realms/{realm}"
+        )
+        return payload
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token 已過期")
+    except jwt.JWTClaimsError as e:
+        raise HTTPException(status_code=401, detail=f"Token claims 錯誤: {e}")
+    except JOSEError as e:
+        logger.error(f"JWT 解碼/驗證錯誤: {e}", exc_info=True)
+        raise HTTPException(status_code=401, detail=f"無效的 Token: {e}")
+    except Exception as e:
+        logger.error(f"未知的 Token 驗證錯誤: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Token 驗證時發生內部錯誤")
 
 
 # === 背景任務執行器 ===
-async def run_workflow_bg(session_id: uuid.UUID, request: DiagnosticRequest):
+async def run_workflow_bg(session_id: uuid.UUID, request: SREWorkflowRequest, request_type: str):
     """
-    一個包裝函式，用於在背景執行工作流程並更新任務狀態。
+    一個通用的包裝函式，用於在背景執行工作流程並更新任務狀態。
+
+    Args:
+        session_id: 此次任務的唯一會話 ID。
+        request: API 請求的資料模型。
+        request_type: 請求的類型，用於在工作流程中進行路由。
     """
-    global tasks
-    tasks[session_id] = DiagnosticStatus(session_id=session_id, status="processing", progress=10, current_step="開始工作流程")
-    await workflow.execute(session_id, request, tasks)
+    initial_status = DiagnosticStatus(
+        session_id=session_id,
+        status="processing",
+        progress=10,
+        current_step=f"開始執行 {request_type} 工作流程"
+    )
+    # 將初始狀態寫入 Redis，設定 24 小時過期
+    await redis_client.set(
+        str(session_id),
+        initial_status.model_dump_json(),
+        ex=86400
+    )
+    await workflow.execute(session_id, request, request_type)
 
 
 # === API 端點 ===
@@ -105,39 +265,143 @@ def check_readiness(response: Response):
         response.status_code = 503
         return {"status": "not_ready", "reason": "Workflow engine not initialized"}
 
-@app.post("/api/v1/diagnostics/deployment", tags=["Diagnostics"], status_code=202)
+@app.post("/api/v1/diagnostics/deployment", tags=["Diagnostics"], status_code=202, response_model=DiagnosticResponse)
 async def diagnose_deployment(
     request: DiagnosticRequest,
     background_tasks: BackgroundTasks,
     token: Dict[str, Any] = Depends(verify_token)
-) -> DiagnosticResponse:
+):
     """
     接收部署診斷請求，並非同步處理。
     """
     session_id = uuid.uuid4()
-    background_tasks.add_task(run_workflow_bg, session_id, request)
+    background_tasks.add_task(run_workflow_bg, session_id, request, "deployment")
     
     return DiagnosticResponse(
         session_id=session_id,
         status="accepted",
-        message="診斷任務已接受，正在背景處理中。",
+        message="部署診斷任務已接受，正在背景處理中。",
         estimated_time=120
     )
 
-@app.get("/api/v1/diagnostics/{session_id}/status", tags=["Diagnostics"])
+@app.get("/api/v1/diagnostics/{session_id}/status", tags=["Diagnostics"], response_model=DiagnosticStatus)
 async def get_diagnostic_status(
     session_id: uuid.UUID,
     token: Dict[str, Any] = Depends(verify_token)
-) -> DiagnosticStatus:
+):
     """
     查詢非同步診斷任務的狀態。
     """
-    task = tasks.get(session_id)
-    if not task:
+    task_json = await redis_client.get(str(session_id))
+    if not task_json:
         raise HTTPException(status_code=404, detail="找不到指定的診斷任務")
-    return task
 
-# --- 待辦：根據 sre-assistant-openapi.yaml 實現其他端點 ---
-# @app.post("/api/v1/diagnostics/alerts", ...)
-# @app.post("/api/v1/capacity/analyze", ...)
-# @app.post("/api/v1/execute", ...)
+    return DiagnosticStatus.model_validate_json(task_json)
+
+# --- New Endpoints ---
+
+@app.post("/api/v1/diagnostics/alerts", tags=["Diagnostics"], status_code=202, response_model=DiagnosticResponse)
+async def analyze_alerts(
+    request: AlertAnalysisRequest,
+    background_tasks: BackgroundTasks,
+    token: Dict[str, Any] = Depends(verify_token)
+):
+    """
+    接收告警分析請求，並非同步處理。
+    """
+    session_id = uuid.uuid4()
+    background_tasks.add_task(run_workflow_bg, session_id, request, "alert_analysis")
+
+    return DiagnosticResponse(
+        session_id=session_id,
+        status="accepted",
+        message="告警分析任務已接受，正在背景處理中。",
+        estimated_time=60
+    )
+
+@app.post("/api/v1/diagnostics/capacity", tags=["Diagnostics"], status_code=200, response_model=CapacityAnalysisResponse)
+async def analyze_capacity(
+    request: CapacityAnalysisRequest,
+    token: Dict[str, Any] = Depends(verify_token)
+):
+    """
+    接收容量分析請求，並同步處理。
+    """
+    # 這是同步端點的骨架，目前返回模擬數據
+    # 實際邏輯將在 workflow.py 中實現
+    logger.info(f"接收到容量分析請求: {request.resource_ids}")
+    # TODO: 呼叫 workflow 中的同步方法
+    return CapacityAnalysisResponse(
+        current_usage={"average": 55.5, "peak": 80.2},
+        forecast={"trend": "increasing", "days_to_capacity": 45},
+        recommendations=[{"type": "scale_up", "resource": request.resource_ids[0], "priority": "high", "reasoning": "預測使用量將在 45 天後達到瓶頸"}]
+    )
+
+@app.post("/api/v1/execute", tags=["Diagnostics"], status_code=202, response_model=DiagnosticResponse)
+async def execute_query(
+    request: ExecuteRequest,
+    background_tasks: BackgroundTasks,
+    token: Dict[str, Any] = Depends(verify_token)
+):
+    """
+    接收自然語言查詢請求，並非同步處理。
+    """
+    session_id = uuid.uuid4()
+    background_tasks.add_task(run_workflow_bg, session_id, request, "execute_query")
+
+    return DiagnosticResponse(
+        session_id=session_id,
+        status="accepted",
+        message="自然語言查詢任務已接受，正在背景處理中。",
+        estimated_time=180
+    )
+
+@app.get("/api/v1/diagnostics/history", tags=["Diagnostics"], response_model=DiagnosticHistoryList)
+async def get_diagnostic_history(
+    page: int = 1,
+    page_size: int = 20,
+    token: Dict[str, Any] = Depends(verify_token)
+):
+    """
+    查詢歷史診斷記錄 (骨架)。
+    """
+    # 模擬數據
+    items = [
+        DiagnosticHistoryItem(
+            session_id=uuid.uuid4(),
+            incident_id="INC-2025-001",
+            status="completed",
+            created_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            completed_at=datetime.now(timezone.utc) - timedelta(minutes=50),
+            summary="初步診斷未發現明顯問題。"
+        )
+    ]
+    return DiagnosticHistoryList(
+        items=items,
+        pagination=Pagination(page=page, page_size=page_size, total=len(items), total_pages=1)
+    )
+
+@app.get("/api/v1/workflows/templates", tags=["Workflows"], response_model=List[WorkflowTemplate])
+async def list_workflow_templates(token: Dict[str, Any] = Depends(verify_token)):
+    """
+    獲取工作流模板 (骨架)。
+    """
+    # 模擬數據
+    templates = [
+        WorkflowTemplate(id="deployment_diagnosis", name="部署問題診斷", description="分析部署失敗或應用程式啟動異常問題。", parameters=[]),
+        WorkflowTemplate(id="alert_correlation", name="告警關聯分析", description="分析多個告警之間的關聯性，尋找根本原因。", parameters=[{"name": "alert_ids", "type": "list"}]),
+    ]
+    return templates
+
+@app.get("/api/v1/tools/status", tags=["Tools"], response_model=Dict[str, ToolStatus])
+async def get_tools_status(token: Dict[str, Any] = Depends(verify_token)):
+    """
+    獲取工具狀態 (骨架)。
+    """
+    # 模擬數據
+    now = datetime.now(timezone.utc)
+    return {
+        "prometheus": ToolStatus(status="healthy", last_checked=now),
+        "loki": ToolStatus(status="healthy", last_checked=now),
+        "control_plane": ToolStatus(status="unhealthy", last_checked=now, details={"error": "Connection timeout"})
+    }

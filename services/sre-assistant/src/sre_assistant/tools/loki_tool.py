@@ -29,10 +29,10 @@ class LokiLogQueryTool:
     
     def __init__(self, config):
         """初始化 Loki 工具"""
-        self.base_url = config.loki.get("base_url", "http://loki:3100")
-        self.timeout = config.loki.get("timeout_seconds", 20)
-        self.default_limit = config.loki.get("default_limit", 1000)
-        self.max_time_range = config.loki.get("max_time_range", "24h")
+        self.base_url = config.loki.base_url
+        self.timeout = config.loki.timeout_seconds
+        self.default_limit = config.loki.default_limit
+        self.max_time_range = config.loki.max_time_range
         
         logger.info(f"✅ Loki 工具初始化: {self.base_url}")
     

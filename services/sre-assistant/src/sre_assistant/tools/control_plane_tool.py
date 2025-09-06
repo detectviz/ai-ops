@@ -29,13 +29,13 @@ class ControlPlaneTool:
     
     def __init__(self, config):
         """初始化 Control Plane 工具"""
-        self.base_url = config.control_plane.get("base_url", "http://control-plane:8081/api")
-        self.timeout = config.control_plane.get("timeout_seconds", 10)
+        self.base_url = config.control_plane.base_url
+        self.timeout = config.control_plane.timeout_seconds
         
         # M2M 認證設定
-        self.client_id = config.control_plane.get("client_id", "sre-assistant")
-        self.client_secret = config.control_plane.get("client_secret", "")
-        self.token_url = config.keycloak.get("token_url", "http://keycloak:8080/realms/sre-platform/protocol/openid-connect/token")
+        self.client_id = config.control_plane.client_id
+        self.client_secret = config.control_plane.client_secret
+        self.token_url = config.auth.keycloak.token_url
         self.token = None  # JWT token 快取
         self.token_expires_at = 0  # token 到期時間
         

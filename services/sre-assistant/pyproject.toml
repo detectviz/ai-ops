@@ -5,7 +5,6 @@ name = "sre-assistant"
 version = "3.0.0"
 description = "無介面的 SRE 專家代理，提供診斷、分析與自動化修復能力"
 authors = ["SRE Platform Team"]
-readme = "README.md"
 packages = [{include = "sre_assistant", from = "src"}]
 
 [tool.poetry.dependencies]
