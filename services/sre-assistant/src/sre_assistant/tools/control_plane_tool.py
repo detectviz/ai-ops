@@ -14,7 +14,9 @@ import time
 from pydantic import ValidationError
 
 from ..contracts import ToolResult, ToolError
-from .control_plane_contracts import Resource, ResourceList, ResourceGroupList
+from .control_plane_contracts import (
+    Resource, ResourceList, ResourceGroupList, AlertRuleList, ExecutionList
+)
 
 logger = logging.getLogger(__name__)
 
@@ -224,32 +226,82 @@ class ControlPlaneTool:
             return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
 
     async def get_alert_rules(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
-        """獲取告警規則狀態 (GET /api/v1/alert-rules)"""
+        """
+        獲取告警規則狀態 (GET /api/v1/alert-rules)，並使用 Pydantic 模型驗證回應。
+        """
         try:
-            logger.info("🛂 (ControlPlaneTool) 正在查詢告警規則...")
-            response = await self._make_request(
+            logger.info(f"🛂 (ControlPlaneTool) 正在查詢告警規則，參數: {params}")
+
+            response_data = await self._make_request(
                 method="GET",
                 endpoint="/api/v1/alert-rules",
                 params=params
             )
-            return ToolResult(success=True, data={"rules": response.get("data", [])})
+
+            rule_list = AlertRuleList.model_validate(response_data)
+
+            return ToolResult(success=True, data=rule_list.model_dump())
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ (ControlPlaneTool) 查詢告警規則時 API 錯誤: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolError(
+                code="API_ERROR",
+                message=f"Control Plane API returned status {e.response.status_code}: {e.response.text}",
+                details={"params": params}
+            )
+        except ValidationError as e:
+            logger.error(f"❌ (ControlPlaneTool) 查詢告警規則回應的資料格式無效: {e}", exc_info=True)
+            return ToolError(
+                code="INVALID_DATA_FORMAT",
+                message="從 Control Plane 收到的告警規則列表資料格式不符預期。",
+                details={"params": params, "errors": e.errors()}
+            )
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢告警規則時發生錯誤: {e}", exc_info=True)
-            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
+            logger.error(f"❌ (ControlPlaneTool) 查詢告警規則時發生未預期錯誤: {e}", exc_info=True)
+            return ToolError(
+                code="UNEXPECTED_ERROR",
+                message=str(e),
+                details={"params": params}
+            )
 
     async def query_automation_executions(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
-        """查詢自動化腳本執行歷史 (GET /api/v1/automation/executions)"""
+        """
+        查詢自動化腳本執行歷史 (GET /api/v1/automation/executions)，並使用 Pydantic 模型驗證回應。
+        """
         try:
-            logger.info("🛂 (ControlPlaneTool) 正在查詢自動化腳本執行歷史...")
-            response = await self._make_request(
+            logger.info(f"🛂 (ControlPlaneTool) 正在查詢自動化腳本執行歷史，參數: {params}")
+
+            response_data = await self._make_request(
                 method="GET",
                 endpoint="/api/v1/automation/executions",
                 params=params
             )
-            return ToolResult(success=True, data={"executions": response.get("data", [])})
+
+            execution_list = ExecutionList.model_validate(response_data)
+
+            return ToolResult(success=True, data=execution_list.model_dump())
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ (ControlPlaneTool) 查詢自動化執行歷史時 API 錯誤: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolError(
+                code="API_ERROR",
+                message=f"Control Plane API returned status {e.response.status_code}: {e.response.text}",
+                details={"params": params}
+            )
+        except ValidationError as e:
+            logger.error(f"❌ (ControlPlaneTool) 查詢自動化執行歷史回應的資料格式無效: {e}", exc_info=True)
+            return ToolError(
+                code="INVALID_DATA_FORMAT",
+                message="從 Control Plane 收到的自動化執行歷史列表資料格式不符預期。",
+                details={"params": params, "errors": e.errors()}
+            )
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢自動化腳本執行歷史時發生錯誤: {e}", exc_info=True)
-            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
+            logger.error(f"❌ (ControlPlaneTool) 查詢自動化執行歷史時發生未預期錯誤: {e}", exc_info=True)
+            return ToolError(
+                code="UNEXPECTED_ERROR",
+                message=str(e),
+                details={"params": params}
+            )
 
     async def _get_auth_token(self) -> Optional[str]:
         """

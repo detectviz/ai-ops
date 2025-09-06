@@ -71,3 +71,62 @@ class ResourceGroupList(BaseModel):
     """
     items: List[ResourceGroup]
     total: int
+
+class AlertRuleCondition(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 AlertRuleCondition schema。
+    """
+    metric: str
+    operator: str
+    threshold: float
+    duration: int
+
+class AlertRule(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 AlertRule schema。
+    """
+    id: str
+    name: str
+    description: Optional[str] = None
+    condition: AlertRuleCondition
+    severity: str
+    enabled: bool
+    notification_channels: Optional[List[str]] = Field(None, alias='notificationChannels')
+    created_at: datetime = Field(..., alias='createdAt')
+    updated_at: datetime = Field(..., alias='updatedAt')
+
+    class Config:
+        populate_by_name = True
+
+class AlertRuleList(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 AlertRuleList schema。
+    """
+    items: List[AlertRule]
+    total: int
+
+class Execution(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 Execution schema。
+    """
+    id: str
+    script_id: str = Field(..., alias='scriptId')
+    script_name: str = Field(..., alias='scriptName')
+    status: str
+    parameters: Optional[Dict[str, Any]] = None
+    target_resources: Optional[List[str]] = Field(None, alias='targetResources')
+    output: Optional[str] = None
+    error: Optional[str] = None
+    started_at: Optional[datetime] = Field(None, alias='startedAt')
+    completed_at: Optional[datetime] = Field(None, alias='completedAt')
+    executed_by: Optional[str] = Field(None, alias='executedBy')
+
+    class Config:
+        populate_by_name = True
+
+class ExecutionList(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 ExecutionList schema。
+    """
+    items: List[Execution]
+    pagination: Pagination

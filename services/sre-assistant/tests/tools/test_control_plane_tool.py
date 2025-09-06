@@ -207,3 +207,87 @@ async def test_query_incidents_with_params(control_plane_tool: ControlPlaneTool)
     assert incident_route.called
     assert result.success is True
     assert result.data["incidents"] == mock_response_data["data"]
+
+
+# --- 新增的 Alert Rules 測試 ---
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_get_alert_rules_success(control_plane_tool: ControlPlaneTool):
+    """測試：成功查詢告警規則列表"""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    mock_response_data = {
+        "items": [{
+            "id": "rule-1", "name": "High CPU", "severity": "critical", "enabled": True,
+            "condition": {"metric": "cpu", "operator": "gt", "threshold": 90, "duration": 300},
+            "createdAt": now, "updatedAt": now
+        }],
+        "total": 1
+    }
+    respx.get(f"{BASE_URL}/api/v1/alert-rules").mock(return_value=Response(200, json=mock_response_data))
+    result = await control_plane_tool.get_alert_rules()
+    assert isinstance(result, ToolResult)
+    assert result.success is True
+    assert result.data["items"][0]["name"] == "High CPU"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_get_alert_rules_api_error(control_plane_tool: ControlPlaneTool):
+    """測試：查詢告警規則時 API 回傳錯誤"""
+    respx.get(f"{BASE_URL}/api/v1/alert-rules").mock(return_value=Response(503))
+    result = await control_plane_tool.get_alert_rules()
+    assert isinstance(result, ToolError)
+    assert result.code == "API_ERROR"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_get_alert_rules_validation_error(control_plane_tool: ControlPlaneTool):
+    """測試：查詢告警規則時 API 回傳格式錯誤的資料"""
+    mock_invalid_data = {"items": [{"id": "rule-1"}]} # 缺少必要欄位
+    respx.get(f"{BASE_URL}/api/v1/alert-rules").mock(return_value=Response(200, json=mock_invalid_data))
+    result = await control_plane_tool.get_alert_rules()
+    assert isinstance(result, ToolError)
+    assert result.code == "INVALID_DATA_FORMAT"
+
+
+# --- 新增的 Automation Executions 測試 ---
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_query_automation_executions_success(control_plane_tool: ControlPlaneTool):
+    """測試：成功查詢自動化執行歷史"""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    mock_response_data = {
+        "items": [{
+            "id": "exec-1", "scriptId": "s-1", "scriptName": "cleanup_tmp", "status": "success",
+            "startedAt": now, "completedAt": now
+        }],
+        "pagination": {"page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
+    }
+    respx.get(f"{BASE_URL}/api/v1/automation/executions").mock(return_value=Response(200, json=mock_response_data))
+    result = await control_plane_tool.query_automation_executions()
+    assert isinstance(result, ToolResult)
+    assert result.success is True
+    # 修正：Pydantic model_dump() 預設使用欄位名 (snake_case) 而非 alias (camelCase)
+    assert result.data["items"][0]["script_name"] == "cleanup_tmp"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_query_automation_executions_api_error(control_plane_tool: ControlPlaneTool):
+    """測試：查詢自動化執行歷史時 API 回傳錯誤"""
+    respx.get(f"{BASE_URL}/api/v1/automation/executions").mock(return_value=Response(500))
+    result = await control_plane_tool.query_automation_executions()
+    assert isinstance(result, ToolError)
+    assert result.code == "API_ERROR"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_query_automation_executions_validation_error(control_plane_tool: ControlPlaneTool):
+    """測試：查詢自動化執行歷史時 API 回傳格式錯誤的資料"""
+    mock_invalid_data = {"pagination": {"page": 1, "pageSize": 10, "total": 1, "totalPages": 1}} # 缺少 items
+    respx.get(f"{BASE_URL}/api/v1/automation/executions").mock(return_value=Response(200, json=mock_invalid_data))
+    result = await control_plane_tool.query_automation_executions()
+    assert isinstance(result, ToolError)
+    assert result.code == "INVALID_DATA_FORMAT"

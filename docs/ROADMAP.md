@@ -57,13 +57,13 @@
         - [ ] 添加完整的錯誤處理機制
         - [ ] 實作日誌過濾和聚合功能
     - **子任務 (ControlPlaneTool)**:
-        - [ ] 查詢資源狀態 (`GET /api/v1/resources`)
+        - [x] **查詢資源狀態 (`GET /api/v1/resources`)**: 已實現，並引入 Pydantic 模型進行結構化錯誤處理。
         - [x] **獲取資源詳情 (`GET /api/v1/resources/{resourceId}`)**: 已實現，並引入 Pydantic 模型進行結構化錯誤處理。
-        - [ ] 查詢資源群組 (`GET /api/v1/resource-groups`)
+        - [x] **查詢資源群組 (`GET /api/v1/resource-groups`)**: 已實現，並引入 Pydantic 模型進行結構化錯誤處理。
         - [x] **查詢部署相關的審計日誌 (`GET /api/v1/audit-logs`)**: 已整合至 `_diagnose_deployment` 工作流程。
         - [x] **查詢相關事件 (`GET /api/v1/incidents`)**: 已整合至 `_diagnose_deployment` 工作流程。
-        - [ ] 獲取告警規則狀態 (`GET /api/v1/alert-rules`)
-        - [ ] 查詢自動化腳本執行歷史 (`GET /api/v1/automation/executions`)
+        - [x] **獲取告警規則狀態 (`GET /api/v1/alert-rules`)**: 已實現，並引入 Pydantic 模型進行結構化錯誤處理。
+        - [x] **查詢自動化腳本執行歷史 (`GET /api/v1/automation/executions`)**: 已實現，並引入 Pydantic 模型進行結構化錯誤處理。
     - **參考**: `docs/reference-adk-examples.md` (jira_agent, bigquery)
     - 補充參考（ADK 最佳實踐）:
         - [工具設計與 Function Tools | ADK 文件](./references/adk-docs/tools-function-tools.md)
