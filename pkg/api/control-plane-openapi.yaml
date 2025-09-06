@@ -1,24 +1,12 @@
 # SRE Platform Control Plane API Specification
 # Version: 1.0.0
-# Description: API specification for SRE Platform Control Plane (Go + HTMX)
+# Description: API specification for the SRE Platform Control Plane service.
 
 openapi: 3.0.3
 info:
-  title: SRE Platform Control Plane API
+  title: SRE Platform - Control Plane API
   description: |
-    SRE Platform Control Plane 的 API 規範，基於 Go + HTMX 技術棧。
-
-    ## API 分類
-    - **Core**: 核心系統功能（健康檢查、認證）
-    - **Dashboard**: 儀表板與統計
-    - **Resources**: 資源管理
-    - **Organization**: 組織與權限
-    - **Incidents**: 事件管理
-    - **Alert Rules**: 告警規則
-    - **Automation**: 自動化腳本
-    - **Notifications**: 通知管道
-    - **Settings**: 系統設定
-    - **Audit**: 審計日誌
+    The Control Plane is the central management hub for the SRE Platform. It provides the Web UI and APIs for managing resources, users, incidents, and more. It orchestrates diagnostic tasks by calling the SRE Assistant service.
   version: 1.0.0
   contact:
     name: SRE Platform Team
@@ -31,7 +19,7 @@ servers:
   - url: http://localhost:8081
     description: Control Plane Development Server
   - url: https://api.sre-platform.example.com
-    description: Production Server
+    description: Production Server (Control Plane entry point)
 
 tags:
   - name: Core
@@ -59,7 +47,7 @@ tags:
   - name: Audit
     description: 審計日誌
   - name: Callbacks
-    description: 服務間回調
+    description: "Endpoints for receiving callbacks from other services (like SRE Assistant)"
 
 paths:
   # ============================================
@@ -70,7 +58,7 @@ paths:
       tags: [Core]
       summary: 服務健康檢查
       description: 檢查服務是否存活
-      operationId: checkHealth
+      operationId: cp_checkHealth
       responses:
         "200":
           description: 服務健康
@@ -84,7 +72,7 @@ paths:
       tags: [Core]
       summary: 服務就緒檢查
       description: 檢查服務及其依賴是否就緒
-      operationId: checkReadiness
+      operationId: cp_checkReadiness
       responses:
         "200":
           description: 服務就緒
@@ -100,7 +88,7 @@ paths:
       tags: [Core]
       summary: Prometheus 指標
       description: 獲取 Prometheus 格式的系統指標
-      operationId: getMetrics
+      operationId: cp_getMetrics
       responses:
         "200":
           description: Prometheus 指標
@@ -720,7 +708,7 @@ paths:
     post:
       tags: [Incidents]
       summary: AI 生成事件報告
-      description: 使用 AI 生成事件分析報告
+      description: 使用 AI 生成事件分析報告 (由 SRE Assistant 處理)
       operationId: generateIncidentReport
       security:
         - bearerAuth: []
@@ -928,6 +916,77 @@ paths:
       responses:
         "200":
           description: 規則已停用
+
+  /api/v1/alerts:
+    get:
+      tags: [Incidents]
+      summary: 獲取當前告警列表
+      description: 獲取所有活躍的告警
+      operationId: listAlerts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [P0, P1, P2, P3]
+          description: 嚴重程度
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [firing, resolved, pending]
+          description: 告警狀態
+        - name: start_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: 告警列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        severity:
+                          type: string
+                          enum: [P0, P1, P2, P3]
+                        status:
+                          type: string
+                          enum: [firing, resolved, pending]
+                        resource_name:
+                          type: string
+                        message:
+                          type: string
+                        fired_at:
+                          type: string
+                          format: date-time
+                        resolved_at:
+                          type: string
+                          format: date-time
+                  total:
+                    type: integer
+                  firing_count:
+                    type: integer
+                  resolved_count:
+                    type: integer
 
   # ============================================
   # Automation - 自動化腳本
@@ -1769,25 +1828,33 @@ paths:
                 $ref: "#/components/schemas/AuditLogList"
 
   # ============================================
-  # Callbacks - 服務間回調
+  # Callbacks
   # ============================================
   /api/v1/callbacks/diagnosis-complete:
     post:
       tags: [Callbacks]
-      summary: 診斷完成回調
-      description: 接收 SRE Assistant 診斷完成的回調通知
-      operationId: diagnosisCompleteCallback
-      security:
-        - bearerAuth: []
+      summary: 接收診斷完成的回調
+      description: SRE Assistant 完成診斷後會呼叫此端點
+      operationId: diagnosisCallback
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DiagnosisCompleteCallback"
+              type: object
+              properties:
+                session_id:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [completed, failed]
+                result_url:
+                  type: string
+                  format: uri
       responses:
         "200":
-          description: 回調處理成功
+          description: 回調已接收
 
 # ============================================
 # Components
@@ -2369,6 +2436,241 @@ components:
             type: string
 
     # ============================================
+    # Diagnostic Schemas
+    # ============================================
+    DiagnosticRequest:
+      type: object
+      required:
+        - incident_id
+        - severity
+        - affected_services
+      properties:
+        incident_id:
+          type: string
+        severity:
+          type: string
+          enum: [P0, P1, P2, P3]
+        affected_services:
+          type: array
+          items:
+            type: string
+        context:
+          type: object
+          additionalProperties: true
+
+    DiagnosticTaskResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [accepted, processing, completed, failed]
+        message:
+          type: string
+        estimated_time:
+          type: integer
+          description: 預估完成時間（秒）
+
+    DiagnosticStatus:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [processing, completed, failed]
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        current_step:
+          type: string
+        result:
+          $ref: "#/components/schemas/DiagnosticResult"
+        error:
+          type: string
+
+    DiagnosticResult:
+      type: object
+      properties:
+        summary:
+          type: string
+        findings:
+          type: array
+          items:
+            type: object
+            properties:
+              source:
+                type: string
+              severity:
+                type: string
+                enum: [critical, warning, info]
+              message:
+                type: string
+              evidence:
+                type: object
+              timestamp:
+                type: string
+                format: date-time
+        recommended_actions:
+          type: array
+          items:
+            type: string
+        confidence_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        tools_used:
+          type: array
+          items:
+            type: string
+        execution_time:
+          type: number
+          description: 執行時間（秒）
+
+    DiagnosticHistoryList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              session_id:
+                type: string
+              incident_id:
+                type: string
+              status:
+                type: string
+              created_at:
+                type: string
+                format: date-time
+              completed_at:
+                type: string
+                format: date-time
+              summary:
+                type: string
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    AlertAnalysisRequest:
+      type: object
+      required:
+        - alert_ids
+      properties:
+        alert_ids:
+          type: array
+          items:
+            type: string
+        correlation_window:
+          type: integer
+          default: 300
+          description: 關聯時間窗口（秒）
+
+    CapacityAnalysisRequest:
+      type: object
+      required:
+        - resource_ids
+        - metric_type
+      properties:
+        resource_ids:
+          type: array
+          items:
+            type: string
+        metric_type:
+          type: string
+          enum: [cpu, memory, disk, network]
+        forecast_days:
+          type: integer
+          default: 30
+          minimum: 7
+          maximum: 365
+
+    CapacityAnalysisResponse:
+      type: object
+      properties:
+        current_usage:
+          type: object
+          properties:
+            average:
+              type: number
+            peak:
+              type: number
+            percentile_95:
+              type: number
+        forecast:
+          type: object
+          properties:
+            trend:
+              type: string
+              enum: [increasing, stable, decreasing]
+            days_to_capacity:
+              type: integer
+              description: 預測多少天後達到容量上限
+            growth_rate:
+              type: number
+              description: 月增長率百分比
+            capacity_alerts:
+              type: array
+              items:
+                type: object
+                properties:
+                  alert_type:
+                    type: string
+                  threshold:
+                    type: string
+                  estimated_date:
+                    type: string
+                    format: date-time
+                  days_remaining:
+                    type: integer
+                  severity:
+                    type: string
+        recommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [scale_up, scale_down, optimize]
+              resource:
+                type: string
+              priority:
+                type: string
+                enum: [immediate, high, medium, low]
+              current_allocation:
+                type: number
+              recommended_allocation:
+                type: number
+              reasoning:
+                type: string
+              cost_impact:
+                type: object
+                properties:
+                  monthly_increase:
+                    type: number
+                  currency:
+                    type: string
+                    default: USD
+        chart_data:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              historical:
+                type: number
+              predicted:
+                type: number
+
+    # ============================================
     # Incident Schemas
     # ============================================
     Incident:
@@ -2676,7 +2978,14 @@ components:
               required:
                 type: boolean
               default:
-                type: any
+                description: 參數的預設值（可以是任何類型）
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: boolean
+                  - type: array
+                    items: {}
+                  - type: object
               description:
                 type: string
         tags:
@@ -3433,22 +3742,3 @@ components:
             $ref: "#/components/schemas/AuditLog"
         pagination:
           $ref: "#/components/schemas/Pagination"
-
-    # ============================================
-    # Callback Schemas
-    # ============================================
-    DiagnosisCompleteCallback:
-      type: object
-      required:
-        - session_id
-        - status
-      properties:
-        session_id:
-          type: string
-          format: uuid
-        status:
-          type: string
-          enum: [completed, failed]
-        result_url:
-          type: string
-          description: 診斷結果查詢 URL

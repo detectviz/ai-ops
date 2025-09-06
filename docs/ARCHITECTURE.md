@@ -1082,3 +1082,83 @@ Ecosystem:
 **🔄 下次更新**: Phase 2 完成後 (預計 2025-07-30)  
 **👥 維護者**: SRE Platform 架構團隊  
 **📧 聯繫方式**: architecture@detectviz.com
+
+---
+
+## 附錄 A: API 設計與實作建議
+
+本附錄來自舊版的 `API_DOCS.md` 文件，包含有價值的設計原則與實作建議。
+
+### 非同步處理模式
+
+對於可能耗時較長的診斷任務 (如部署診斷)，API 採用非同步模式：
+1.  **Control Plane** 發送一個診斷請求。
+2.  **SRE Assistant** 立即回傳 `202 Accepted`，並附帶一個 `session_id`。
+3.  **Control Plane** 使用此 `session_id`，輪詢 `/diagnostics/{session_id}/status` 端點來獲取最終結果。
+
+```mermaid
+sequenceDiagram
+    participant CP as Control Plane
+    participant SA as SRE Assistant
+
+    CP->>SA: 1. POST /api/v1/diagnostics/deployment (發起診斷)
+    activate SA
+    SA-->>CP: 2. 202 Accepted (返回 session_id)
+    deactivate SA
+
+    loop 輪詢直到任務完成
+        CP->>SA: 3. GET /api/v1/diagnostics/{session_id}/status
+        activate SA
+        SA-->>CP: 4. 200 OK (返回 { "status": "processing" })
+        deactivate SA
+    end
+
+    CP->>SA: 5. GET /api/v1/diagnostics/{session_id}/status
+    activate SA
+    SA-->>CP: 6. 200 OK (返回 { "status": "completed", "result": ... })
+    deactivate SA
+```
+
+### 技術實作建議
+
+#### 1. **API Gateway 架構**
+```yaml
+建議架構:
+  API Gateway (Kong/Traefik)
+    ├── /api/v1/* → Control Plane (Go)
+    ├── /api/v1/diagnostics/* → SRE Assistant (Python)
+    └── /api/v1/automation/execute → Job Queue (Redis + Worker)
+```
+
+### 開發工具建議
+
+1. **互動式 API 文檔**
+   ```bash
+   # 使用 Swagger UI 為 Control Plane 生成互動式文檔
+   docker run -p 8080:8080 \
+     -e SWAGGER_JSON=/spec/control-plane-openapi.yaml \
+     -v $(pwd)/pkg/api:/spec \
+     swaggerapi/swagger-ui
+   ```
+   > 提示：將 `control-plane-openapi.yaml` 替換為 `sre-assistant-openapi.yaml` 來查看 SRE Assistant 的 API。
+
+2. **SDK 自動生成**
+   ```bash
+   # 為 Control Plane 生成 Go 客戶端
+   openapi-generator generate \
+     -i pkg/api/control-plane-openapi.yaml \
+     -g go \
+     -o sdk/go/control-plane
+
+   # 為 SRE Assistant 生成 Python 客戶端
+   openapi-generator generate \
+     -i pkg/api/sre-assistant-openapi.yaml \
+     -g python \
+     -o sdk/python/sre-assistant
+   ```
+
+3. **Mock Server**
+   ```bash
+   # 使用 Prism 為 Control Plane 建立 Mock Server
+   prism mock pkg/api/control-plane-openapi.yaml
+   ```

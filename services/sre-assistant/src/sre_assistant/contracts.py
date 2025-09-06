@@ -1,6 +1,6 @@
 # services/sre-assistant/src/sre_assistant/contracts.py
 """
-Data models and contracts for the SRE Assistant, aligned with openapi.yaml.
+Data models and contracts for the SRE Assistant.
 """
 from typing import Dict, List, Optional, Any, Literal
 from pydantic import BaseModel, Field
@@ -39,6 +39,7 @@ class DiagnosticResult(BaseModel):
     recommended_actions: List[str] = Field([], description="建議採取的行動")
     confidence_score: Optional[float] = Field(None, description="診斷信心分數", ge=0, le=1)
     tools_used: List[str] = Field([], description="使用的診斷工具")
+    execution_plan: Optional[List[str]] = Field(None, description="執行的診斷步驟計畫")
     execution_time: Optional[float] = Field(None, description="執行時間（秒）")
 
 class DiagnosticStatus(BaseModel):

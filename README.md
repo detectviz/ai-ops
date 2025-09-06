@@ -358,7 +358,8 @@ sequenceDiagram
 | **[🏗️ 架構設計書](docs/ARCHITECTURE.md)** | 技術架構師、開發者 | 系統架構、設計理念、技術選型 |
 | **[🗺️ 開發路線圖](docs/ROADMAP.md)** | 專案經理、開發團隊 | 開發階段、任務規劃、里程碑 |
 | **[🤖 SRE Assistant 指南](docs/SRE_ASSISTANT.md)** | Python 開發者 | SRE Assistant 開發、API、工具 |
-| **[🔌 API 契約規格](pkg/api/openapi.yaml)** | API 開發者、整合者 | 服務間通訊的唯一真實來源 |
+| **[🔌 Control Plane API](pkg/api/control-plane-openapi.yaml)** | Go 開發者、前端 | 指揮中心 API 契約 |
+| **[🔌 SRE Assistant API](pkg/api/sre-assistant-openapi.yaml)** | Python 開發者、AI | 智能代理 API 契約 |
 | **[🤖 AI 代理指南](AGENT.md)** | AI 開發者、代理系統 | AI 代理操作指南、自動化流程 |
 
 ### 📖 專業文件

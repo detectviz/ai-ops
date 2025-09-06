@@ -42,7 +42,7 @@ func NewSreAssistantClient(baseURL string, authSvc auth.KeycloakService, logger 
 	}
 }
 
-// --- 資料結構 (對應 openapi.yaml) ---
+// --- 資料結構 (對應 SRE Assistant API 契約) ---
 
 type DiagnosticRequest struct {
 	IncidentID       string            `json:"incident_id"`

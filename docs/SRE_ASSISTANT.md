@@ -140,7 +140,7 @@ services/sre-assistant/
 - `GET /health`
 - `GET /ready`
 
-> **唯一真實來源**: 所有 API 的最終規格以專案根目錄下的 `pkg/api/openapi.yaml` 為準。在服務執行時，也可訪問 http://localhost:8000/docs 查看互動式 API 文件。
+> **唯一真實來源**: 所有 API 的最終規格以專案根目錄下的 `pkg/api/sre-assistant-openapi.yaml` 為準。在服務執行時，也可訪問 http://localhost:8000/docs 查看互動式 API 文件。
 
 ## 5. 內部設計模式
 
