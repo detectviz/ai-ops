@@ -56,15 +56,15 @@ func main() {
 		logger.Fatal("載入配置失敗", zap.Error(err))
 	}
 
-	// 連接資料庫
-	db, err := database.Connect(cfg.Database.URL)
+	// 連接資料庫 (使用我們重構後的 New 函式)
+	db, err := database.New(cfg.Database.URL)
 	if err != nil {
-		logger.Fatal("連接資料庫失敗", zap.Error(err))
+		logger.Fatal("初始化資料庫連線池失敗", zap.Error(err))
 	}
-	defer db.Close()
+	// GORM 會自動管理連線池，不再需要手動 Close()
 
-	// 執行資料庫遷移
-	if err := database.Migrate(db); err != nil {
+	// 執行資料庫遷移 (現在是 DB 物件的方法)
+	if err := db.Migrate(); err != nil {
 		logger.Fatal("資料庫遷移失敗", zap.Error(err))
 	}
 
@@ -81,7 +81,7 @@ func main() {
 		logger.Info("🔍 在 DEV 模式下運行，跳過 Keycloak 初始化")
 	}
 
-	// 初始化服務層
+	// 初始化服務層 (現在傳遞的是 *database.DB)
 	services := services.NewServices(db, cfg, logger, *authService)
 
 	// 載入 HTML 模板
