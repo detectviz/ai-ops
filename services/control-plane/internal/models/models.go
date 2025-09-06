@@ -7,20 +7,45 @@ import (
 	"time"
 )
 
-// Resource 資源模型
+// Resource 資源模型 (已對齊 OpenAPI spec)
 type Resource struct {
-	ID             uint            `gorm:"primarykey" json:"id"`
-	Name           string          `gorm:"not null;uniqueIndex" json:"name"`
-	Type           string          `json:"type"`
-	IP             string          `json:"ip"`
-	Branch         string          `json:"branch"`
-	Description    string          `json:"description"`
-	Status         string          `json:"status"`
-	Monitored      bool            `json:"monitored"`
-	ResourceGroups []ResourceGroup `gorm:"many2many:resource_resource_groups;" json:"resource_groups,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	ID          string    `gorm:"type:uuid;primary_key;" json:"id"`
+	Name        string    `gorm:"not null;uniqueIndex" json:"name"`
+	Type        string    `json:"type"`                     // spec enum: [server, network, database, application, container]
+	Status      string    `json:"status"`                   // spec enum: [healthy, warning, critical, unknown]
+	IPAddress   string    `json:"ip_address,omitempty"`
+	Location    string    `json:"location,omitempty"`
+	GroupID     string    `json:"group_id,omitempty"`
+	Description string    `json:"description,omitempty"`
+	Tags        JSONB     `gorm:"type:jsonb" json:"tags,omitempty"` // OpenAPI shows array of strings, JSONB is flexible
+	Owner       string    `json:"owner,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
+
+// Incident 告警事件 (已對齊 OpenAPI spec)
+type Incident struct {
+	ID                string     `gorm:"type:uuid;primary_key;" json:"id"`
+	Title             string     `gorm:"not null" json:"title"`
+	Description       string     `json:"description,omitempty"`
+	Severity          string     `gorm:"not null" json:"severity"` // spec enum: [critical, error, warning, info]
+	Status            string     `gorm:"not null" json:"status"`   // spec enum: [new, acknowledged, resolved]
+	AffectedResources JSONB      `gorm:"type:jsonb" json:"affected_resources,omitempty"`
+	Assignee          *string    `json:"assignee,omitempty"`
+	AcknowledgedBy    *string    `json:"acknowledged_by,omitempty"`
+	AcknowledgedAt    *time.Time `json:"acknowledged_at,omitempty"`
+	ResolvedBy        *string    `json:"resolved_by,omitempty"`
+	ResolvedAt        *time.Time `json:"resolved_at,omitempty"`
+	Resolution        string     `json:"resolution,omitempty"`
+	RootCause         string     `json:"root_cause,omitempty"`
+	Comments          JSONB      `gorm:"type:jsonb" json:"comments,omitempty"`
+	Tags              JSONB      `gorm:"type:jsonb" json:"tags,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+
+// --- Unchanged Models Below ---
 
 // ResourceGroup 資源群組
 type ResourceGroup struct {
@@ -91,27 +116,6 @@ type AlertRule struct {
 	Enabled          bool          `json:"enabled"`
 	CreatedAt        time.Time     `json:"created_at"`
 	UpdatedAt        time.Time     `json:"updated_at"`
-}
-
-// Incident 告警事件
-type Incident struct {
-	ID             uint       `gorm:"primarykey" json:"id"`
-	AlertRuleID    uint       `json:"alert_rule_id"`
-	AlertRule      AlertRule  `json:"alert_rule,omitempty"`
-	Level          string     `json:"level"`
-	Time           time.Time  `json:"time"`
-	Branch         string     `json:"branch"`
-	IP             string     `json:"ip"`
-	Name           string     `json:"name"`
-	Description    string     `json:"desc"`
-	Status         string     `json:"status"` // new, ack, resolved
-	Assignee       *string    `json:"assignee"`
-	AcknowledgedBy *string    `json:"acknowledgedBy"`
-	AcknowledgedAt *time.Time `json:"acknowledged_at,omitempty"`
-	ResolvedAt     *time.Time `json:"resolved_at,omitempty"`
-	Comments       JSONB      `gorm:"type:jsonb" json:"comments"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 // Script 自動化腳本
