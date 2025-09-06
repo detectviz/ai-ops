@@ -94,12 +94,22 @@ class LokiLogQueryTool:
                 }
             )
             
-        except Exception as e:
-            logger.error(f"❌ Loki 查詢失敗: {e}")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ Loki API 查詢失敗: {e.response.status_code} - {e.response.text}", exc_info=True)
             return ToolResult(
                 success=False,
                 error=ToolError(
-                    code="LOKI_QUERY_ERROR",
+                    code="API_ERROR",
+                    message=f"Loki API returned status {e.response.status_code}: {e.response.text}",
+                    details={"params": params}
+                )
+            )
+        except Exception as e:
+            logger.error(f"❌ Loki 工具執行時發生未預期錯誤: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="UNEXPECTED_ERROR",
                     message=str(e),
                     details={"params": params}
                 )
@@ -169,48 +179,34 @@ class LokiLogQueryTool:
         end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(minutes=time_range)
         
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                params = {
-                    "query": query,
-                    "start": str(int(start_time.timestamp() * 1e9)),  # 奈秒
-                    "end": str(int(end_time.timestamp() * 1e9)),
-                    "limit": limit,
-                    "direction": "backward"  # 最新的日誌優先
-                }
-
-                response = await client.get(
-                    f"{self.base_url}/loki/api/v1/query_range",
-                    params=params
-                )
-
-                # 拋出 HTTP 狀態錯誤，以便更具體地捕捉
-                response.raise_for_status()
-
-                data = response.json()
-
-                if data.get("status") != "success":
-                    # Loki 查詢本身可能失敗 (例如語法錯誤)
-                    error_msg = data.get('error', 'Unknown Loki query error')
-                    logger.error(f"Loki 查詢語法或執行失敗: {error_msg}")
-                    # 這種情況下也返回空列表，因為它是一個有效的“無結果”場景
-                    return []
-
-                # 解析日誌
-                return self._parse_log_results(data.get("data", {}).get("result", []))
-
-        except httpx.HTTPStatusError as e:
-            # 捕獲並記錄詳細的 HTTP 錯誤
-            logger.error(
-                f"查詢日誌時發生 HTTP 錯誤: "
-                f"狀態碼={e.response.status_code}, "
-                f"回應='{e.response.text}'"
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            params = {
+                "query": query,
+                "start": str(int(start_time.timestamp() * 1e9)),  # 奈秒
+                "end": str(int(end_time.timestamp() * 1e9)),
+                "limit": limit,
+                "direction": "backward"  # 最新的日誌優先
+            }
+            
+            response = await client.get(
+                f"{self.base_url}/loki/api/v1/query_range",
+                params=params
             )
-            return []
-        except Exception as e:
-            # 捕獲其他所有錯誤 (例如網路問題、JSON 解碼錯誤)
-            logger.error(f"查詢日誌時發生未知錯誤: {e}", exc_info=True)
-            return []
+            
+            # 讓上層的 execute 方法來處理 HTTP 錯誤
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if data.get("status") != "success":
+                # Loki 查詢本身可能失敗 (例如語法錯誤)
+                error_msg = data.get('error', 'Unknown Loki query error')
+                logger.warning(f"Loki 查詢成功但語法或執行失敗: {error_msg}")
+                # 這種情況下也返回空列表，因為它是一個有效的“無結果”場景
+                return []
+            
+            # 解析日誌
+            return self._parse_log_results(data.get("data", {}).get("result", []))
     
     def _build_logql_query(self, service: str, namespace: str, log_level: str, pattern: str) -> str:
         """
