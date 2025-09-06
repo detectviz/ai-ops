@@ -21,21 +21,35 @@ app.dependency_overrides[verify_token] = override_verify_token
 
 
 @pytest.fixture(scope="function")
-def client(mocker):
+def client_with_redis(mocker):
     """
-    為每個測試建立一個新的 TestClient 實例。
+    提供一個 TestClient 和一個與之關聯的、可操作的 Redis 模擬儲存。
+    這對於需要直接操作 Redis 狀態的端到端測試非常有用。
+    """
+    redis_store = {}
 
-    透過模擬 redis.from_url 來防止在測試期間嘗試連接真實的 Redis，
-    從而確保應用程式的 lifespan 能夠成功完成，並使 /readyz 端點通過。
-    """
-    # 模擬 redis.from_url 回傳一個可用的 AsyncMock 物件
+    async def get(key):
+        return redis_store.get(key)
+
+    async def set(key, value, ex=None):
+        redis_store[key] = value
+        return True
+
     mock_redis_client = AsyncMock()
-    mock_redis_client.ping = AsyncMock() # 確保 ping() 是可 await 的
+    mock_redis_client.ping.return_value = True
+    mock_redis_client.get.side_effect = get
+    mock_redis_client.set.side_effect = set
+
     mocker.patch('sre_assistant.main.redis.from_url', return_value=mock_redis_client)
 
-    # 現在，當 TestClient 初始化 app 時，lifespan 會使用模擬的 redis client
     with TestClient(app) as c:
-        yield c
+        yield c, redis_store
+
+@pytest.fixture(scope="function")
+def client(client_with_redis):
+    """一個標準的 TestClient，不直接暴露 Redis store。"""
+    c, _ = client_with_redis
+    yield c
 
 class TestHealthEndpoints:
     """健康檢查端點測試"""
@@ -122,6 +136,46 @@ class TestDiagnosticEndpoints:
 
         assert response.status_code == 404
         assert "找不到指定的診斷任務" in response.text
+
+    @patch("sre_assistant.main.run_workflow_bg", new_callable=AsyncMock)
+    def test_async_task_status_polling(self, mock_run_workflow_bg, client_with_redis):
+        """測試完整的非同步任務狀態輪詢流程"""
+        client, redis_store = client_with_redis
+
+        # 1. 啟動一個新任務
+        request_data = {"incident_id": "INC-456", "severity": "P3", "affected_services": ["billing-api"]}
+        response = client.post("/api/v1/diagnostics/deployment", json=request_data)
+        assert response.status_code == 202
+        task_info = response.json()
+        session_id = task_info["session_id"]
+
+        # 2. 模擬背景工作流程更新 Redis 中的狀態 (第一次更新)
+        status_step1 = {
+            "session_id": session_id, "status": "processing", "progress": 40,
+            "current_step": "正在查詢 Prometheus 指標..."
+        }
+        redis_store[session_id] = str(status_step1).replace("'", '"')
+
+        # 3. 輪詢狀態端點，驗證第一次更新
+        response = client.get(f"/api/v1/diagnostics/{session_id}/status")
+        assert response.status_code == 200
+        status_data = response.json()
+        assert status_data["progress"] == 40
+        assert "Prometheus" in status_data["current_step"]
+
+        # 4. 模擬背景工作流程再次更新 Redis (完成)
+        status_step2 = {
+            "session_id": session_id, "status": "completed", "progress": 100,
+            "current_step": "診斷完成", "result": {"summary": "發現 CPU 使用率過高"}
+        }
+        redis_store[session_id] = str(status_step2).replace("'", '"')
+
+        # 5. 再次輪詢，驗證最終狀態
+        response = client.get(f"/api/v1/diagnostics/{session_id}/status")
+        assert response.status_code == 200
+        final_data = response.json()
+        assert final_data["status"] == "completed"
+        assert final_data["result"]["summary"] == "發現 CPU 使用率過高"
 
 
 class TestAuthentication:

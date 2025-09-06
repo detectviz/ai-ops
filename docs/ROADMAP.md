@@ -75,7 +75,7 @@
     - **對應 API**: `/diagnostics/deployment`。
     - **相關子任務**:
         - [x] **修復工作流程錯誤處理**: `asyncio.gather` 中已添加異常處理、容錯、超時和重試機制。
-        - [ ] **API 整合測試**: 端到端診斷流程測試, 非同步任務狀態追蹤測試, 錯誤情境測試。 (註：`test_diagnose_deployment_success_e2e` 測試已修復並能成功執行。)
+        - [x] **API 整合測試**: 端到端診斷流程測試, 非同步任務狀態追蹤測試, 錯誤情境測試。 (註：`test_diagnose_deployment_success_e2e` 和 `test_async_task_status_polling` 等測試已新增並通過。)
         - [ ] **外部服務整合測試**: Prometheus, Loki, Keycloak 整合測試。
     - **參考**: `docs/reference-adk-examples.md` (parallel_functions, workflow_agent_seq)
     - 補充參考（ADK 最佳實踐）:
