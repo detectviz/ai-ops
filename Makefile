@@ -52,7 +52,7 @@ start-services:
 	@echo "啟動 ChromaDB..."
 	@nohup /opt/chroma_venv/bin/chroma run --path /tmp/chroma_db > /tmp/chroma.log 2>&1 &
 	@echo "啟動 Keycloak..."
-	@nohup /opt/keycloak/bin/kc.sh start-dev > /tmp/keycloak.log 2>&1 &
+	@nohup ./local/keycloak-26.3.3/bin/kc.sh start-dev > /tmp/keycloak.log 2>&1 &
 	@echo "⏳ 等待服務就緒 (約 20 秒)..."
 	@sleep 20
 	@make ps
@@ -78,7 +78,7 @@ ps:
 	@systemctl is-active postgresql redis-server grafana-server vmstorage vminsert vmselect vmagent snmp_exporter || true
 	@echo ""
 	@echo "📊 背景進程狀態 (ps):"
-	@ps aux | grep -E '/opt/chroma_venv/bin/chroma run|Dkc.home.dir=/opt/keycloak' | grep -v 'grep' || echo "ChromaDB 或 Keycloak 未運行"
+	@ps aux | grep -E '/opt/chroma_venv/bin/chroma run|Dkc.home.dir=./local/keycloak-26.3.3' | grep -v 'grep' || echo "ChromaDB 或 Keycloak 未運行"
 
 # 執行所有測試
 test: test-go test-py

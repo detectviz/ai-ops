@@ -25,7 +25,7 @@ def client():
 @pytest.fixture(scope="module")
 def config():
     """載入 development 環境的設定"""
-    return ConfigManager(env="development").get_config()
+    return ConfigManager(environment="development").get_config()
 
 @pytest.mark.integration
 class TestKeycloakIntegration:
