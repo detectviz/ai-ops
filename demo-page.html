@@ -376,7 +376,7 @@
       .gridjs-th,
       .gridjs-td {
         padding: 0.5rem 0.75rem !important;
-        font-size: 0.875rem !important;
+        /* font-size already set above */
       }
     }
 
@@ -568,7 +568,7 @@
             帳號
           </label>
           <input
-            class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+            class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
             id="username" type="text" placeholder="請輸入帳號" value="admin">
         </div>
         <div class="mb-6">
@@ -576,7 +576,7 @@
             密碼
           </label>
           <input
-            class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+            class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
             id="password" type="password" placeholder="******************" value="admin">
         </div>
         <div class="flex items-center justify-between">
@@ -1003,11 +1003,11 @@
               </div>
               <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
                 <input type="text" id="resource-search-input" placeholder="搜尋資源名稱或 IP..."
-                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                  class="w-48 md:w-64 mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 flex-shrink-0">
                 <button id="scan-network-btn"
-                  class="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm flex-shrink-0">掃描網段</button>
+                  class="mt-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition-colors text-sm flex-shrink-0">掃描網段</button>
                 <button id="add-resource-btn"
-                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors text-sm flex-shrink-0">新增資源</button>
+                  class="mt-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors text-sm flex-shrink-0">新增資源</button>
                 <label class="flex items-center gap-2 ml-2 text-slate-600 text-sm flex-shrink-0"><input type="checkbox"
                     id="select-all-resources-grid"
                     class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">全選</label>
@@ -1059,9 +1059,9 @@
               <div class="w-full md:w-auto"></div>
               <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
                 <input type="text" id="groups-search-input" placeholder="搜尋群組名稱或說明..."
-                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                  class="w-48 md:w-64 mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 flex-shrink-0">
                 <button id="add-group-btn"
-                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增群組</button>
+                  class="mt-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增群組</button>
                 <label class="flex items-center gap-2 ml-2 text-slate-600 text-sm flex-shrink-0"><input type="checkbox"
                     id="select-all-groups-grid"
                     class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">全選</label>
@@ -1106,9 +1106,9 @@
               <div class="w-full md:w-auto"></div>
               <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
                 <input type="text" id="teams-search-input" placeholder="搜尋團隊名稱..."
-                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                  class="w-48 md:w-64 mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 flex-shrink-0">
                 <button id="add-team-btn"
-                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增團隊</button>
+                  class="mt-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增團隊</button>
                 <label class="flex items-center gap-2 ml-2 text-slate-600 text-sm flex-shrink-0"><input type="checkbox"
                     id="select-all-teams-grid"
                     class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">全選</label>
@@ -1154,9 +1154,9 @@
               <div class="w-full md:w-auto"></div>
               <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
                 <input type="text" id="rules-search-input" placeholder="搜尋規則名稱、目標或指標..."
-                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                  class="w-48 md:w-64 mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 flex-shrink-0">
                 <button id="add-rule-btn"
-                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增告警規則</button>
+                  class="mt-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增告警規則</button>
               </div>
             </div>
             <!-- 告警規則批次操作欄 - 位於控制項目下方、表格上方 -->
@@ -1205,9 +1205,9 @@
               <div class="w-full md:w-auto"></div>
               <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
                 <input type="text" id="personnel-search-input" placeholder="搜尋姓名或團隊..."
-                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                  class="w-48 md:w-64 mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 flex-shrink-0">
                 <button id="add-user-btn"
-                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增人員</button>
+                  class="mt-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增人員</button>
               </div>
             </div>
             <!-- 人員管理批次操作欄 - 位於控制項目下方、表格上方 -->
@@ -1250,9 +1250,9 @@
               <div class="w-full md:w-auto"></div>
               <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
                 <input type="text" id="channels-search-input" placeholder="搜尋管道名稱..."
-                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                  class="w-48 md:w-64 mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 flex-shrink-0">
                 <button id="add-channel-btn"
-                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增管道</button>
+                  class="mt-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增管道</button>
               </div>
             </div>
             <!-- 通知管道批次操作欄 - 位於控制項目下方、表格上方 -->
@@ -1296,9 +1296,9 @@
               <div class="w-full md:w-auto"></div>
               <div class="flex items-center space-x-2 w-full md:w-auto flex-nowrap overflow-x-auto whitespace-nowrap">
                 <input type="text" id="maintenance-search-input" placeholder="搜尋說明或群組..."
-                  class="w-48 md:w-64 px-3 py-1.5 border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm flex-shrink-0">
+                  class="w-48 md:w-64 mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500 flex-shrink-0">
                 <button id="add-maintenance-btn"
-                  class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增維護時段</button>
+                  class="mt-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors w-full md:w-auto text-sm flex-shrink-0">新增維護時段</button>
               </div>
             </div>
             <!-- 維護時段批次操作欄 - 位於控制項目下方、表格上方 -->
@@ -1361,7 +1361,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                       <label for="grafana-url" class="text-sm font-medium text-slate-700">Grafana URL</label>
                       <input type="text" id="grafana-url"
-                        class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                        class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                         placeholder="https://grafana.example.com">
                     </div>
                   </div>
@@ -1375,25 +1375,25 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="smtp-server" class="text-sm font-medium text-slate-700">SMTP 伺服器</label>
                           <input type="text" id="smtp-server"
-                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="smtp.example.com">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="smtp-port" class="text-sm font-medium text-slate-700">端口 (Port)</label>
                           <input type="number" id="smtp-port"
-                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="587">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="smtp-user" class="text-sm font-medium text-slate-700">使用者名稱</label>
                           <input type="text" id="smtp-user"
-                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="user@example.com">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="smtp-pass" class="text-sm font-medium text-slate-700">密碼</label>
                           <input type="password" id="smtp-pass"
-                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
                         </div>
                       </div>
                     </div>
@@ -1414,18 +1414,18 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="sms-sid" class="text-sm font-medium text-slate-700">帳號 SID (Account SID)</label>
                           <input type="text" id="sms-sid"
-                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="sms-token" class="text-sm font-medium text-slate-700">認證權杖 (Auth Token)</label>
                           <input type="password" id="sms-token"
-                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 items-center gap-4">
                           <label for="sms-from" class="text-sm font-medium text-slate-700">發送號碼 (From Number)</label>
                           <input type="text" id="sms-from"
-                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
+                            class="md:col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"
                             placeholder="+15017122661">
                         </div>
                       </div>
@@ -1997,6 +1997,8 @@
 
     let loggedInUser = null;
 
+    // === MOCK DATA SECTION ===
+    // TODO: Move to separate mock-data.js file
     const mockData = {
       systemSettings: {
         grafanaUrl: 'https://grafana.example.com',
@@ -2186,7 +2188,7 @@
 
           new TomSelect(select, config);
           select.dataset.tomSelectInitialized = 'true';
-          console.log(`Tom Select initialized for: ${select.id || 'unnamed'}`);
+          // console.log(`Tom Select initialized for: ${select.id || 'unnamed'}`);
         } catch (error) {
           console.warn('Failed to initialize Tom Select for element:', select.id || 'unnamed', error);
         }
@@ -2207,9 +2209,6 @@
 
       // Initialize Tom Select for all select elements
       initializeTomSelect();
-
-      // Initialize Tom Select again after a delay for any dynamically created elements
-      setTimeout(() => initializeTomSelect(), 500);
 
       const links = document.querySelectorAll('.sidebar-link');
       // Initialize global variables
@@ -2526,37 +2525,14 @@
     }
 
     function renderGroupStatusChart() {
-      // Check if required data is available
-      if (!loggedInUser || !mockData || !mockData.resourceGroups) {
-        console.warn('Required data not available for group status chart');
-        return;
-      }
-
-      // --- Start of moved logic from getVisibleGroups ---
-      const userRole = loggedInUser.role;
-      let groupsToRender;
-
-      if (userRole === 'SuperAdmin') {
-        groupsToRender = mockData.resourceGroups;
-      } else if (userRole === 'TeamManager' || userRole === 'TeamMember') {
-        const userInPersonnel = mockData.personnel.find(p => p.name === loggedInUser.name);
-        const managedTeamIds = userRole === 'TeamManager' ? loggedInUser.managesTeamIds : userInPersonnel?.teamIds || [];
-
-        const visibleTeams = mockData.teams.filter(t => managedTeamIds.includes(t.id));
-        const accessibleGroupIds = new Set();
-        visibleTeams.forEach(team => {
-          team.accessibleGroupIds.forEach(id => accessibleGroupIds.add(id));
-        });
-        groupsToRender = mockData.resourceGroups.filter(g => accessibleGroupIds.has(g.id));
-      } else {
-        groupsToRender = [];
-      }
-      // --- End of moved logic ---
+      // TODO: Simplify - data filtering will be handled by Go backend
+      // For now, render all groups
+      const groupsToRender = mockData.resourceGroups || [];
 
       // Check if canvas element exists
       const groupStatusCanvas = document.getElementById('groupStatusChart');
       if (!groupStatusCanvas) {
-        console.warn('groupStatusChart canvas not found');
+        // Canvas not found - skip chart rendering
         return;
       }
 
@@ -2635,8 +2611,11 @@
       if (!loggedInUser) return;
 
       // Update user info in sidebar
-      document.getElementById('user-name').textContent = loggedInUser.name;
-      document.getElementById('user-dept').textContent = loggedInUser.dept;
+      // Update user info - TODO: This will be handled by HTMX server-side rendering
+      const userNameEl = document.getElementById('user-name');
+      const userDeptEl = document.getElementById('user-dept');
+      if (userNameEl) userNameEl.textContent = loggedInUser.name;
+      if (userDeptEl) userDeptEl.textContent = loggedInUser.dept;
 
       // Reinitialize sidebar state after login to ensure mobile menu works
       initializeSidebarState();
@@ -2675,6 +2654,78 @@
         }
       }, 300);
     }
+
+    // ============================================
+    // API CLIENT LAYER - 階段1: 基礎設施
+    // ============================================
+
+    // API 客戶端配置
+    const API_CONFIG = {
+      baseURL: 'http://localhost:8081/api/v1', // Control Plane API
+      timeout: 10000,
+      retries: 3
+    };
+
+    // API 客戶端類
+    class ApiClient {
+      constructor(config = API_CONFIG) {
+        this.config = config;
+        this.mockMode = !config.baseURL || config.baseURL.includes('localhost:8081') === false;
+      }
+
+      async request(endpoint, options = {}) {
+        const url = `${this.config.baseURL}${endpoint}`;
+
+        try {
+          const response = await fetch(url, {
+            ...options,
+            headers: {
+              'Content-Type': 'application/json',
+              ...options.headers
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`API Error: ${response.status} ${response.statusText}`);
+          }
+
+          return await response.json();
+        } catch (error) {
+          console.warn(`API request failed: ${endpoint}`, error);
+          throw error;
+        }
+      }
+
+      // 通用 CRUD 方法
+      async get(endpoint, params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+        return this.request(url);
+      }
+
+      async post(endpoint, data) {
+        return this.request(endpoint, {
+          method: 'POST',
+          body: JSON.stringify(data)
+        });
+      }
+
+      async put(endpoint, data) {
+        return this.request(endpoint, {
+          method: 'PUT',
+          body: JSON.stringify(data)
+        });
+      }
+
+      async delete(endpoint) {
+        return this.request(endpoint, {
+          method: 'DELETE'
+        });
+      }
+    }
+
+    // 全域 API 實例
+    const apiClient = new ApiClient();
 
     // --- Data Population Functions ---
     function updateTrend(trendId, percentage) {
@@ -3038,7 +3089,8 @@
       return visibleGroups;
     }
 
-    // --- Action Modals & Interactivity ---
+    // === MODAL AND INTERACTION HANDLERS ===
+    // TODO: Move modal and interaction logic to separate handlers.js file
     function initializeActionModals() {
       const formModal = document.getElementById('form-modal');
       const formModalTitle = document.getElementById('form-modal-title');
@@ -3125,11 +3177,11 @@
 
       // Resource Actions
       document.getElementById('add-resource-btn').addEventListener('click', () => {
-        const groupCheckboxes = mockData.resourceGroups.map(g => `<div class="relative flex items-start"><div class="flex h-6 items-center"><input id="group-${g.id}" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></div><div class="ml-3 text-sm leading-6"><label for="group-${g.id}" class="font-medium text-gray-900">${g.name}</label></div></div>`).join('');
+        const groupCheckboxes = createGroupCheckboxes('group');
         const formHtml = `
                     <div class="space-y-4">
-                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">資源名稱</label><input type="text" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
-                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">IP 位址</label><input type="text" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
+                        ${createFormField('資源名稱', 'text', 'add-resource-name', '', '', 'shadow-sm')}
+                        ${createFormField('IP 位址', 'text', 'add-resource-ip', '', '', 'shadow-sm')}
                         <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">資源群組</legend><div class="space-y-2 mt-2">${groupCheckboxes}</div></fieldset>
                     </div>`;
         openFormModal('新增資源', formHtml, 'add-resource');
@@ -3143,14 +3195,11 @@
 
         if (target.classList.contains('edit-resource-btn')) {
           const resource = mockData.resources[index];
-          const groupCheckboxes = mockData.resourceGroups.map(g => {
-            const isChecked = resource.groupIds.includes(g.id) ? 'checked' : '';
-            return `<div class="relative flex items-start"><div class="flex h-6 items-center"><input id="group-${g.id}" type="checkbox" ${isChecked} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></div><div class="ml-3 text-sm leading-6"><label for="group-${g.id}" class="font-medium text-gray-900">${g.name}</label></div></div>`;
-          }).join('');
+          const groupCheckboxes = createGroupCheckboxes('group', resource.groupIds);
           const formHtml = `
                         <div class="space-y-4">
-                            <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">資源名稱</label><input type="text" value="${resource.name}" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
-                            <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">IP 位址</label><input type="text" value="${resource.ip}" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
+                        ${createFormField('資源名稱', 'text', 'edit-resource-name', resource.name, '', 'shadow-sm')}
+                        ${createFormField('IP 位址', 'text', 'edit-resource-ip', resource.ip, '', 'shadow-sm')}
                             <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">資源群組</legend><div class="space-y-2 mt-2">${groupCheckboxes}</div></fieldset>
                         </div>`;
           openFormModal('編輯資源', formHtml, 'edit-resource', index);
@@ -3162,10 +3211,10 @@
 
       // Resource Group Actions
       document.getElementById('add-group-btn').addEventListener('click', () => {
-        const resourceCheckboxes = mockData.resources.map(d => `<div class="relative flex items-start"><div class="flex h-6 items-center"><input id="resource-${d.id}" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></div><div class="ml-3 text-sm leading-6"><label for="resource-${d.id}" class="font-medium text-gray-900">${d.name} (${d.ip})</label></div></div>`).join('');
+        const resourceCheckboxes = createResourceCheckboxes('resource');
         const formHtml = `
                     <div class="space-y-4">
-                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">群組名稱</label><input type="text" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
+                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">群組名稱</label><input type="text" id="add-group-name" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
                         <div class="grid grid-cols-3 items-start gap-4"><label class="text-sm font-medium text-slate-700 pt-1">說明</label><textarea rows="3" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></textarea></div>
                         <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">群組資源</legend><div class="space-y-2 mt-2 max-h-40 overflow-y-auto">${resourceCheckboxes}</div></fieldset>
                     </div>`;
@@ -3175,14 +3224,11 @@
         const index = e.target.closest('tr')?.dataset.index;
         if (e.target.classList.contains('edit-group-btn')) {
           const group = mockData.resourceGroups[index];
-          const resourceCheckboxes = mockData.resources.map(d => {
-            const isChecked = group.memberIds.includes(d.id) ? 'checked' : '';
-            return `<div class="relative flex items-start"><div class="flex h-6 items-center"><input id="resource-${d.id}" type="checkbox" ${isChecked} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></div><div class="ml-3 text-sm leading-6"><label for="resource-${d.id}" class="font-medium text-gray-900">${d.name} (${d.ip})</label></div></div>`;
-          }).join('');
+          const resourceCheckboxes = createResourceCheckboxes('resource', group.memberIds);
           const formHtml = `
                     <div class="space-y-4">
-                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">群組名稱</label><input type="text" value="${group.name}" class="col-span-2 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></div>
-                        <div class="grid grid-cols-3 items-start gap-4"><label class="text-sm font-medium text-slate-700 pt-1">說明</label><textarea rows="3" class="col-span-2 mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">${group.description}</textarea></div>
+                        <div class="grid grid-cols-3 items-center gap-4"><label class="text-sm font-medium text-slate-700">群組名稱</label><input type="text" value="${group.name}" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
+                        <div class="grid grid-cols-3 items-start gap-4"><label class="text-sm font-medium text-slate-700 pt-1">說明</label><textarea rows="3" class="col-span-2 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800">${group.description}</textarea></div>
                         <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">群組成員</legend><div class="space-y-2 mt-2 max-h-40 overflow-y-auto">${resourceCheckboxes}</div></fieldset>
                     </div>`;
           openFormModal('編輯群組', formHtml, 'edit-group', index);
@@ -3204,7 +3250,7 @@
                     </div>
                     <div class="accordion-content p-4 border-t border-slate-200">
                         <div class="space-y-4 text-sm">
-                            <div><label class="font-medium text-slate-700">規則名稱</label><input type="text" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
+                            <div><label class="font-medium text-slate-700">規則名稱</label><input type="text" id="add-rule-name" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-slate-800"></div>
                             <div class="flex items-center justify-between"><label class="font-medium text-slate-700">啟用規則</label><label class="relative inline-flex items-center cursor-pointer"><input type="checkbox" checked class="sr-only peer"><div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div></label></div>
                             <div><label class="font-medium text-slate-700">監控目標</label><select id="add-rule-target-group" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>選擇資源群組</option>${groupOptions}</select></div>
                             <div><label class="font-medium text-slate-700">指標</label><select id="add-rule-metric" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>CPU 使用率</option><option>網路流量</option><option>網路延遲 (Ping)</option></select></div>
@@ -3212,7 +3258,7 @@
                                 <div class="space-y-2" id="alert-conditions">
                                     <div class="grid grid-cols-12 gap-2 items-center">
                                         <span class="col-span-1 text-center">&gt;</span>
-                                        <input type="number" placeholder="閾值" class="col-span-3 px-3 py-1.5 border border-slate-300 rounded-lg bg-white focus:border-blue-500 focus:ring-blue-500 text-sm text-slate-800">
+                                        <input type="number" placeholder="閾值" class="col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
                                         <span class="col-span-1 text-center">持續</span>
                                         <select id="add-rule-duration" class="col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>5 分鐘</option><option>10 分鐘</option></select>
                                         <span class="col-span-1 text-center">為</span>
@@ -3288,7 +3334,7 @@
                                   <div class="space-y-2" id="alert-conditions">
                                       <div class="grid grid-cols-12 gap-2 items-center">
                                           <span class="col-span-1 text-center">&gt;</span>
-                                          <input type="number" placeholder="閾值" value="90" class="col-span-3 px-3 py-1.5 border border-slate-300 rounded-lg bg-white focus:border-blue-500 focus:ring-blue-500 text-sm text-slate-800">
+                                          <input type="number" placeholder="閾值" value="90" class="col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
                                           <span class="col-span-1 text-center">持續</span>
                                           <select id="edit-rule-duration" class="col-span-3 mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"><option>5 分鐘</option><option selected>10 分鐘</option></select>
                                           <span class="col-span-1 text-center">為</span>
@@ -3480,7 +3526,7 @@
         const groupCheckboxes = mockData.resourceGroups.map(g => `<div class="relative flex items-start"><div class="flex h-6 items-center"><input id="maint-group-${g.id}" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"></div><div class="ml-3 text-sm leading-6"><label for="maint-group-${g.id}" class="font-medium text-gray-900">${g.name}</label></div></div>`).join('');
         const formHtml = `
                     <div class="space-y-4">
-                        <div><label class="text-sm font-medium text-slate-700">說明</label><input type="text" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></div>
+                        <div><label class="text-sm font-medium text-slate-700">說明</label><input type="text" id="add-maintenance-name" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></div>
                         <div><label class="text-sm font-medium text-slate-700">開始時間</label><input type="datetime-local" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></div>
                         <div><label class="text-sm font-medium text-slate-700">結束時間</label><input type="datetime-local" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></div>
                         <fieldset class="mt-4"><legend class="text-sm font-medium text-slate-700 mb-2">影響資源群組</legend><div class="space-y-2 mt-2">${groupCheckboxes}</div></fieldset>
@@ -3618,12 +3664,12 @@
 
         const allFields = {
           email: `
-            <div><label class="text-sm font-medium text-slate-700">收件人 (To)</label><input type="text" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm" value="${channel.to || ''}"></div>
-            <div><label class="text-sm font-medium text-slate-700">副本 (CC)</label><input type="text" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm" value="${channel.cc || ''}"></div>
-            <div><label class="text-sm font-medium text-slate-700">密件副本 (BCC)</label><input type="text" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm" value="${channel.bcc || ''}"></div>
+            <div><label class="text-sm font-medium text-slate-700">收件人 (To)</label><input type="text" id="channel-email-to" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500" value="${channel.to || ''}"></div>
+            <div><label class="text-sm font-medium text-slate-700">副本 (CC)</label><input type="text" id="channel-email-cc" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500" value="${channel.cc || ''}"></div>
+            <div><label class="text-sm font-medium text-slate-700">密件副本 (BCC)</label><input type="text" id="channel-email-bcc" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500" value="${channel.bcc || ''}"></div>
           `,
           webhook: `
-            <div><label class="text-sm font-medium text-slate-700">Webhook URL</label><input type="text" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm" value="${channel.url || ''}"></div>
+            <div><label class="text-sm font-medium text-slate-700">Webhook URL</label><input type="text" id="channel-webhook-url" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500" value="${channel.url || ''}"></div>
             <div><label class="text-sm font-medium text-slate-700">HTTP 方法 (Method)</label>
               <select id="channel-method-select" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
                 <option value="POST" ${channel.method === 'POST' ? 'selected' : ''}>POST</option>
@@ -3632,14 +3678,14 @@
             </div>
           `,
           slack: `
-            <div><label class="text-sm font-medium text-slate-700">Incoming Webhook URL</label><input type="text" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm" value="${channel.url || ''}"></div>
-            <div><label class="text-sm font-medium text-slate-700">提及對象 (Mention)</label><input type="text" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm" placeholder="@here, @channel, or user ID" value="${channel.mention || ''}"></div>
+            <div><label class="text-sm font-medium text-slate-700">Incoming Webhook URL</label><input type="text" id="channel-slack-url" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500" value="${channel.url || ''}"></div>
+            <div><label class="text-sm font-medium text-slate-700">提及對象 (Mention)</label><input type="text" id="channel-slack-mention" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500" placeholder="@here, @channel, or user ID" value="${channel.mention || ''}"></div>
           `,
           line: `
-            <div><label class="text-sm font-medium text-slate-700">存取權杖 (Access Token)</label><input type="text" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm" value="${channel.token || ''}"></div>
+            <div><label class="text-sm font-medium text-slate-700">存取權杖 (Access Token)</label><input type="text" id="channel-line-token" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500" value="${channel.token || ''}"></div>
           `,
           sms: `
-            <div><label class="text-sm font-medium text-slate-700">收件人手機號碼</label><input type="text" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm sm:text-sm" placeholder="請輸入手機號碼" value="${channel.recipient || ''}"></div>
+            <div><label class="text-sm font-medium text-slate-700">收件人手機號碼</label><input type="text" id="channel-sms-recipient" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500" placeholder="請輸入手機號碼" value="${channel.recipient || ''}"></div>
           `
         };
 
@@ -4035,7 +4081,7 @@
                           <h5 class="font-bold text-slate-800 mb-4">處理紀錄</h5>
                           <div class="space-y-4 max-h-48 overflow-y-auto pr-2">${commentsHtml || '<p class="text-sm text-slate-500">尚無處理紀錄。</p>'}</div>
                           <div class="mt-4 border-t pt-4">
-                              <textarea id="incident-comment-input" rows="3" class="w-full rounded-md border-slate-300" placeholder="新增處理紀錄..."></textarea>
+                              <textarea id="incident-comment-input" rows="3" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500" placeholder="新增處理紀錄..."></textarea>
                               <button id="incident-add-comment-btn" class="mt-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">新增紀錄</button>
                           </div>
                       </div>
@@ -4061,7 +4107,177 @@
       });
     }
 
-    // --- Batch Operations Functions ---
+    // === UTILITY FUNCTIONS SECTION ===
+    // TODO: Move to separate utils.js file
+    function createGroupOptions(selectedIds = []) {
+      return mockData.resourceGroups.map(g =>
+        `<option value="${g.id}" ${selectedIds.includes(g.id) ? 'selected' : ''}>${g.name}</option>`
+      ).join('');
+    }
+
+    function createGroupCheckboxes(prefix = 'group', selectedIds = []) {
+      return mockData.resourceGroups.map(g => {
+        const isChecked = selectedIds.includes(g.id) ? 'checked' : '';
+        return `<div class="relative flex items-start">
+          <div class="flex h-6 items-center">
+            <input id="${prefix}-${g.id}" type="checkbox" ${isChecked} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">
+          </div>
+          <div class="ml-3 text-sm leading-6">
+            <label for="${prefix}-${g.id}" class="font-medium text-gray-900">${g.name}</label>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function createResourceCheckboxes(prefix = 'resource', selectedIds = []) {
+      return mockData.resources.map(d => {
+        const isChecked = selectedIds.includes(d.id) ? 'checked' : '';
+        return `<div class="relative flex items-start">
+          <div class="flex h-6 items-center">
+            <input id="${prefix}-${d.id}" type="checkbox" ${isChecked} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600">
+          </div>
+          <div class="ml-3 text-sm leading-6">
+            <label for="${prefix}-${d.id}" class="font-medium text-gray-900">${d.name} (${d.ip})</label>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // === FORM GENERATION FUNCTIONS ===
+    // TODO: Move to separate forms.js file
+    function createFormField(label, inputType, inputId, value = '', placeholder = '', additionalClasses = '') {
+      const baseInputClasses = 'mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500';
+      const inputClasses = additionalClasses ? `${baseInputClasses} ${additionalClasses}` : baseInputClasses;
+
+      const valueAttr = value ? `value="${value}"` : '';
+      const placeholderAttr = placeholder ? `placeholder="${placeholder}"` : '';
+
+      return `
+        <div class="grid grid-cols-3 items-center gap-4">
+          <label class="text-sm font-medium text-slate-700">${label}</label>
+          <input type="${inputType}" id="${inputId}" class="col-span-2 ${inputClasses}" ${valueAttr} ${placeholderAttr}>
+        </div>`;
+    }
+
+    function createTextareaField(label, textareaId, value = '', placeholder = '', additionalClasses = '') {
+      const baseTextareaClasses = 'mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500';
+      const textareaClasses = additionalClasses ? `${baseTextareaClasses} ${additionalClasses}` : baseTextareaClasses;
+
+      return `
+        <div class="grid grid-cols-3 items-start gap-4">
+          <label class="text-sm font-medium text-slate-700 pt-1">${label}</label>
+          <textarea id="${textareaId}" rows="3" class="col-span-2 ${textareaClasses}" placeholder="${placeholder}">${value}</textarea>
+        </div>`;
+    }
+
+    // === BATCH OPERATIONS SECTION ===
+    // TODO: Move batch operations logic to separate batch-ops.js file
+    function initializeGenericBatchOperations(config) {
+      const {
+        selectAllId,
+        batchBarId,
+        selectedCountId,
+        clearSelectionId,
+        checkboxClass,
+        operationButtons = [],
+        onBatchOperation = null,
+        initializedFlag
+      } = config;
+
+      // 检查是否已经初始化
+      if (window[initializedFlag]) {
+        console.log(`${initializedFlag} already initialized, skipping`);
+        return;
+      }
+
+      const selectAllCheckbox = document.getElementById(selectAllId);
+      const batchOperationsBar = document.getElementById(batchBarId);
+      const selectedCount = document.getElementById(selectedCountId);
+      const clearSelectionBtn = document.getElementById(clearSelectionId);
+
+      // 检查必要元素是否存在
+      if (!selectAllCheckbox || !batchOperationsBar || !selectedCount) {
+        console.log(`${initializedFlag} elements not found, skipping initialization`);
+        return;
+      }
+
+      // 标记为已初始化
+      window[initializedFlag] = true;
+      console.log(`Initializing ${initializedFlag}...`);
+
+      function updateBatchOperationsBar() {
+        const checkedBoxes = document.querySelectorAll(`.${checkboxClass}:checked`);
+        const count = checkedBoxes.length;
+        selectedCount.textContent = count;
+
+        if (count > 0) {
+          batchOperationsBar.classList.remove('hidden');
+        } else {
+          batchOperationsBar.classList.add('hidden');
+        }
+
+        // Update select all checkbox state
+        const allCheckboxes = document.querySelectorAll(`.${checkboxClass}`);
+        if (selectAllCheckbox) {
+          selectAllCheckbox.checked = count === allCheckboxes.length;
+          selectAllCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+      }
+
+      // Select all functionality
+      if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+          document.querySelectorAll(`.${checkboxClass}`).forEach(cb => {
+            cb.checked = e.target.checked;
+          });
+          updateBatchOperationsBar();
+        });
+      }
+
+      // Individual selection
+      document.addEventListener('change', (e) => {
+        if (e.target.classList.contains(checkboxClass)) {
+          updateBatchOperationsBar();
+        }
+      });
+
+      // Clear selection
+      if (clearSelectionBtn) {
+        clearSelectionBtn.addEventListener('click', () => {
+          document.querySelectorAll(`.${checkboxClass}`).forEach(cb => cb.checked = false);
+          if (selectAllCheckbox) selectAllCheckbox.checked = false;
+          updateBatchOperationsBar();
+        });
+      }
+
+      // Batch operation buttons
+      operationButtons.forEach(btnConfig => {
+        const btn = document.getElementById(btnConfig.id);
+        if (btn) {
+          btn.addEventListener('click', () => {
+            const selectedItems = Array.from(document.querySelectorAll(`.${checkboxClass}:checked`));
+            if (btnConfig.confirmMessage && !confirm(btnConfig.confirmMessage)) return;
+
+            if (onBatchOperation) {
+              onBatchOperation(btnConfig.action, selectedItems);
+            } else {
+              // Default feedback
+              showFeedbackModal(`${btnConfig.action} 已處理 ${selectedItems.length} 個項目`);
+              setTimeout(() => {
+                closeFeedbackModal();
+                // Clear selection
+                document.querySelectorAll(`.${checkboxClass}`).forEach(cb => cb.checked = false);
+                if (selectAllCheckbox) selectAllCheckbox.checked = false;
+                updateBatchOperationsBar();
+              }, 1500);
+            }
+          });
+        }
+      });
+    }
+
+    // === PAGE-SPECIFIC BATCH OPERATIONS ===
+    // TODO: Consolidate these into the generic batch operations system
     function initializeBatchOperations() {
       const selectAllResources = document.getElementById('select-all-resources');
       const batchOperationsBar = document.getElementById('batch-operations-bar');
@@ -4180,7 +4396,7 @@
             <div class="space-y-4">
               <div>
                 <label class="text-sm font-medium text-slate-700">網段範圍</label>
-                <input type="text" placeholder="例如：192.168.1.0/24" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
+                <input type="text" id="scan-network-range" placeholder="例如：192.168.1.0/24" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
               </div>
               <div>
                 <label class="text-sm font-medium text-slate-700">掃描方式</label>
@@ -4292,7 +4508,7 @@
       addScriptBtn.addEventListener('click', () => {
         const formHtml = `
           <div class="space-y-4">
-            <div><label class="text-sm font-medium text-slate-700">腳本名稱</label><input type="text" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></div>
+            <div><label class="text-sm font-medium text-slate-700">腳本名稱</label><input type="text" id="add-script-name" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></div>
             <div><label class="text-sm font-medium text-slate-700">腳本類型</label>
               <select id="add-script-type-select" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">
                 <option>Shell Script</option>
@@ -4301,7 +4517,7 @@
               </select>
             </div>
             <div><label class="text-sm font-medium text-slate-700">描述</label><textarea rows="3" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></textarea></div>
-            <div><label class="text-sm font-medium text-slate-700">腳本內容</label><textarea rows="8" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm font-mono text-xs" placeholder="#!/bin/bash&#10;# 在此輸入腳本內容"></textarea></div>
+            <div><label class="text-sm font-medium text-slate-700">腳本內容</label><textarea rows="8" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm font-mono text-xs text-slate-800" placeholder="#!/bin/bash&#10;# 在此輸入腳本內容"></textarea></div>
             <div><label class="text-sm font-medium text-slate-700">參數定義 (以逗號分隔)</label><input type="text" placeholder="host_ip,service_name" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></div>
           </div>`;
         const formModal = document.getElementById('form-modal');
@@ -4365,7 +4581,7 @@
                 </select>
               </div>
               <div><label class="text-sm font-medium text-slate-700">描述</label><textarea rows="3" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500">${script.description}</textarea></div>
-              <div><label class="text-sm font-medium text-slate-700">腳本內容</label><textarea rows="8" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm font-mono text-xs" placeholder="#!/bin/bash&#10;# 在此輸入腳本內容">${script.type === 'Shell Script' ? '#!/bin/bash\n# ' + script.description + '\necho "Executing script..."\n# Add your script logic here' : script.type === 'Python Script' ? '#!/usr/bin/env python3\n# ' + script.description + '\nimport sys\nprint("Executing script...")\n# Add your script logic here' : '---\n# ' + script.description + '\n- name: Execute task\n  debug:\n    msg: "Executing playbook..."'}</textarea></div>
+              <div><label class="text-sm font-medium text-slate-700">腳本內容</label><textarea rows="8" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm font-mono text-xs text-slate-800" placeholder="#!/bin/bash&#10;# 在此輸入腳本內容">${script.type === 'Shell Script' ? '#!/bin/bash\n# ' + script.description + '\necho "Executing script..."\n# Add your script logic here' : script.type === 'Python Script' ? '#!/usr/bin/env python3\n# ' + script.description + '\nimport sys\nprint("Executing script...")\n# Add your script logic here' : '---\n# ' + script.description + '\n- name: Execute task\n  debug:\n    msg: "Executing playbook..."'}</textarea></div>
               <div><label class="text-sm font-medium text-slate-700">參數定義 (以逗號分隔)</label><input type="text" value="${script.parameters.join(',')}" placeholder="host_ip,service_name" class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-800 focus:border-blue-500 focus:ring-blue-500"></div>
             </div>`;
 
@@ -5524,412 +5740,98 @@
 
     // --- Rules Batch Operations Functions ---
     function initializeRulesBatchOperations() {
-      // 檢查是否已經初始化
-      if (window.rulesBatchOperationsInitialized) {
-        console.log('Rules batch operations already initialized, skipping');
-        return;
-      }
-
-      const selectAllRules = document.getElementById('select-all-rules');
-      const batchOperationsBar = document.getElementById('rules-batch-operations-bar');
-      const selectedCount = document.getElementById('rules-selected-count');
-      const clearSelectionBtn = document.getElementById('rules-clear-selection-btn');
-      const batchEnableBtn = document.getElementById('rules-batch-enable-btn');
-      const batchDisableBtn = document.getElementById('rules-batch-disable-btn');
-      const batchSilenceBtn = document.getElementById('rules-batch-silence-btn');
-      const batchDeleteBtn = document.getElementById('rules-batch-delete-btn');
-
-      // 檢查必要元素是否存在，如果不存在則退出
-      if (!selectAllRules || !batchOperationsBar || !selectedCount) {
-        console.log('Rules batch operations elements not found, skipping initialization');
-        return;
-      }
-
-      // 標記為已初始化
-      window.rulesBatchOperationsInitialized = true;
-      console.log('Initializing rules batch operations...');
-
-      function updateRulesBatchOperationsBar() {
-        const checkedBoxes = document.querySelectorAll('.rule-checkbox:checked');
-        const count = checkedBoxes.length;
-        selectedCount.textContent = count;
-
-        if (count > 0) {
-          batchOperationsBar.classList.remove('hidden');
-        } else {
-          batchOperationsBar.classList.add('hidden');
-        }
-
-        // Update select all checkbox state
-        const allCheckboxes = document.querySelectorAll('.rule-checkbox');
-        if (selectAllRules) {
-          selectAllRules.checked = count === allCheckboxes.length;
-          selectAllRules.indeterminate = count > 0 && count < allCheckboxes.length;
-        }
-      }
-
-      // Select all rules
-      if (selectAllRules) {
-        selectAllRules.addEventListener('change', (e) => {
-          document.querySelectorAll('.rule-checkbox').forEach(cb => {
-            cb.checked = e.target.checked;
-          });
-          updateRulesBatchOperationsBar();
-        });
-      }
-
-      // Individual rule selection
-      document.addEventListener('change', (e) => {
-        if (e.target.classList.contains('rule-checkbox')) {
-          updateRulesBatchOperationsBar();
-        }
-      });
-
-      // Clear selection
-      if (clearSelectionBtn) {
-        clearSelectionBtn.addEventListener('click', () => {
-          document.querySelectorAll('.rule-checkbox').forEach(cb => cb.checked = false);
-          if (selectAllRules) selectAllRules.checked = false;
-          updateRulesBatchOperationsBar();
-        });
-      }
-
-      // Batch enable
-      if (batchEnableBtn) {
-        batchEnableBtn.addEventListener('click', () => {
-          const selectedRules = Array.from(document.querySelectorAll('.rule-checkbox:checked'));
-          showFeedbackModal(`已批次啟用 ${selectedRules.length} 個規則`);
-          setTimeout(() => {
-            closeFeedbackModal();
-            // 清除選擇狀態
-            document.querySelectorAll('.rule-checkbox').forEach(cb => cb.checked = false);
-            if (selectAllRules) selectAllRules.checked = false;
-            updateRulesBatchOperationsBar();
-          }, 1500);
-        });
-      }
-
-      // Batch disable
-      if (batchDisableBtn) {
-        batchDisableBtn.addEventListener('click', () => {
-          const selectedRules = Array.from(document.querySelectorAll('.rule-checkbox:checked'));
-          showFeedbackModal(`已批次停用 ${selectedRules.length} 個規則`);
-          setTimeout(() => {
-            closeFeedbackModal();
-            // 清除選擇狀態
-            document.querySelectorAll('.rule-checkbox').forEach(cb => cb.checked = false);
-            if (selectAllRules) selectAllRules.checked = false;
-            updateRulesBatchOperationsBar();
-          }, 1500);
-        });
-      }
-
-      // Batch silence
-      if (batchSilenceBtn) {
-        batchSilenceBtn.addEventListener('click', () => {
-          const selectedRules = Array.from(document.querySelectorAll('.rule-checkbox:checked'));
-          showFeedbackModal(`已批次靜默 ${selectedRules.length} 個規則`);
-          setTimeout(() => {
-            closeFeedbackModal();
-            // 清除選擇狀態
-            document.querySelectorAll('.rule-checkbox').forEach(cb => cb.checked = false);
-            if (selectAllRules) selectAllRules.checked = false;
-            updateRulesBatchOperationsBar();
-          }, 1500);
-        });
-      }
-
-      // Batch delete
-      if (batchDeleteBtn) {
-        batchDeleteBtn.addEventListener('click', () => {
-          const selectedRules = Array.from(document.querySelectorAll('.rule-checkbox:checked'));
-          if (confirm(`您確定要刪除選取的 ${selectedRules.length} 個規則嗎？此操作無法復原。`)) {
-            showFeedbackModal(`已批次刪除 ${selectedRules.length} 個規則`);
-            setTimeout(() => {
-              closeFeedbackModal();
-              // 清除選擇狀態
-              document.querySelectorAll('.rule-checkbox').forEach(cb => cb.checked = false);
-              if (selectAllRules) selectAllRules.checked = false;
-              updateRulesBatchOperationsBar();
-            }, 1500);
+      initializeGenericBatchOperations({
+        selectAllId: 'select-all-rules',
+        batchBarId: 'rules-batch-operations-bar',
+        selectedCountId: 'rules-selected-count',
+        clearSelectionId: 'rules-clear-selection-btn',
+        checkboxClass: 'rule-checkbox',
+        initializedFlag: 'rulesBatchOperationsInitialized',
+        operationButtons: [
+          {
+            id: 'rules-batch-enable-btn',
+            action: '批次啟用規則'
+          },
+          {
+            id: 'rules-batch-disable-btn',
+            action: '批次停用規則'
+          },
+          {
+            id: 'rules-batch-silence-btn',
+            action: '批次靜默規則'
+          },
+          {
+            id: 'rules-batch-delete-btn',
+            action: '批次刪除規則',
+            confirmMessage: '您確定要刪除選取的規則嗎？此操作無法復原。'
           }
-        });
-      }
+        ]
+      });
     }
 
     // --- Maintenance Batch Operations Functions ---
     function initializeMaintenanceBatchOperations() {
-      // 檢查是否已經初始化
-      if (window.maintenanceBatchOperationsInitialized) {
-        console.log('Maintenance batch operations already initialized, skipping');
-        return;
-      }
-
-      const selectAllMaintenance = document.getElementById('select-all-maintenance');
-      const batchOperationsBar = document.getElementById('maintenance-batch-operations-bar');
-      const selectedCount = document.getElementById('maintenance-selected-count');
-      const clearSelectionBtn = document.getElementById('maintenance-clear-selection-btn');
-      const batchExtendBtn = document.getElementById('maintenance-batch-extend-btn');
-      const batchEndBtn = document.getElementById('maintenance-batch-end-btn');
-      const batchDeleteBtn = document.getElementById('maintenance-batch-delete-btn');
-
-      // 檢查必要元素是否存在，如果不存在則退出
-      if (!selectAllMaintenance || !batchOperationsBar || !selectedCount) {
-        console.log('Maintenance batch operations elements not found, skipping initialization');
-        return;
-      }
-
-      // 標記為已初始化
-      window.maintenanceBatchOperationsInitialized = true;
-      console.log('Initializing maintenance batch operations...');
-
-      function updateMaintenanceBatchOperationsBar() {
-        const checkedBoxes = document.querySelectorAll('.maintenance-checkbox:checked');
-        const count = checkedBoxes.length;
-        selectedCount.textContent = count;
-
-        if (count > 0) {
-          batchOperationsBar.classList.remove('hidden');
-        } else {
-          batchOperationsBar.classList.add('hidden');
-        }
-
-        // Update select all checkbox state
-        const allCheckboxes = document.querySelectorAll('.maintenance-checkbox');
-        if (selectAllMaintenance) {
-          selectAllMaintenance.checked = count === allCheckboxes.length;
-          selectAllMaintenance.indeterminate = count > 0 && count < allCheckboxes.length;
-        }
-      }
-
-      // Select all maintenance
-      if (selectAllMaintenance) {
-        selectAllMaintenance.addEventListener('change', (e) => {
-          document.querySelectorAll('.maintenance-checkbox').forEach(cb => {
-            cb.checked = e.target.checked;
-          });
-          updateMaintenanceBatchOperationsBar();
-        });
-      }
-
-      // Individual maintenance selection
-      document.addEventListener('change', (e) => {
-        if (e.target.classList.contains('maintenance-checkbox')) {
-          updateMaintenanceBatchOperationsBar();
-        }
-      });
-
-      // Clear selection
-      if (clearSelectionBtn) {
-        clearSelectionBtn.addEventListener('click', () => {
-          document.querySelectorAll('.maintenance-checkbox').forEach(cb => cb.checked = false);
-          if (selectAllMaintenance) selectAllMaintenance.checked = false;
-          updateMaintenanceBatchOperationsBar();
-        });
-      }
-
-      // Batch extend
-      if (batchExtendBtn) {
-        batchExtendBtn.addEventListener('click', () => {
-          const selectedMaintenance = Array.from(document.querySelectorAll('.maintenance-checkbox:checked'));
-          showFeedbackModal(`已批次延長 ${selectedMaintenance.length} 個維護時段`);
-          setTimeout(() => {
-            closeFeedbackModal();
-            // 清除選擇狀態
-            document.querySelectorAll('.maintenance-checkbox').forEach(cb => cb.checked = false);
-            if (selectAllMaintenance) selectAllMaintenance.checked = false;
-            updateMaintenanceBatchOperationsBar();
-          }, 1500);
-        });
-      }
-
-      // Batch end
-      if (batchEndBtn) {
-        batchEndBtn.addEventListener('click', () => {
-          const selectedMaintenance = Array.from(document.querySelectorAll('.maintenance-checkbox:checked'));
-          showFeedbackModal(`已批次結束 ${selectedMaintenance.length} 個維護時段`);
-          setTimeout(() => {
-            closeFeedbackModal();
-            // 清除選擇狀態
-            document.querySelectorAll('.maintenance-checkbox').forEach(cb => cb.checked = false);
-            if (selectAllMaintenance) selectAllMaintenance.checked = false;
-            updateMaintenanceBatchOperationsBar();
-          }, 1500);
-        });
-      }
-
-      // Batch delete
-      if (batchDeleteBtn) {
-        batchDeleteBtn.addEventListener('click', () => {
-          const selectedMaintenance = Array.from(document.querySelectorAll('.maintenance-checkbox:checked'));
-          if (confirm(`您確定要刪除選取的 ${selectedMaintenance.length} 個維護時段嗎？此操作無法復原。`)) {
-            showFeedbackModal(`已批次刪除 ${selectedMaintenance.length} 個維護時段`);
-            setTimeout(() => {
-              closeFeedbackModal();
-              // 清除選擇狀態
-              document.querySelectorAll('.maintenance-checkbox').forEach(cb => cb.checked = false);
-              if (selectAllMaintenance) selectAllMaintenance.checked = false;
-              updateMaintenanceBatchOperationsBar();
-            }, 1500);
+      initializeGenericBatchOperations({
+        selectAllId: 'select-all-maintenance',
+        batchBarId: 'maintenance-batch-operations-bar',
+        selectedCountId: 'maintenance-selected-count',
+        clearSelectionId: 'maintenance-clear-selection-btn',
+        checkboxClass: 'maintenance-checkbox',
+        initializedFlag: 'maintenanceBatchOperationsInitialized',
+        operationButtons: [
+          {
+            id: 'maintenance-batch-extend-btn',
+            action: '批次延長維護時段'
+          },
+          {
+            id: 'maintenance-batch-end-btn',
+            action: '批次結束維護時段'
+          },
+          {
+            id: 'maintenance-batch-delete-btn',
+            action: '批次刪除維護時段',
+            confirmMessage: '您確定要刪除選取的維護時段嗎？此操作無法復原。'
           }
-        });
-      }
+        ]
+      });
     }
 
     // --- Groups Batch Operations Functions ---
     function initializeGroupsBatchOperations() {
-      if (window.groupsBatchOperationsInitialized) {
-        console.log('Groups batch operations already initialized, skipping');
-        return;
-      }
-
-      const selectAllGroups = document.getElementById('select-all-groups');
-      const batchOperationsBar = document.getElementById('groups-batch-operations-bar');
-      const selectedCount = document.getElementById('groups-selected-count');
-      const clearSelectionBtn = document.getElementById('groups-clear-selection-btn');
-      const batchDeleteBtn = document.getElementById('groups-batch-delete-btn');
-
-      if (!selectAllGroups || !batchOperationsBar || !selectedCount) {
-        console.log('Groups batch operations elements not found, skipping initialization');
-        return;
-      }
-
-      window.groupsBatchOperationsInitialized = true;
-      console.log('Initializing groups batch operations...');
-
-      function updateGroupsBatchOperationsBar() {
-        const checkedBoxes = document.querySelectorAll('.group-checkbox:checked');
-        const count = checkedBoxes.length;
-        selectedCount.textContent = count;
-
-        if (count > 0) {
-          batchOperationsBar.classList.remove('hidden');
-        } else {
-          batchOperationsBar.classList.add('hidden');
-        }
-
-        const allCheckboxes = document.querySelectorAll('.group-checkbox');
-        if (selectAllGroups) {
-          selectAllGroups.checked = count === allCheckboxes.length;
-          selectAllGroups.indeterminate = count > 0 && count < allCheckboxes.length;
-        }
-      }
-
-      if (selectAllGroups) {
-        selectAllGroups.addEventListener('change', (e) => {
-          document.querySelectorAll('.group-checkbox').forEach(cb => {
-            cb.checked = e.target.checked;
-          });
-          updateGroupsBatchOperationsBar();
-        });
-      }
-
-      document.addEventListener('change', (e) => {
-        if (e.target.classList.contains('group-checkbox')) {
-          updateGroupsBatchOperationsBar();
-        }
-      });
-
-      if (clearSelectionBtn) {
-        clearSelectionBtn.addEventListener('click', () => {
-          document.querySelectorAll('.group-checkbox').forEach(cb => cb.checked = false);
-          if (selectAllGroups) selectAllGroups.checked = false;
-          updateGroupsBatchOperationsBar();
-        });
-      }
-
-      if (batchDeleteBtn) {
-        batchDeleteBtn.addEventListener('click', () => {
-          const selectedGroups = Array.from(document.querySelectorAll('.group-checkbox:checked'));
-          if (confirm(`您確定要刪除選取的 ${selectedGroups.length} 個群組嗎？此操作無法復原。`)) {
-            showFeedbackModal(`已批次刪除 ${selectedGroups.length} 個群組`);
-            setTimeout(() => {
-              closeFeedbackModal();
-              document.querySelectorAll('.group-checkbox').forEach(cb => cb.checked = false);
-              if (selectAllGroups) selectAllGroups.checked = false;
-              updateGroupsBatchOperationsBar();
-            }, 1500);
+      initializeGenericBatchOperations({
+        selectAllId: 'select-all-groups',
+        batchBarId: 'groups-batch-operations-bar',
+        selectedCountId: 'groups-selected-count',
+        clearSelectionId: 'groups-clear-selection-btn',
+        checkboxClass: 'group-checkbox',
+        initializedFlag: 'groupsBatchOperationsInitialized',
+        operationButtons: [
+          {
+            id: 'groups-batch-delete-btn',
+            action: '批次刪除群組',
+            confirmMessage: '您確定要刪除選取的群組嗎？此操作無法復原。'
           }
-        });
-      }
+        ]
+      });
     }
 
     // --- Teams Batch Operations Functions ---
     function initializeTeamsBatchOperations() {
-      if (window.teamsBatchOperationsInitialized) {
-        console.log('Teams batch operations already initialized, skipping');
-        return;
-      }
-
-      const selectAllTeams = document.getElementById('select-all-teams');
-      const batchOperationsBar = document.getElementById('teams-batch-operations-bar');
-      const selectedCount = document.getElementById('teams-selected-count');
-      const clearSelectionBtn = document.getElementById('teams-clear-selection-btn');
-      const batchDeleteBtn = document.getElementById('teams-batch-delete-btn');
-
-      if (!selectAllTeams || !batchOperationsBar || !selectedCount) {
-        console.log('Teams batch operations elements not found, skipping initialization');
-        return;
-      }
-
-      window.teamsBatchOperationsInitialized = true;
-      console.log('Initializing teams batch operations...');
-
-      function updateTeamsBatchOperationsBar() {
-        const checkedBoxes = document.querySelectorAll('.team-checkbox:checked');
-        const count = checkedBoxes.length;
-        selectedCount.textContent = count;
-
-        if (count > 0) {
-          batchOperationsBar.classList.remove('hidden');
-        } else {
-          batchOperationsBar.classList.add('hidden');
-        }
-
-        const allCheckboxes = document.querySelectorAll('.team-checkbox');
-        if (selectAllTeams) {
-          selectAllTeams.checked = count === allCheckboxes.length;
-          selectAllTeams.indeterminate = count > 0 && count < allCheckboxes.length;
-        }
-      }
-
-      if (selectAllTeams) {
-        selectAllTeams.addEventListener('change', (e) => {
-          document.querySelectorAll('.team-checkbox').forEach(cb => {
-            cb.checked = e.target.checked;
-          });
-          updateTeamsBatchOperationsBar();
-        });
-      }
-
-      document.addEventListener('change', (e) => {
-        if (e.target.classList.contains('team-checkbox')) {
-          updateTeamsBatchOperationsBar();
-        }
-      });
-
-      if (clearSelectionBtn) {
-        clearSelectionBtn.addEventListener('click', () => {
-          document.querySelectorAll('.team-checkbox').forEach(cb => cb.checked = false);
-          if (selectAllTeams) selectAllTeams.checked = false;
-          updateTeamsBatchOperationsBar();
-        });
-      }
-
-      if (batchDeleteBtn) {
-        batchDeleteBtn.addEventListener('click', () => {
-          const selectedTeams = Array.from(document.querySelectorAll('.team-checkbox:checked'));
-          if (confirm(`您確定要刪除選取的 ${selectedTeams.length} 個團隊嗎？此操作無法復原。`)) {
-            showFeedbackModal(`已批次刪除 ${selectedTeams.length} 個團隊`);
-            setTimeout(() => {
-              closeFeedbackModal();
-              document.querySelectorAll('.team-checkbox').forEach(cb => cb.checked = false);
-              if (selectAllTeams) selectAllTeams.checked = false;
-              updateTeamsBatchOperationsBar();
-            }, 1500);
+      initializeGenericBatchOperations({
+        selectAllId: 'select-all-teams',
+        batchBarId: 'teams-batch-operations-bar',
+        selectedCountId: 'teams-selected-count',
+        clearSelectionId: 'teams-clear-selection-btn',
+        checkboxClass: 'team-checkbox',
+        initializedFlag: 'teamsBatchOperationsInitialized',
+        operationButtons: [
+          {
+            id: 'teams-batch-delete-btn',
+            action: '批次刪除團隊',
+            confirmMessage: '您確定要刪除選取的團隊嗎？此操作無法復原。'
           }
-        });
-      }
+        ]
+      });
     }
 
     // --- Personnel Batch Operations Functions ---
