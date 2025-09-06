@@ -26,7 +26,7 @@
 本開發者指南旨在描述專案的**目標架構**與**理想工作流程**。開發者應注意，目前的實作與本文件描述之間可能存在以下差異：
 
 - **功能完整性**: 許多核心功能，特別是 `SRE Assistant` 的診斷與 AI 分析能力，仍處於**骨架或模擬 (mock) 階段**。
-- **API 狀態**: API 設計仍在演進，可能會出現與 `openapi.yaml` 定義不完全一致的情況。
+- **API 狀態**: API 設計仍在演進，可能會出現與 `control-plane-openapi.yaml` 或 `sre-assistant-openapi.yaml` 定義不完全一致的情況。
 - **程式碼品質**: 部分模組可能仍在快速迭代，尚未達到生產環境的穩定性與品質標準。
 
 我們鼓勵開發者將本文件作為開發的**藍圖**與**方向**，並積極參與，共同將理想變為現實。
@@ -902,7 +902,8 @@ sre-platform/
 │       └── Dockerfile              # 容器化配置
 ├── 📁 pkg/                         # 共享套件
 │   ├── api/
-│   │   └── openapi.yaml            # API 契約規格（唯一真實來源）
+│   │   ├── control-plane-openapi.yaml  # Control Plane API 契約
+│   │   └── sre-assistant-openapi.yaml  # SRE Assistant API 契約
 │   ├── utils/                      # 共享工具
 │   └── models/                     # 共享資料模型
 ├── 📁 docs/                        # 專案文件

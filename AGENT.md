@@ -76,8 +76,10 @@ make setup-dev
 
 ### 4.1. API 契約
 
-- **唯一真實來源**: `pkg/api/openapi.yaml`。
-- **修改流程**: 任何 API 變更必須先更新此 `openapi.yaml` 文件。
+- **唯一真實來源**:
+  - `pkg/api/control-plane-openapi.yaml` (用於 Control Plane)
+  - `pkg/api/sre-assistant-openapi.yaml` (用於 SRE Assistant)
+- **修改流程**: 任何 API 變更必須更新對應服務的 OpenAPI 文件。
 
 ### 4.2. 認證
 

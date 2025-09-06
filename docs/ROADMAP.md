@@ -14,7 +14,7 @@
 ### 主要交付物 (Key Deliverables):
 
 - **[🚧] 1.1. API 契約符合性 (API Contract Compliance)**:
-    - **任務**: 確保 `sre-assistant` 的 FastAPI 服務嚴格遵守 `openapi.yaml` 中定義的所有端點、請求格式和回應格式。
+    - **任務**: 確保 `sre-assistant` 的 FastAPI 服務嚴格遵守 `pkg/api/sre-assistant-openapi.yaml` 中定義的所有端點、請求格式和回應格式。
 
 - **[✅] 1.2. 服務對服務認證 (M2M Authentication)**:
     - **任務**: 完整實現基於 Keycloak 和 Client Credentials Flow 的認證機制。
@@ -155,7 +155,7 @@
         - **SSE 範例**: [`docs/references/adk-examples/mcp_sse_agent/`](./references/adk-examples/mcp_sse_agent/)
 
 - **[ ] 4.4. 從 OpenAPI 自動生成客戶端 (Generate Client from OpenAPI)**:
-    - **任務**: 將 `pkg/api/openapi.yaml` 作為 API 的唯一真實來源。從中自動生成 `control-plane` 的 Go 客戶端程式碼，並移除手動編寫的客戶端和重複的資料結構。
+    - **任務**: 將 `pkg/api/control-plane-openapi.yaml` 作為 Control Plane API 的唯一真實來源。從中自動生成 `control-plane` 的 Go 客戶端程式碼，並移除手動編寫的客戶端和重複的資料結構。
     - **參考**:
         - **ADK OpenAPI 工具**: [`docs/references/adk-docs/tools-openapi.md`](./references/adk-docs/tools-openapi.md)
         - **Go Code Gen (外部參考)**: `https://github.com/deepmap/oapi-codegen`
