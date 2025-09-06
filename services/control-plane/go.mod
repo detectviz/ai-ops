@@ -8,13 +8,11 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/sessions v1.4.0
-	github.com/lib/pq v1.10.9
 	github.com/rs/cors v1.10.1
-	go.opentelemetry.io/otel v1.38.0
-	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.38.0
-	go.opentelemetry.io/otel/sdk v1.38.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/oauth2 v0.28.0
+	gorm.io/driver/postgres v1.6.0
+	gorm.io/gorm v1.30.3
 )
 
 require (
@@ -30,14 +28,12 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/uptrace/opentelemetry-go-extra/otelutil v0.3.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	go.opentelemetry.io/otel v1.38.0 // indirect
 	go.opentelemetry.io/otel/log v0.6.0 // indirect
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
-	gorm.io/driver/postgres v1.6.0 // indirect
-	gorm.io/gorm v1.30.3 // indirect
 )
 
 require (
