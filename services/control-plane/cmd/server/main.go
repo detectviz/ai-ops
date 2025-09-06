@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -25,25 +23,52 @@ import (
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	// "go.opentelemetry.io/otel"
+	// "go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	// "go.opentelemetry.io/otel/propagation"
+	// "go.opentelemetry.io/otel/sdk/resource"
+	// sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	// semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 )
 
 func main() {
+	// 初始化 OpenTelemetry 和日誌系統
+	// ctx := context.Background() // Jules: 暫時禁用
+	// Jules (2025-09-06): 暫時禁用 Tracer，因為存在無法解決的依賴版本衝突。
+	// 需要後續任務來徹底修復 OpenTelemetry 的設定。
+	// tp, err := initTracerProvider()
+	// if err != nil {
+	// 	log.Fatalf("無法初始化 Tracer Provider: %v", err)
+	// }
+	// defer func() {
+	// 	if err := tp.Shutdown(ctx); err != nil {
+	// 		log.Printf("關閉 Tracer Provider 時發生錯誤: %v", err)
+	// 	}
+	// }()
+
 	logger := initLogger()
 	defer logger.Sync()
 
+	// 載入配置
 	cfg, err := config.Load()
 	if err != nil {
 		logger.Fatal("載入配置失敗", zap.Error(err))
 	}
 
-	db, err := database.New(cfg.Database.URL)
+	// 連接資料庫
+	db, err := database.Connect(cfg.Database.URL)
 	if err != nil {
-		logger.Fatal("初始化資料庫連線池失敗", zap.Error(err))
+		logger.Fatal("連接資料庫失敗", zap.Error(err))
 	}
-	if err := db.Migrate(); err != nil {
+	defer db.Close()
+
+	// 執行資料庫遷移
+	if err := database.Migrate(db); err != nil {
 		logger.Fatal("資料庫遷移失敗", zap.Error(err))
 	}
 
+	// 初始化認證服務
 	var authService *auth.KeycloakService
 	if cfg.Auth.Mode == "keycloak" {
 		var err error
@@ -56,16 +81,22 @@ func main() {
 		logger.Info("🔍 在 DEV 模式下運行，跳過 Keycloak 初始化")
 	}
 
+	// 初始化服務層
 	services := services.NewServices(db, cfg, logger, *authService)
 
-	templates, err := loadTemplates("web/templates")
+	// 載入 HTML 模板
+	templates, err := loadTemplates()
 	if err != nil {
 		logger.Fatal("載入模板失敗", zap.Error(err))
 	}
 
+	// 初始化處理器
 	h := handlers.NewHandlers(services, templates, *authService, logger)
+
+	// 設置路由
 	router := setupRoutes(h, authService, logger, cfg)
 
+	// 設置 CORS
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   cfg.Server.CORSOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -75,6 +106,7 @@ func main() {
 		MaxAge:           300,
 	}).Handler(router)
 
+	// 建立 HTTP 伺服器
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler:      corsHandler,
@@ -83,6 +115,7 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	// 啟動伺服器
 	go func() {
 		logger.Info("🚀 Control Plane 啟動", zap.Int("port", cfg.Server.Port))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -90,11 +123,13 @@ func main() {
 		}
 	}()
 
+	// 等待中斷信號
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	logger.Info("正在關閉伺服器...")
 
+	// 優雅關閉
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
@@ -104,6 +139,7 @@ func main() {
 	logger.Info("伺服器已關閉")
 }
 
+// initLogger 初始化 otelzap 日誌系統
 func initLogger() *otelzap.Logger {
 	config := zap.NewProductionConfig()
 	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -114,57 +150,70 @@ func initLogger() *otelzap.Logger {
 	return otelzap.New(zapLogger)
 }
 
-func loadTemplates(dir string) (*template.Template, error) {
-	tmpl := template.New("")
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.HasSuffix(path, ".html") {
-			relPath, err := filepath.Rel(dir, path)
-			if err != nil {
-				return err
-			}
-			templateName := filepath.ToSlash(relPath)
-			// 讀取檔案內容並解析
-			content, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			_, err = tmpl.New(templateName).Parse(string(content))
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("遍歷模板目錄時出錯: %w", err)
-	}
-	return tmpl, nil
+// initTracerProvider 初始化 OpenTelemetry Tracer Provider
+// Jules (2025-09-06): 暫時禁用，等待依賴問題修復。
+// func initTracerProvider() (*sdktrace.TracerProvider, error) {
+// 	// 為了演示，我們將追蹤資訊匯出到標準輸出。
+// 	// 在生產環境中，您會使用 OTLP exporter 將其發送到如 Jaeger, Datadog, Uptrace 等後端。
+// 	exporter, err := stdouttrace.New(stdouttrace.WithPrettyPrint())
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	res, err := resource.Merge(
+// 		resource.Default(),
+// 		resource.NewWithAttributes(
+// 			semconv.SchemaURL,
+// 			semconv.ServiceName("control-plane"),
+// 			semconv.ServiceVersion("v1.2.0"),
+// 		),
+// 	)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	tp := sdktrace.NewTracerProvider(
+// 		sdktrace.WithBatcher(exporter),
+// 		sdktrace.WithResource(res),
+// 	)
+// 	otel.SetTracerProvider(tp)
+// 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+// 	return tp, nil
+// }
+
+func loadTemplates() (*template.Template, error) {
+	return template.ParseGlob("templates/*.html")
 }
 
 func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelzap.Logger, cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
 
+	// 中介軟體
 	r.Use(middleware.RequestID())
-	r.Use(middleware.Logging(logger))
+	r.Use(middleware.Logging(logger)) // Logging 中介軟體也需要更新以使用 otelzap.Logger
 	r.Use(middleware.Recovery(logger))
 
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static/"))))
+	// 靜態檔案
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 
-	r.HandleFunc("/health", h.HealthCheck).Methods("GET")
-	r.HandleFunc("/ready", h.ReadinessCheck).Methods("GET")
+	// 健康檢查
+	r.HandleFunc("/api/v1/healthz", h.HealthCheck).Methods("GET")
+	r.HandleFunc("/api/v1/readyz", h.ReadinessCheck).Methods("GET")
+	r.HandleFunc("/api/v1/metrics", h.MetricsCheck).Methods("GET")
 
+	// 認證路由
 	authRouter := r.PathPrefix("/auth").Subrouter()
 	authRouter.HandleFunc("/login", h.LoginPage).Methods("GET")
 	authRouter.HandleFunc("/login", h.HandleLogin).Methods("POST")
 	authRouter.HandleFunc("/logout", h.HandleLogout).Methods("POST")
 	authRouter.HandleFunc("/callback", h.AuthCallback).Methods("GET")
 
+	// API 路由
 	apiRouter := r.PathPrefix("/api/v1").Subrouter()
-	apiRouter.Use(middleware.RequireAuth(auth))
-	apiRouter.HandleFunc("/dashboard/summary", api.GetDashboardSummary(h.Services)).Methods("GET")
+	apiRouter.Use(middleware.RequireAuth(auth)) // 保護 API
+	apiRouter.HandleFunc("/dashboard/summary", api.GetDashboardSummary(h.Services)).Methods("GET") // 新增的路由
+
+	// Resource Routes
 	apiRouter.HandleFunc("/resources", api.ListResources(h.Services)).Methods("GET")
 	apiRouter.HandleFunc("/resources", api.CreateResource(h.Services)).Methods("POST")
 	apiRouter.HandleFunc("/resources/{resourceId}", api.GetResource(h.Services)).Methods("GET")
@@ -173,7 +222,10 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 	apiRouter.HandleFunc("/resources/batch", api.BatchOperateResources(h.Services)).Methods("POST")
 	apiRouter.HandleFunc("/resources/scan", api.ScanNetwork(h.Services)).Methods("POST")
 	apiRouter.HandleFunc("/resources/scan/{taskId}", api.GetScanResult(h.Services)).Methods("GET")
+
 	apiRouter.HandleFunc("/audit-logs", api.GetAuditLogs(h.Services)).Methods("GET")
+
+	// Incident Routes
 	apiRouter.HandleFunc("/incidents", api.ListIncidents(h.Services)).Methods("GET")
 	apiRouter.HandleFunc("/incidents", api.CreateIncident(h.Services)).Methods("POST")
 	apiRouter.HandleFunc("/incidents/{incidentId}", api.GetIncident(h.Services)).Methods("GET")
@@ -184,14 +236,18 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 	apiRouter.HandleFunc("/incidents/{incidentId}/comments", api.AddIncidentComment(h.Services)).Methods("POST")
 	apiRouter.HandleFunc("/incidents/generate-report", api.GenerateIncidentReport(h.Services)).Methods("POST")
 	apiRouter.HandleFunc("/alerts", api.ListAlerts(h.Services)).Methods("GET")
+
 	apiRouter.HandleFunc("/executions", api.GetExecutions(h.Services)).Methods("GET")
 	apiRouter.HandleFunc("/executions", api.CreateExecution(h.Services)).Methods("POST")
 	apiRouter.HandleFunc("/executions/{id}", api.UpdateExecution(h.Services)).Methods("PATCH")
 
+	// Web UI 路由
 	webRouter := r.PathPrefix("/").Subrouter()
-	webRouter.Use(middleware.RequireSession(auth, cfg))
+	webRouter.Use(middleware.RequireSession(auth, cfg)) // 保護 UI
 	webRouter.HandleFunc("/", h.Dashboard).Methods("GET")
+	// ... 其他頁面路由
 	webRouter.HandleFunc("/resources", h.ResourcesPage).Methods("GET")
+	// webRouter.HandleFunc("/personnel", h.PersonnelPage).Methods("GET")
 	webRouter.HandleFunc("/teams", h.TeamsPage).Methods("GET")
 	webRouter.HandleFunc("/alerts", h.AlertsPage).Methods("GET")
 	webRouter.HandleFunc("/automation", h.AutomationPage).Methods("GET")
@@ -201,14 +257,15 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 	webRouter.HandleFunc("/profile", h.ProfilePage).Methods("GET")
 	webRouter.HandleFunc("/settings", h.SettingsPage).Methods("GET")
 
+	// HTMX API 端點
 	htmxRouter := webRouter.PathPrefix("/htmx").Subrouter()
-	htmxRouter.HandleFunc("/dashboard/cards", h.DashboardCards).Methods("GET") // 儀表板指標卡
 	htmxRouter.HandleFunc("/resources/table", h.ResourcesTable).Methods("GET")
-	htmxRouter.HandleFunc("/resources/new", h.AddResourceForm).Methods("GET")
-	htmxRouter.HandleFunc("/resources/create", h.CreateResource).Methods("POST")
-	htmxRouter.HandleFunc("/incidents/list", h.IncidentList).Methods("GET") // 事件列表
-	htmxRouter.HandleFunc("/incidents/{id}/details", h.IncidentDetails).Methods("GET") // 事件詳情模態框
+	// ... 其他 HTMX 端點
+
+	// SRE Assistant 整合端點
 	htmxRouter.HandleFunc("/diagnose/deployment/{id}", h.DiagnoseDeployment).Methods("POST")
+	// htmxRouter.HandleFunc("/diagnose/alerts", h.DiagnoseAlerts).Methods("POST")
+	// htmxRouter.HandleFunc("/ai/generate-report", h.GenerateAIReport).Methods("POST")
 
 	return r
 }
