@@ -8,7 +8,7 @@
 
 ---
 
-## Phase 1: 核心整合 (Core Integration)
+## Phase 1: 核心整合 (Core Integration) [✅] 完成
 
 - **主題**: 專注於完成 `sre-assistant` 與 `control-plane` 之間的所有技術對接工作，確保兩者能夠安全、可靠地協同工作。
 - **關鍵目標**: 實現一個可由 `control-plane` 觸發並完成端到端診斷流程的最小可行產品 (MVP)。
@@ -68,13 +68,13 @@
         - [第三方工具整合 | ADK 文件](./references/adk-docs/tools-third-party-tools.md)
         - [GitHub Toolset 範例（工具集結構與錯誤處理）](./references/adk-agent-samples/github-agent/github_toolset.py)
 
-- **[🚧] 1.4. 端到端流程實作與測試**:
+- **[✅] 1.4. 端到端流程實作與測試**:
     - **任務**: 在 `SREWorkflow` 中整合所有核心工具，並建立一個完整的整合測試，以驗證 `/diagnostics/deployment` 的端到端流程。
     - **對應 API**: `/diagnostics/deployment`。
     - **相關子任務**:
         - [x] **修復工作流程錯誤處理**: `asyncio.gather` 中已添加異常處理、容錯、超時和重試機制。
         - [x] **API 整合測試**: 端到端診斷流程測試, 非同步任務狀態追蹤測試, 錯誤情境測試。 (註：`test_diagnose_deployment_success_e2e` 和 `test_async_task_status_polling` 等測試已新增並通過。)
-        - [ ] **外部服務整合測試**: Prometheus, Loki, Keycloak 整合測試。
+        - [x] **外部服務整合測試**: Prometheus, Loki, Keycloak 整合測試。 (已修復 `TypeError` 並使所有整合測試穩定通過)
     - **參考**: `docs/reference-adk-examples.md` (parallel_functions, workflow_agent_seq)
     - 補充參考（ADK 最佳實踐）:
         - [平行工作流代理 | ADK 文件](./references/adk-docs/agents-workflow-agents-parallel-agents.md)
