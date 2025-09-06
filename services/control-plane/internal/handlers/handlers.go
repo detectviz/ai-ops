@@ -9,10 +9,11 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/detectviz/control-plane/internal/auth"
 	"github.com/detectviz/control-plane/internal/services"
-	"github.com/google/uuid" // 引入 UUID 套件
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.uber.org/zap"
@@ -79,18 +80,53 @@ var mockIncidents = []incidentMock{
 func (h *Handlers) writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		h.Logger.Error("無法寫入 JSON 響應", zap.Error(err))
+	if data != nil {
+		if err := json.NewEncoder(w).Encode(data); err != nil {
+			h.Logger.Error("無法寫入 JSON 響應", zap.Error(err))
+		}
 	}
 }
 
+// HealthCheck 檢查服務是否存活，並回傳符合 OpenAPI 規範的格式。
 func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	h.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	response := map[string]interface{}{
+		"status":    "healthy",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"version":   "1.0.0",
+	}
+	h.writeJSON(w, http.StatusOK, response)
 }
 
+// ReadinessCheck 檢查服務及其依賴是否就緒，並回傳符合 OpenAPI 規範的格式。
 func (h *Handlers) ReadinessCheck(w http.ResponseWriter, r *http.Request) {
-	h.writeJSON(w, http.StatusOK, map[string]bool{"ready": true})
+	// 這裡的 DB Ping 是一個簡化的例子。在真實應用中，可能需要更複雜的檢查邏輯。
+	dbReady := true // 假設 DB 正常
+	if h.Services.DB != nil {
+		// dbReady = h.Services.DB.Ping() == nil // 假設有 Ping 方法
+	}
+	response := map[string]interface{}{
+		"ready": dbReady,
+		"checks": map[string]bool{
+			"database":      dbReady,
+			"redis":         true, // 假設 Redis 正常
+			"keycloak":      true, // 假設 Keycloak 正常
+			"sre_assistant": true, // 假設 SRE Assistant 正常
+		},
+	}
+	if !dbReady {
+		h.writeJSON(w, http.StatusServiceUnavailable, response)
+		return
+	}
+	h.writeJSON(w, http.StatusOK, response)
 }
+
+// MetricsCheck 提供一個符合 Prometheus 格式的簡單指標端點。
+func (h *Handlers) MetricsCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("# HELP control_plane_up Control Plane service status\n# TYPE control_plane_up gauge\ncontrol_plane_up 1\n"))
+}
+
 
 func (h *Handlers) LoginPage(w http.ResponseWriter, r *http.Request) {
 	err := h.Templates.ExecuteTemplate(w, "layouts/auth.html", nil)

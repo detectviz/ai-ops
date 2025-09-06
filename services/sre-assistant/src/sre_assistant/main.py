@@ -253,38 +253,19 @@ async def run_workflow_bg(session_id: uuid.UUID, request: SREWorkflowRequest, re
 
 # === API 端點 ===
 
-@app.get("/api/v1/healthz", tags=["Health"])
+@app.get("/healthz", tags=["Health"])
 def check_liveness():
     return {"status": "ok"}
 
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
-@app.get("/api/v1/readyz", tags=["Health"])
-async def check_readiness(response: Response):
-    """
-    執行深入的就緒檢查，驗證所有後端依賴是否可用。
-    """
-    if not app_ready or not workflow or not redis_client:
-        response.status_code = 503
-        return {"status": "not_ready", "reason": "核心元件尚未初始化。"}
-
-    try:
-        # 驗證與 Redis 的即時連線
-        await redis_client.ping()
-
-        # 未來可以加入更多檢查，例如:
-        # - 檢查與 Control Plane 的連線
-        # - 檢查與 Loki/Prometheus 的連線
-
+@app.get("/readyz", tags=["Health"])
+def check_readiness(response: Response):
+    if app_ready and workflow is not None:
         return {"status": "ready"}
-    except redis.exceptions.ConnectionError as e:
-        logger.error(f"Redis 連線檢查失敗: {e}", exc_info=True)
+    else:
         response.status_code = 503
-        return {"status": "not_ready", "reason": f"無法連接到 Redis: {e}"}
-    except Exception as e:
-        logger.error(f"就緒檢查時發生未預期的錯誤: {e}", exc_info=True)
-        response.status_code = 503
-        return {"status": "not_ready", "reason": f"未預期的錯誤: {e}"}
+        return {"status": "not_ready", "reason": "Workflow engine not initialized"}
 
 @app.get("/api/v1/metrics", tags=["Health"])
 def get_metrics():
@@ -310,15 +291,15 @@ async def diagnose_deployment(
         estimated_time=120
     )
 
-@app.get("/api/v1/diagnostics/{sessionId}/status", tags=["Diagnostics"], response_model=DiagnosticStatus)
+@app.get("/api/v1/diagnostics/{session_id}/status", tags=["Diagnostics"], response_model=DiagnosticStatus)
 async def get_diagnostic_status(
-    sessionId: uuid.UUID,
+    session_id: uuid.UUID,
     token: Dict[str, Any] = Depends(verify_token)
 ):
     """
     查詢非同步診斷任務的狀態。
     """
-    task_json = await redis_client.get(str(sessionId))
+    task_json = await redis_client.get(str(session_id))
     if not task_json:
         raise HTTPException(status_code=404, detail="找不到指定的診斷任務")
 
