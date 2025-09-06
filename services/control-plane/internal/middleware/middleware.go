@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/detectviz/control-plane/internal/auth"
+	"github.com/detectviz/control-plane/internal/config"
 	"github.com/google/uuid"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.uber.org/zap"
@@ -132,7 +133,6 @@ func RequireSession(authSvc *auth.KeycloakService, cfg *config.Config) func(http
 		})
 	}
 }
-
 
 // responseWriter 是一個輔助結構，用於捕獲由處理器寫入的 HTTP 狀態碼。
 type responseWriter struct {

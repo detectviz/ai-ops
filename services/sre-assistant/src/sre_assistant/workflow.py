@@ -4,6 +4,7 @@ SRE 工作流程協調器 (已重構以支援非同步任務)
 """
 
 import asyncio
+import functools
 import logging
 import uuid
 from typing import Dict, Any, List, Optional
@@ -52,6 +53,8 @@ class SREWorkflow:
         self.control_plane_tool = ControlPlaneTool(config)
         self.parallel_diagnosis = config.workflow.get("parallel_diagnosis", True)
         self.diagnosis_timeout = config.workflow.get("diagnosis_timeout_seconds", 120)
+        self.max_retries = config.workflow.get("max_retries", 2)  # 2 retries = 3 total attempts
+        self.retry_delay = config.workflow.get("retry_delay_seconds", 1)
         logger.info("✅ SRE 工作流程初始化完成")
     
     async def _get_task_status(self, session_id: uuid.UUID) -> Optional[DiagnosticStatus]:
@@ -134,13 +137,14 @@ class SREWorkflow:
         status.progress = 20
         await self._update_task_status(session_id, status)
         
+        # 使用 functools.partial 來創建可重複呼叫的任務工廠
         tool_tasks = [
-            ("prometheus", self.prometheus_tool.execute({"service": request.affected_services[0]})),
-            ("loki", self.loki_tool.execute({"service": request.affected_services[0]})),
-            ("audit", self.control_plane_tool.execute({"service": request.affected_services[0]}))
+            ("prometheus", functools.partial(self.prometheus_tool.execute, {"service": request.affected_services[0]})),
+            ("loki", functools.partial(self.loki_tool.execute, {"service": request.affected_services[0]})),
+            ("audit", functools.partial(self.control_plane_tool.execute, {"service": request.affected_services[0]}))
         ]
         
-        status.current_step = "並行執行診斷工具"
+        status.current_step = "並行執行診斷工具 (含重試)"
         status.progress = 50
         await self._update_task_status(session_id, status)
 
@@ -151,36 +155,73 @@ class SREWorkflow:
         await self._update_task_status(session_id, status)
         
         return self._analyze_deployment_results(results, request)
-    
+
+    async def _run_task_with_retry(self, name: str, coro_factory) -> Any:
+        """
+        執行單一任務，並帶有重試和指數退避邏輯。
+        
+        Args:
+            name: 工具的名稱 (用於日誌)。
+            coro_factory: 一個無參數的函數，每次呼叫都會返回一個新的協程物件。
+
+        Returns:
+            成功執行後的結果。
+        
+        Raises:
+            Exception: 如果所有重試都失敗，則拋出最後一次的異常。
+        """
+        last_exception = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                task_coro = coro_factory()
+                result = await asyncio.wait_for(task_coro, timeout=self.diagnosis_timeout)
+                if attempt > 0:
+                    logger.info(f"✅ 工具 {name} 在第 {attempt + 1} 次嘗試後成功。")
+                return result
+            except Exception as e:
+                last_exception = e
+                if attempt < self.max_retries:
+                    # 指數退避延遲
+                    delay = self.retry_delay * (2 ** attempt)
+                    logger.warning(
+                        f"⚠️ 工具 {name} 第 {attempt + 1}/{self.max_retries + 1} 次執行失敗: {e}. "
+                        f"將在 {delay:.2f} 秒後重試..."
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(
+                        f"❌ 工具 {name} 在 {self.max_retries + 1} 次嘗試後最終失敗。"
+                    )
+                    raise last_exception
+
     async def _execute_parallel_tasks(self, tool_tasks: List[tuple]) -> Dict[str, ToolResult]:
         """
-        並行執行多個異步診斷工具任務，並對每個任務實施超時控制。
+        並行執行多個異步診斷工具任務，每個任務都包含重試邏輯。
 
         使用 `asyncio.gather` 來並發執行所有工具，並透過 `return_exceptions=True`
-        確保即使某個工具失敗或超時，其他工具也能繼續執行。
+        確保即使某個工具最終失敗，其他工具也能繼續執行。
 
         Args:
-            tool_tasks: 一個包含 (名稱, 協程) 的元組列表。
+            tool_tasks: 一個包含 (名稱, 協程工廠) 的元組列表。
 
         Returns:
             一個字典，鍵是工具名稱，值是其 `ToolResult`。
         """
         results = {}
 
-        tasks_with_timeout = [
-            asyncio.wait_for(task, timeout=self.diagnosis_timeout) for _, task in tool_tasks
+        tasks_to_gather = [
+            self._run_task_with_retry(name, coro_factory) for name, coro_factory in tool_tasks
         ]
 
-        task_results = await asyncio.gather(*tasks_with_timeout, return_exceptions=True)
+        task_results = await asyncio.gather(*tasks_to_gather, return_exceptions=True)
         
         for i, (name, _) in enumerate(tool_tasks):
             result = task_results[i]
-            if isinstance(result, asyncio.TimeoutError):
-                logger.warning(f"工具 {name} 執行超時 (超過 {self.diagnosis_timeout} 秒)")
-                results[name] = ToolResult(success=False, error=ToolError(code="TOOL_TIMEOUT_ERROR", message=f"執行超時，限制為 {self.diagnosis_timeout} 秒"))
-            elif isinstance(result, Exception):
-                logger.warning(f"工具 {name} 執行失敗: {result}")
-                results[name] = ToolResult(success=False, error=ToolError(code="TOOL_EXECUTION_ERROR", message=str(result)))
+            if isinstance(result, Exception):
+                # The exception is already logged in _run_task_with_retry
+                # We just need to format it for the final result.
+                error_code = "TOOL_TIMEOUT_ERROR" if isinstance(result, asyncio.TimeoutError) else "TOOL_EXECUTION_ERROR"
+                results[name] = ToolResult(success=False, error=ToolError(code=error_code, message=str(result)))
             else:
                 results[name] = result
         return results

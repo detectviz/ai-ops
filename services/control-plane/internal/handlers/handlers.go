@@ -160,7 +160,16 @@ func (h *Handlers) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	// TODO: Add Keycloak single-sign-out
 	http.Redirect(w, r, "/auth/login", http.StatusFound)
 }
-func (h *Handlers) Dashboard(w http.ResponseWriter, r *http.Request)     {}
+func (h *Handlers) Dashboard(w http.ResponseWriter, r *http.Request)      {}
+func (h *Handlers) TeamsPage(w http.ResponseWriter, r *http.Request)      {}
+func (h *Handlers) AlertsPage(w http.ResponseWriter, r *http.Request)     {}
+func (h *Handlers) AutomationPage(w http.ResponseWriter, r *http.Request) {}
+func (h *Handlers) CapacityPage(w http.ResponseWriter, r *http.Request)   {}
+func (h *Handlers) IncidentsPage(w http.ResponseWriter, r *http.Request)  {}
+func (h *Handlers) ChannelsPage(w http.ResponseWriter, r *http.Request)   {}
+func (h *Handlers) ProfilePage(w http.ResponseWriter, r *http.Request)    {}
+func (h *Handlers) SettingsPage(w http.ResponseWriter, r *http.Request)   {}
+func (h *Handlers) ResourcesTable(w http.ResponseWriter, r *http.Request) {}
 func (h *Handlers) ResourcesPage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	resources, err := h.Services.ListResources(ctx)

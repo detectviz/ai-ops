@@ -1,137 +1,19 @@
-# services/sre-assistant/config/environments/development.yaml
-# 開發環境配置 - 配合 Monorepo docker-compose
-
-deployment:
-  platform: "local"
-  debug: true
-  host: "0.0.0.0"
-  port: ${PORT:-8000}
-
-# SRE Assistant 自身的 URL (容器內部網路)
-sre_assistant:
-  base_url: "http://sre-assistant:8000"
-
-# 記憶體後端配置
-memory:
-  backend: "postgresql"
-  # 使用容器網路名稱連接 PostgreSQL
-  postgres_connection_string: "postgresql+psycopg2://postgres:postgres@postgres:5432/sre_assistant"
-  postgres_pool_size: 10
-  use_pgvector: true
-
-# 向量資料庫配置 (ChromaDB)
-vector_db:
-  backend: "chroma"
-  host: "chromadb" # 容器名稱
-  port: 8000
-  collection_name: "sre_knowledge"
-
-# 會話後端
-session_backend: "redis"
-redis:
-  url: "redis://redis:6379"
-  ttl_seconds: 3600
-
-# 認證配置
 auth:
-  provider: "jwt"
-  enable_rbac: true
-  enable_rate_limiting: false
-  enable_audit_logging: true
-  # Keycloak JWKS URL (容器內部網路)
-  jwks_url: "http://keycloak:8080/realms/sre-platform/protocol/openid-connect/certs"
-  jwt_algorithm: "RS256"
-  oauth_client_id: "sre-assistant"
-  # 允許的發行者
-  jwt_issuer: "http://keycloak:8080/realms/sre-platform"
+  provider: keycloak
+  keycloak:
+    url: ${KEYCLOAK_URL:"http://localhost:8080"}
+    realm: ${KEYCLOAK_REALM:"sre-platform"}
+    # The audience for the SRE Assistant service
+    audience: "sre-assistant"
+    # The client ID of the service that is allowed to call this API
+    allowed_client_id: "control-plane"
 
-# Control Plane API (用於回調)
-control_plane:
-  base_url: "http://control-plane:8081/api"
-  timeout_seconds: 10
-  # M2M 認證設定
-  client_id: "sre-assistant"
-  client_secret: "${CONTROL_PLANE_CLIENT_SECRET}" # 從環境變數讀取
-  token_endpoint: "http://keycloak:8080/realms/sre-platform/protocol/openid-connect/token"
+redis:
+  url: ${REDIS_URL:"redis://localhost:6379/0"}
 
-# 監控工具配置
-prometheus:
-  base_url: "http://prometheus:9090"
-  timeout_seconds: 15
-  # 查詢設定
-  default_step: "1m"
-  max_points: 1000
-
-loki:
-  base_url: "http://loki:3100"
-  timeout_seconds: 20
-  # 日誌查詢設定
-  default_limit: 1000
-  max_time_range: "24h"
-
-grafana:
-  base_url: "http://grafana:3000"
-  # Grafana API 認證
-  api_key: "${GRAFANA_API_KEY}" # 從環境變數讀取
-  timeout_seconds: 10
-
-# VictoriaMetrics 配置
-victoria_metrics:
-  base_url: "http://victoriametrics:8428"
-  timeout_seconds: 15
-
-# 日誌設定
-logging:
-  level: "INFO"
-  format: "json"
-  # 輸出到 stdout 以便 Docker 收集
-  handlers:
-    - type: "console"
-      level: "DEBUG"
-    - type: "file"
-      level: "INFO"
-      filename: "/tmp/sre-assistant.log"
-      max_bytes: 10485760 # 10MB
-      backup_count: 3
-
-# LLM 配置
-llm:
-  provider: "google"
-  model: "gemini-1.5-pro"
-  temperature: 0.7
-  max_tokens: 2048
-  # API 金鑰從環境變數讀取
-  api_key: "${GOOGLE_API_KEY}"
-
-# 工作流程設定
 workflow:
-  # 並行執行診斷工具
-  parallel_diagnosis: true
-  # 診斷超時時間
-  diagnosis_timeout_seconds: 60
-  # 最大重試次數
-  max_retries: 3
-  # 重試延遲（秒）
-  retry_delay_seconds: 5
-
-# 快取設定
-cache:
-  # 使用 Redis 作為快取
-  backend: "redis"
-  # 預設 TTL（秒）
-  default_ttl: 300
-  # 指標查詢結果快取
-  metrics_cache_ttl: 60
-  # 日誌查詢結果快取
-  logs_cache_ttl: 120
-
-# 功能開關
-features:
-  # 啟用自動修復功能
-  auto_remediation: false
-  # 啟用 AI 輔助分析
-  ai_analysis: true
-  # 啟用容量預測
-  capacity_prediction: true
-  # 啟用根因分析
-  root_cause_analysis: true
+  diagnosis_timeout_seconds: 120
+  max_retries: 2
+  retry_delay_seconds: 1
+  max_retries: 2
+  retry_delay_seconds: 1
