@@ -909,7 +909,7 @@ sre-platform/
 ├── 📁 docs/                        # 專案文件
 │   ├── ARCHITECTURE.md             # 架構設計文件
 │   ├── USER_GUIDE.md              # 使用者指南
-│   ├── dev-guide.md               # 開發者完整指南 (本文件)
+│   ├── DEV_GUIDE.md               # 開發者完整指南 (本文件)
 │   ├── ROADMAP.md                 # 開發路線圖
 │   └── api/                       # API 文件
 ├── 📁 local/                       # 本地開發工具

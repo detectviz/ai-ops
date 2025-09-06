@@ -17,6 +17,9 @@
 
 - **[🚧] 1.1. API 契約符合性 (API Contract Compliance)**:
     - **任務**: 確保 `sre-assistant` 的 FastAPI 服務嚴格遵守 `pkg/api/sre-assistant-openapi.yaml` 中定義的所有端點、請求格式和回應格式。
+    - **當前狀態**:
+        - ✅ SRE Assistant: 91% 完成 (10/11 個端點)
+        - ⚠️ Control Plane: 6% 完成 (4/67 個端點)
     - **相關子任務**:
         - [x] 在 `DiagnosticResult` 中添加 `execution_plan` 欄位
         - [x] 定義 `AlertAnalysisRequest` 資料模型
@@ -34,13 +37,14 @@
 - **[🚧] 1.3. 核心工具開發 (`Prometheus`, `Loki`, `ControlPlane`)**:
     - **任務**: 實現 `PrometheusQueryTool`、`LokiLogQueryTool` 和 `ControlPlaneTool`，為診斷流程提供數據來源。
     - **對應 API**: 這些工具是 `/diagnostics/deployment` 端點的基礎。
+    - **當前狀態**: 工具代碼已存在且包含真實 HTTP 請求邏輯 (非模擬數據)
     - **子任務 (PrometheusQueryTool)**:
-        - [ ] 實作實際的 Prometheus 查詢邏輯
-        - [ ] 移除模擬資料，使用真實 API 調用
+        - [x] 實作實際的 Prometheus 查詢邏輯 (已完成)
+        - [x] 移除模擬資料，使用真實 API 調用 (已完成)
         - [ ] 添加查詢優化和錯誤處理
         - [ ] 實作查詢結果快取機制
     - **子任務 (LokiLogQueryTool)**:
-        - [ ] 實作動態查詢參數設定
+        - [x] 實作動態查詢參數設定 (已完成)
         - [ ] 添加完整的錯誤處理機制
         - [ ] 實作日誌過濾和聚合功能
     - **子任務 (ControlPlaneTool)**:
@@ -196,8 +200,8 @@
 
 | 指標 | 當前狀態 | 目標 | 測量方式 |
 |------|---------|------|----------|
-| API 合規性 | 90% | 100% | OpenAPI 契約測試 |
-| 測試覆蓋率 | ~30% | 80% | Coverage 工具 |
+| API 合規性 | 48% | 100% | OpenAPI 契約測試 |
+| 測試覆蓋率 | ~10% | 80% | Coverage 工具 |
 | P99 延遲 | N/A | <500ms | APM 監控 |
 | 錯誤率 | N/A | <0.1% | 錯誤監控 |
 | 可用性 | N/A | 99.9% | 正常運行時間監控 |
@@ -237,7 +241,13 @@
 ## 已完成項目歸檔
 
 ### ✅ 第一週完成項目
-1. **API 端點實作** - 所有缺失的端點都已實作
-2. **資料模型對齊** - 完全符合 OpenAPI 規範
-3. **任務持久化** - Redis 存儲已實作
-4. **環境變數配置** - 完整的配置管理體系
+1. **SRE Assistant API 實作** - 91% 完成 (10/11 個端點)
+2. **資料模型定義** - 關鍵資料模型已定義並對齊 OpenAPI
+3. **任務持久化** - Redis 存儲已實作，24 小時過期
+4. **環境變數配置** - 基本的配置管理已完成
+5. **服務間認證** - JWT 驗證邏輯已實作
+
+### ⚠️ 需要修正的項目狀態
+- Control Plane API 實現率僅 6% (遠低於預期)
+- 測試覆蓋率約 10% (遠低於 30% 目標)
+- 核心工具雖有實作但需要完善錯誤處理和快取機制
