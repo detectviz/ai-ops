@@ -308,4 +308,3 @@
 - [ ] **實現任務持久化**: 將目前記憶體內的任務狀態管理（`Dict`）替換為更可靠的持久化方案，如 Redis 或 PostgreSQL，以防止服務重啟後任務遺失。
 - [ ] **完成 SRE Assistant 的 JWT 驗證**: 在 `main.py` 中實現完整的 JWT Token 驗證邏輯，而不僅僅是模擬驗證。
 - [ ] **補全缺失的 API 端點**: 根據 `sre-assistant-openapi.yaml` 實現 `/diagnostics/alerts`, `/capacity/analyze`, 和 `/execute` 端點的完整邏輯。
-- [ ] **提升測試覆蓋率**: 為 `control-plane` 和 `sre-assistant` 兩個服務編寫更多的單元測試和整合測試，目標是將整體覆蓋率提升至 80% 以上。
