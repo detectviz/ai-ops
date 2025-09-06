@@ -48,7 +48,7 @@ def mock_redis_client():
     client = AsyncMock()
     client.get.side_effect = get
     client.set.side_effect = set
-
+    
     # 將 store 也返回，以便在測試中操作
     return client, redis_store
 
@@ -63,9 +63,9 @@ def workflow(mock_config, mock_redis_client):
 async def test_diagnose_deployment_success_e2e(workflow, mock_redis_client):
     """
     測試一個成功的部署診斷流程 (端到端)。
-
+    
     此測試已更新，以反映對 ControlPlaneTool 的具體方法呼叫。
-
+    
     驗證：
     - 所有工具的具體方法都被正確呼叫。
     - 任務狀態在 Redis 中被正確更新。
@@ -118,7 +118,7 @@ async def test_diagnose_deployment_success_e2e(workflow, mock_redis_client):
     workflow.loki_tool.execute.assert_called_once()
     workflow.control_plane_tool.query_audit_logs.assert_called_once()
     workflow.control_plane_tool.query_incidents.assert_called_once()
-
+    
     # 驗證調查發現 (Findings)
     findings = final_status.result.findings
     assert len(findings) == 4  # 預期來自 4 個工具呼叫的 4 個發現
