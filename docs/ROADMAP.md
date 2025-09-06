@@ -25,6 +25,10 @@
         - [x] 定義 `AlertAnalysisRequest` 資料模型
         - [x] 定義 `CapacityAnalysisRequest` 資料模型
         - [x] 定義 `ExecuteRequest` 資料模型
+    - 補充參考（ADK 最佳實踐）:
+        - [OpenAPI 工具指南 | ADK 文件](./references/adk-docs/tools-openapi-tools.md)
+        - [契約測試與測試入門 | ADK 文件](./references/adk-docs/get-started-testing.md)
+        - [OpenAPI 工具範例（程式碼片段）](./references/snippets/tools/openapi_tool.py)
 
 - **[✅] 1.2. 服務對服務認證 (M2M Authentication)**:
     - **任務**: 完整實現基於 Keycloak 和 Client Credentials Flow 的認證機制。
@@ -33,6 +37,10 @@
         - [x] 與 Keycloak 進行整合測試
         - [x] 處理 token 過期和刷新邏輯
     - **參考**: `docs/reference-adk-examples.md` (oauth_calendar_agent)
+    - 補充參考（ADK 最佳實踐）:
+        - [工具認證 | ADK 文件](./references/adk-docs/tools-authentication.md)
+        - [Headless Agent 認證範例（Agent）](./references/adk-agent-samples/headless_agent_auth/agent.py)
+        - [Headless Agent 認證中介層（OAuth2 Middleware）](./references/adk-agent-samples/headless_agent_auth/oauth2_middleware.py)
 
 - **[🚧] 1.3. 核心工具開發 (`Prometheus`, `Loki`, `ControlPlane`)**:
     - **任務**: 實現 `PrometheusQueryTool`、`LokiLogQueryTool` 和 `ControlPlaneTool`，為診斷流程提供數據來源。
@@ -56,6 +64,10 @@
         - [ ] 獲取告警規則狀態 (`GET /api/v1/alert-rules`)
         - [ ] 查詢自動化腳本執行歷史 (`GET /api/v1/automation/executions`)
     - **參考**: `docs/reference-adk-examples.md` (jira_agent, bigquery)
+    - 補充參考（ADK 最佳實踐）:
+        - [工具設計與 Function Tools | ADK 文件](./references/adk-docs/tools-function-tools.md)
+        - [第三方工具整合 | ADK 文件](./references/adk-docs/tools-third-party-tools.md)
+        - [GitHub Toolset 範例（工具集結構與錯誤處理）](./references/adk-agent-samples/github-agent/github_toolset.py)
 
 - **[🚧] 1.4. 端到端流程實作與測試**:
     - **任務**: 在 `SREWorkflow` 中整合所有核心工具，並建立一個完整的整合測試，以驗證 `/diagnostics/deployment` 的端到端流程。
@@ -65,6 +77,10 @@
         - [ ] **API 整合測試**: 端到端診斷流程測試, 非同步任務狀態追蹤測試, 錯誤情境測試。
         - [ ] **外部服務整合測試**: Prometheus, Loki, Keycloak 整合測試。
     - **參考**: `docs/reference-adk-examples.md` (parallel_functions, workflow_agent_seq)
+    - 補充參考（ADK 最佳實踐）:
+        - [平行工作流代理 | ADK 文件](./references/adk-docs/agents-workflow-agents-parallel-agents.md)
+        - [平行工作流範例（程式碼）](./references/adk-agent-samples/google-adk-workflows/parallel/agent.py)
+        - [自我校驗工作流範例（Self-Critic）](./references/adk-agent-samples/google-adk-workflows/self_critic/agent.py)
 
 - **[✅] 1.5. 核心服務本地化與持久化**:
     - **任務**: 確保開發環境使用 PostgreSQL 作為會話後端，ChromaDB 作為記憶體後端，並能穩定啟動與互動。
@@ -72,6 +88,10 @@
         - [x] **實作任務狀態持久化**: 使用 Redis 替代記憶體存儲任務狀態。
         - [x] **環境變數化配置**: 將硬編碼的 URL 移至環境變數。
     - **參考**: `docs/reference-adk-examples.md` (history_management, session_state_agent)
+    - 補充參考（ADK 最佳實踐）:
+        - [Sessions 與狀態管理 | ADK 文件](./references/adk-docs/sessions-state.md)
+        - [記憶體型會話 | ADK 文件](./references/adk-docs/sessions-memory.md)
+        - [FastAPI + ADK Runner 實作（含 Session 管理）](./references/adk-agent-samples/personal-expense-assistant-adk/backend.py)
 
 ---
 
@@ -90,6 +110,10 @@
         - **高級模式 (帶自我校驗)**: [`docs/references/adk-agent-samples/google-adk-workflows/self_critic/`](./references/adk-agent-samples/google-adk-workflows/self_critic/)
         - **SRE 理論 - 事件響應**: [`docs/references/google-sre-book/Chapter-13-Emergency-Response.md`](./references/google-sre-book/Chapter-13-Emergency-Response.md)
         - **SRE 理論 - 事後剖析**: [`docs/references/google-sre-book/Chapter-15-Postmortem-CultureLearning-from-Failure.md`](./references/google-sre-book/Chapter-15-Postmortem-CultureLearning-from-Failure.md)
+    - 補充參考（ADK 最佳實踐）:
+        - [工作流代理總覽 | ADK 文件](./references/adk-docs/agents-workflow-agents.md)
+        - [序列式工作流代理 | ADK 文件](./references/adk-docs/agents-workflow-agents-sequential-agents.md)
+        - [Dispatcher 工作流範例（程式碼）](./references/adk-agent-samples/google-adk-workflows/dispatcher/agent.py)
 
 - **[ ] 2.2. Control Plane Go 服務完善**:
     - **任務**: 實現 Control Plane 的真實業務邏輯，取代所有模擬資料。
@@ -101,6 +125,10 @@
         - **全端架構範本**: [`docs/references/agent-starter-pack/`](./references/agent-starter-pack/)
         - **前端實作參考**: [`docs/references/adk-agent-samples/gemini-fullstack/frontend/`](./references/adk-agent-samples/gemini-fullstack/frontend/)
         - **後端 API 文件**: [`docs/references/adk-docs/api-reference.md`](./references/adk-docs/api-reference.md)
+    - 補充參考（ADK 最佳實踐）:
+        - [ADK API 參考 | ADK 文件](./references/adk-docs/api-reference.md)
+        - [Gemini Fullstack 前端（串流與事件驅動）](./references/adk-agent-samples/gemini-fullstack/frontend/index.html)
+        - [FastAPI 範例（事件串流與 Runner 整合）](./references/adk-agent-samples/personal-expense-assistant-adk/backend.py)
 
 - **[ ] 2.3. 測試覆蓋率提升**:
     - **任務**: 為所有在 Phase 1 和 Phase 2 中實現的核心模組與工具增加單元測試與整合測試，目標覆蓋率 > 80%。
@@ -111,12 +139,20 @@
         - **SRE 理論 - 可靠性測試**: [`docs/references/google-sre-book/Chapter-17-Testing-for-Reliability.md`](./references/google-sre-book/Chapter-17-Testing-for-Reliability.md)
         - **ADK 官方指南**: [`docs/references/adk-docs/get-started-testing.md`](./references/adk-docs/get-started-testing.md)
         - **專案結構範本**: [`docs/references/agent-starter-pack/tests/`](./references/agent-starter-pack/tests/)
+    - 補充參考（ADK 最佳實踐）:
+        - [測試入門 | ADK 文件](./references/adk-docs/get-started-testing.md)
+        - [HelloWorld 代理測試（程式碼）](./references/adk-agent-samples/helloworld/test_client.py)
+        - [LangGraph 範例測試（程式碼）](./references/adk-agent-samples/langgraph/app/test_client.py)
 
 - **[ ] 2.4. 建立串流式前端資料模型 (Create Streaming Frontend Data Model)**:
     - **任務**: 根據 `gemini-fullstack` 範例，為前端定義一個能夠處理來自 `sre-assistant` 串流事件的資料模型。此模型應能區分不同的事件類型 (如 `tool_call`, `thought`, `final_result`) 並在 UI 中呈現一個豐富的、即時的活動時間軸。
     - **參考**:
         - **核心範本**: [`docs/references/adk-agent-samples/gemini-fullstack/frontend/src/App.tsx`](./references/adk-agent-samples/gemini-fullstack/frontend/src/App.tsx)
         - **串流概念**: [`docs/references/adk-docs/get-started-streaming.md`](./references/adk-docs/get-started-streaming.md)
+    - 補充參考（ADK 最佳實踐）:
+        - [串流入門 | ADK 文件](./references/adk-docs/get-started-streaming.md)
+        - [ADK Runner 串流事件處理（後端程式碼）](./references/adk-agent-samples/personal-expense-assistant-adk/backend.py)
+        - [瀏覽器端串流管理（JS）](./references/adk-agent-samples/navigoAI_voice_agent_adk/client/stream_manager.js)
 
 ---
 
@@ -133,6 +169,10 @@
         - **核心架構**: [`docs/references/adk-architecture/adk-components.png`](./references/adk-architecture/adk-components.png)
         - **官方文件**: [`docs/references/adk-docs/agents-multi-agents.md`](./references/adk-docs/agents-multi-agents.md)
         - **高級模式 (對抗性)**: [`docs/references/adk-agent-samples/any_agent_adversarial_multiagent/`](./references/adk-agent-samples/any_agent_adversarial_multiagent/)
+    - 補充參考（ADK 最佳實踐）:
+        - [多代理架構 | ADK 文件](./references/adk-docs/agents-multi-agents.md)
+        - [子代理範例（Subagent）](./references/adk-agent-samples/google-adk-workflows/subagent.py)
+        - [對抗式多代理範例](./references/adk-agent-samples/any_agent_adversarial_multiagent/README.md)
 
 - **[ ] 3.2. 第一個專業化子代理**:
     - **任務**: 將一項核心功能（如覆盤報告生成）重構為一個獨立的、可透過 A2A (Agent-to-Agent) 協議呼叫的 `PostmortemAgent`。
@@ -140,6 +180,10 @@
         - **官方介紹**: [`docs/references/adk-docs/a2a.md`](./references/adk-docs/a2a.md)
         - **底層協議**: [`docs/references/adk-docs/mcp.md`](./references/adk-docs/mcp.md)
         - **安全通訊範例**: [`docs/references/adk-examples/a2a_auth/`](./references/adk-examples/a2a_auth/)
+    - 補充參考（ADK 最佳實踐）:
+        - [A2A 代理到代理協議 | ADK 文件](./references/adk-docs/a2a.md)
+        - [模型上下文協議（MCP） | ADK 文件](./references/adk-docs/mcp.md)
+        - [A2A 基礎範例（程式碼）](./references/adk-examples/a2a_basic/agent.py)
 
 - **[ ] 3.3. 主動預防能力**:
     - **任務**: 整合機器學習模型，用於異常檢測和趨勢預測。
@@ -147,6 +191,10 @@
         - **SRE 理論 - 自動化演進**: [`docs/references/google-sre-book/Chapter-07-The-Evolution-of-Automation-at-Google.md`](./references/google-sre-book/Chapter-07-The-Evolution-of-Automation-at-Google.md)
         - **實作範本 (機器學習)**: [`docs/references/adk-agent-samples/machine-learning-engineering/`](./references/adk-agent-samples/machine-learning-engineering/)
         - **實作範本 (綜合 SRE Bot)**: [`docs/references/adk-agent-samples/sre-bot/`](./references/adk-agent-samples/sre-bot/)
+    - 補充參考（ADK 最佳實踐）:
+        - [機器學習工程範例（README）](./references/adk-agent-samples/machine-learning-engineering/README.md)
+        - [機器學習工程範例（Agent 程式碼）](./references/adk-agent-samples/machine-learning-engineering/machine_learning_engineering/agent.py)
+        - [SRE Bot 範例（README）](./references/adk-agent-samples/sre-bot/README.md)
 
 - **[ ] 3.4. 代理可觀測性**:
     - **任務**: 建立一個完善的 LLM 可觀測性儀表板，用於追蹤代理的決策過程、成本和性能。
@@ -157,6 +205,10 @@
         - **SRE 理論 - 監控**: [`docs/references/google-sre-book/Chapter-06-Monitoring-Distributed-Systems.md`](./references/google-sre-book/Chapter-06-Monitoring-Distributed-Systems.md)
         - **核心模式 (回呼)**: [`docs/references/adk-docs/callbacks-design-patterns-and-best-practices.md`](./references/adk-docs/callbacks-design-patterns-and-best-practices.md)
         - **雲端整合**: [`docs/references/adk-docs/observability-cloud-trace.md`](./references/adk-docs/observability-cloud-trace.md)
+    - 補充參考（ADK 最佳實踐）:
+        - [Observability - 結構化日誌 | ADK 文件](./references/adk-docs/observability-logging.md)
+        - [Observability - Cloud Trace | ADK 文件](./references/adk-docs/observability-cloud-trace.md)
+        - [Callbacks 設計模式 | ADK 文件](./references/adk-docs/callbacks-design-patterns-and-best-practices.md)
 
 ---
 
@@ -175,24 +227,38 @@
     - **相關子任務 (安全)**:
         - [ ] **實作 API 限流**: 基於 IP 和用戶。
         - [ ] **實作審計日誌**: 記錄所有 API 調用和敏感操作。
+    - 補充參考（ADK 最佳實踐）:
+        - [AgentOps 可觀測性 | ADK 文件](./references/adk-docs/observability-agentops.md)
+        - [Observability - 結構化日誌 | ADK 文件](./references/adk-docs/observability-logging.md)
+        - [工具認證與安全 | ADK 文件](./references/adk-docs/tools-authentication.md)
 
 - **[ ] 4.2. 從 OpenAPI 自動生成客戶端**:
     - **任務**: 從 `pkg/api/control-plane-openapi.yaml` 自動生成 Go 客戶端程式碼。
     - **參考**:
         - **ADK OpenAPI 工具**: [`docs/references/adk-docs/tools-openapi.md`](./references/adk-docs/tools-openapi.md)
         - **Go Code Gen (外部參考)**: `https://github.com/deepmap/oapi-codegen`
+    - 補充參考（ADK 最佳實踐）:
+        - [OpenAPI 工具指南 | ADK 文件](./references/adk-docs/tools-openapi-tools.md)
+        - [OpenAPI 工具範例（程式碼片段）](./references/snippets/tools/openapi_tool.py)
 
 - **[ ] 4.3. 清理技術債 (Clean Up Technical Debt)**:
     - **任務**: 解決程式碼庫中的小問題：1) 刪除重複的 `tools/workflow.py` 檔案。2) 完整實現 `main.py` 中的健康檢查 (`check_database`, `check_redis`)。3) 將 `main.py` 中的認證邏輯重構到獨立的模組中。
     - **參考**:
         - **專案結構**: [`docs/references/agent-starter-pack/`](./references/agent-starter-pack/)
         - **SRE 理論 - 消除瑣事**: [`docs/references/google-sre-book/Chapter-05-Eliminating-Toil.md`](./references/google-sre-book/Chapter-05-Eliminating-Toil.md)
+    - 補充參考（ADK 最佳實踐）:
+        - [Headless Agent 認證中介層（OAuth2 Middleware）](./references/adk-agent-samples/headless_agent_auth/oauth2_middleware.py)
+        - [FastAPI + ADK Runner 實作（包含健康檢查與壽命）](./references/adk-agent-samples/personal-expense-assistant-adk/backend.py)
+        - [ADK 入門與專案結構 | ADK 文件](./references/adk-docs/get-started-about.md)
 
 - **[ ] 4.4. 增強 ControlPlaneTool (Enhance ControlPlaneTool)**:
     - **任務**: 將 `ControlPlaneTool` 重構為一個功能完整的工具集。1) 為所有輸入和輸出定義 Pydantic 模型。2) 返回結構化的成功/錯誤回應。3) 增加寫入/修改操作，例如 `restart_deployment`, `acknowledge_alert` 等，使其不僅僅是唯讀的。
     - **參考**:
         - **工具集結構**: [`docs/references/adk-agent-samples/github-agent/github_toolset.py`](./references/adk-agent-samples/github-agent/github_toolset.py)
         - **工具設計指南**: [`docs/references/adk-docs/tools-overview.md`](./references/adk-docs/tools-overview.md)
+    - 補充參考（ADK 最佳實踐）:
+        - [工具總覽與設計 | ADK 文件](./references/adk-docs/tools-overview.md)
+        - [Function Tools 設計 | ADK 文件](./references/adk-docs/tools-function-tools.md)
 
 ---
 
