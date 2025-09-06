@@ -36,23 +36,11 @@ func main() {
 		logger.Fatal("載入配置失敗", zap.Error(err))
 	}
 
-
 	db, err := database.New(cfg.Database.URL)
-
-	// 連接資料庫
-	db, err := database.Connect(cfg.Database.URL)
-
 	if err != nil {
-		logger.Fatal("連接資料庫失敗", zap.Error(err))
+		logger.Fatal("初始化資料庫連線池失敗", zap.Error(err))
 	}
-
 	if err := db.Migrate(); err != nil {
-
-	defer db.Close()
-
-	// 執行資料庫遷移
-	if err := database.Migrate(db); err != nil {
-
 		logger.Fatal("資料庫遷移失敗", zap.Error(err))
 	}
 
@@ -68,8 +56,6 @@ func main() {
 		logger.Info("🔍 在 DEV 模式下運行，跳過 Keycloak 初始化")
 	}
 
-
-	// 初始化服務層
 	services := services.NewServices(db, cfg, logger, *authService)
 
 	templates, err := loadTemplates("web/templates")
@@ -220,6 +206,8 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 	htmxRouter.HandleFunc("/resources/table", h.ResourcesTable).Methods("GET")
 	htmxRouter.HandleFunc("/resources/new", h.AddResourceForm).Methods("GET")
 	htmxRouter.HandleFunc("/resources/create", h.CreateResource).Methods("POST")
+	htmxRouter.HandleFunc("/incidents/list", h.IncidentList).Methods("GET") // 事件列表
+	htmxRouter.HandleFunc("/incidents/{id}/details", h.IncidentDetails).Methods("GET") // 事件詳情模態框
 	htmxRouter.HandleFunc("/diagnose/deployment/{id}", h.DiagnoseDeployment).Methods("POST")
 
 	return r

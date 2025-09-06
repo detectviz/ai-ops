@@ -198,7 +198,69 @@ func (h *Handlers) CapacityPage(w http.ResponseWriter, r *http.Request) {
 	h.renderPlaceholder(w, r, "容量規劃", "capacity")
 }
 func (h *Handlers) IncidentsPage(w http.ResponseWriter, r *http.Request) {
-	h.renderPlaceholder(w, r, "事件管理", "incidents")
+	data := map[string]interface{}{
+		"Title": "告警紀錄",
+		"Page":  "incidents",
+	}
+	err := h.Templates.ExecuteTemplate(w, "pages/incidents.html", data)
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染事件頁面", zap.Error(err))
+		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
+	}
+}
+
+// incidentMock 用於模擬的事件資料結構，欄位與 OpenAPI spec 對齊
+type incidentMock struct {
+	ID        string
+	Title     string
+	Severity  string // 'critical', 'error', 'warning', 'info'
+	Status    string // 'new', 'acknowledged', 'resolved'
+	Assignee  string
+	CreatedAt string `json:"created_at"`
+}
+
+// mockIncidents 作為一個包級變數，模擬事件資料庫
+var mockIncidents = []incidentMock{
+	{ID: "INC-001", Title: "Edge SW13 - 資源斷線超過15分鐘", Status: "new", Severity: "critical", CreatedAt: "2025-08-29 01:15", Assignee: "未指派"},
+	{ID: "INC-002", Title: "CPU 使用率超過 90%", Status: "acknowledged", Severity: "error", CreatedAt: "2025-08-28 10:45", Assignee: "王工程師"},
+	{ID: "INC-003", Title: "網路延遲超過 200ms", Status: "resolved", Severity: "warning", CreatedAt: "2025-08-27 23:55", Assignee: "陳經理"},
+}
+
+func (h *Handlers) IncidentList(w http.ResponseWriter, r *http.Request) {
+	data := map[string]interface{}{
+		"Incidents": mockIncidents,
+	}
+	err := h.Templates.ExecuteTemplate(w, "partials/incident-list.html", data)
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染事件列表模板", zap.Error(err))
+	}
+}
+
+func (h *Handlers) IncidentDetails(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	incidentID := vars["id"]
+
+	var foundIncident incidentMock
+	for _, inc := range mockIncidents {
+		if inc.ID == incidentID {
+			foundIncident = inc
+			break
+		}
+	}
+
+	if foundIncident.ID == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	data := map[string]interface{}{
+		"Incident": foundIncident,
+	}
+
+	err := h.Templates.ExecuteTemplate(w, "partials/incident-details-modal.html", data)
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染事件詳情模態框", zap.Error(err))
+	}
 }
 func (h *Handlers) ChannelsPage(w http.ResponseWriter, r *http.Request) {
 	h.renderPlaceholder(w, r, "通知管道", "channels")
@@ -324,32 +386,15 @@ func (h *Handlers) ResourcesTable(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) ResourcesPage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	resources, err := h.Services.ListResources(ctx)
-	if err != nil {
-		h.Logger.Ctx(ctx).Error("無法獲取資源列表", zap.Error(err))
-		http.Error(w, "無法載入資源頁面", http.StatusInternalServerError)
-		return
-	}
-
-	// Marshal resources to JSON for the script block
-	resourcesJSON, err := json.Marshal(resources)
-	if err != nil {
-		h.Logger.Ctx(ctx).Error("無法將資源序列化為 JSON", zap.Error(err))
-		http.Error(w, "無法準備頁面資料", http.StatusInternalServerError)
-		return
-	}
-
+	// 註解：此處理器負責渲染資源管理頁面的主框架。
+	// 頁面內容（資源表格）將由 HTMX 動態載入。
 	data := map[string]interface{}{
-		"Title":         "資源管理",
-		"Page":          "resources",
-		"Resources":     resources,
-		"ResourcesJSON": string(resourcesJSON),
+		"Title": "資源管理",
+		"Page":  "resources",
 	}
-
 	err := h.Templates.ExecuteTemplate(w, "pages/resources.html", data)
 	if err != nil {
-		h.Logger.Ctx(ctx).Error("無法渲染資源頁面模板", zap.Error(err))
+		h.Logger.Ctx(r.Context()).Error("無法渲染資源頁面模板", zap.Error(err))
 		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
 	}
 }

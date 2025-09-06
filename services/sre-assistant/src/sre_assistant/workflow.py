@@ -139,18 +139,10 @@ class SREWorkflow:
         await self._update_task_status(session_id, status)
         
         # 使用 functools.partial 來創建可重複呼叫的任務工廠
-        # 定義要並行執行的工具任務
-        # 每個任務都是一個元組 (名稱, 可呼叫的協程工廠)
-        # functools.partial 用於預先綁定參數，使所有工具的呼叫簽名一致
-        # 定義要並行執行的工具任務
-        # 每個任務都是一個元組 (名稱, 可呼叫的協程工廠)
-        # functools.partial 用於預先綁定參數，使所有工具的呼叫簽名一致
         tool_tasks = [
             ("prometheus", functools.partial(self.prometheus_tool.execute, {"service": request.affected_services[0]})),
             ("loki", functools.partial(self.loki_tool.execute, {"service": request.affected_services[0]})),
-            ("audit", functools.partial(self.control_plane_tool.query_audit_logs, {"resource_type": "deployment", "search": request.affected_services[0]})),
-            # 新增：根據測試要求，加入對相關事件的查詢
-            ("incidents", functools.partial(self.control_plane_tool.query_incidents, {"search": request.affected_services[0], "status": "new,acknowledged"}))
+            ("audit", functools.partial(self.control_plane_tool.execute, {"service": request.affected_services[0]}))
         ]
         
         status.current_step = "並行執行診斷工具 (含重試)"
@@ -251,23 +243,14 @@ class SREWorkflow:
         if "loki" in results and results["loki"].success:
             tools_used.append("LokiLogQueryTool")
             logs = results["loki"].data
-            # 修正：對齊測試中模擬的、更真實的巢狀資料結構
-            analysis = logs.get("analysis", {})
-            critical_indicators = analysis.get("critical_indicators")
-            if critical_indicators:
-                all_findings.append(Finding(source="Loki", severity="critical", message=f"發現嚴重日誌指標: {', '.join(critical_indicators)}", evidence=logs))
+            if logs.get("critical_errors"):
+                all_findings.append(Finding(source="Loki", severity="critical", message=f"發現嚴重錯誤日誌: {logs['critical_errors']}", evidence=logs))
 
         if "audit" in results and results["audit"].success:
-            tools_used.append("ControlPlaneTool (Audit)")
+            tools_used.append("ControlPlaneTool")
             audit = results["audit"].data
-            if audit.get("logs"):
-                all_findings.append(Finding(source="Control-Plane", severity="info", message=f"發現 {len(audit['logs'])} 筆相關審計日誌。", evidence=audit))
-
-        if "incidents" in results and results["incidents"].success:
-            tools_used.append("ControlPlaneTool (Incidents)")
-            incidents = results["incidents"].data
-            if incidents.get("incidents"):
-                all_findings.append(Finding(source="Control-Plane", severity="warning", message=f"發現 {len(incidents['incidents'])} 件相關的活躍事件。", evidence=incidents))
+            if audit.get("recent_changes"):
+                all_findings.append(Finding(source="Control-Plane", severity="warning", message=f"發現最近有配置變更", evidence=audit))
 
         if all_findings:
             summary = f"診斷完成，共發現 {len(all_findings)} 個問題點。"
