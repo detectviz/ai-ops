@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full bg-gray-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}} - Control Plane</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+  <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+  <link href="/static/style.css" rel="stylesheet">
+</head>
+<body class="h-full bg-slate-100">
+  <div class="min-h-full flex" x-data="{ sidebarOpen: true }">
+    {{template "base.html" .}}
+    <div class="flex flex-col w-0 flex-1 overflow-hidden">
+        <main class="flex-1 relative z-0 overflow-y-auto focus:outline-none">
+            <!-- Page content -->
+            {{template "content" .}}
+        </main>
+    </div>
+  </div>
+
+  <!-- Page specific scripts -->
+  {{template "scripts" .}}
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>
