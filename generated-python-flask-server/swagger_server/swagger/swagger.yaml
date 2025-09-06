@@ -1,0 +1,890 @@
+openapi: 3.0.3
+info:
+  title: SRE Platform - SRE Assistant API
+  description: |
+    The SRE Assistant is a headless AI-powered diagnostic engine for the SRE Platform. It receives tasks from the Control Plane, performs complex analysis, and returns structured results.
+  contact:
+    name: SRE Platform Team
+    email: sre-platform@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  version: 1.0.0
+servers:
+- url: http://localhost:8000
+  description: SRE Assistant Development Server
+- url: https://sre-assistant.sre-platform.example.com
+  description: Production Server (SRE Assistant)
+tags:
+- name: Core
+  description: 核心系統功能
+- name: Diagnostics
+  description: 診斷分析
+- name: Workflows
+  description: 工作流管理
+- name: Tools
+  description: 工具狀態
+paths:
+  /api/v1/healthz:
+    get:
+      tags:
+      - Core
+      summary: 服務健康檢查
+      description: 檢查服務是否存活
+      operationId: sa_check_health
+      responses:
+        "200":
+          description: 服務健康
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+      x-openapi-router-controller: swagger_server.controllers.core_controller
+  /api/v1/readyz:
+    get:
+      tags:
+      - Core
+      summary: 服務就緒檢查
+      description: 檢查服務及其依賴是否就緒
+      operationId: sa_check_readiness
+      responses:
+        "200":
+          description: 服務就緒
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessStatus"
+        "503":
+          description: 服務未就緒
+      x-openapi-router-controller: swagger_server.controllers.core_controller
+  /api/v1/metrics:
+    get:
+      tags:
+      - Core
+      summary: Prometheus 指標
+      description: 獲取 Prometheus 格式的系統指標
+      operationId: sa_get_metrics
+      responses:
+        "200":
+          description: Prometheus 指標
+          content:
+            text/plain:
+              schema:
+                type: string
+                x-content-type: text/plain
+      x-openapi-router-controller: swagger_server.controllers.core_controller
+  /api/v1/diagnostics/deployment:
+    post:
+      tags:
+      - Diagnostics
+      summary: 部署診斷
+      description: 分析部署問題並提供診斷報告
+      operationId: diagnose_deployment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiagnosticRequest"
+        required: true
+      responses:
+        "202":
+          description: 診斷任務已接受
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticTaskResponse"
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.diagnostics_controller
+  /api/v1/diagnostics/alerts:
+    post:
+      tags:
+      - Diagnostics
+      summary: 告警分析
+      description: 分析告警並提供根因分析
+      operationId: analyze_alerts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertAnalysisRequest"
+        required: true
+      responses:
+        "202":
+          description: 分析任務已接受
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticTaskResponse"
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.diagnostics_controller
+  /api/v1/diagnostics/capacity:
+    post:
+      tags:
+      - Diagnostics
+      summary: 容量分析
+      description: 分析資源使用趨勢並預測容量需求
+      operationId: analyze_capacity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapacityAnalysisRequest"
+        required: true
+      responses:
+        "200":
+          description: 容量分析結果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapacityAnalysisResponse"
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.diagnostics_controller
+  /api/v1/diagnostics/{sessionId}/status:
+    get:
+      tags:
+      - Diagnostics
+      summary: 查詢診斷狀態
+      description: 查詢非同步診斷任務的狀態
+      operationId: get_diagnostic_status
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: 診斷狀態
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticStatus"
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.diagnostics_controller
+  /api/v1/diagnostics/history:
+    get:
+      tags:
+      - Diagnostics
+      summary: 診斷歷史
+      description: 查詢歷史診斷記錄
+      operationId: get_diagnostic_history
+      parameters:
+      - name: page
+        in: query
+        description: 頁碼（從 1 開始）
+        required: false
+        style: form
+        explode: true
+        schema:
+          minimum: 1
+          type: integer
+          default: 1
+      - name: page_size
+        in: query
+        description: 每頁筆數
+        required: false
+        style: form
+        explode: true
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+          default: 20
+      - name: start_time
+        in: query
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: string
+          format: date-time
+      - name: end_time
+        in: query
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: string
+          format: date-time
+      responses:
+        "200":
+          description: 診斷歷史列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticHistoryList"
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.diagnostics_controller
+  /api/v1/execute:
+    post:
+      tags:
+      - Diagnostics
+      summary: 自然語言查詢
+      description: 接受自然語言查詢，AI 自動解析並執行相應操作
+      operationId: execute_natural_language_query
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/v1_execute_body"
+        required: true
+      responses:
+        "200":
+          description: 查詢成功
+        "202":
+          description: 長時間查詢任務已接受
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.diagnostics_controller
+  /api/v1/workflows/templates:
+    get:
+      tags:
+      - Workflows
+      summary: 獲取工作流模板
+      operationId: list_workflow_templates
+      responses:
+        "200":
+          description: A list of workflow templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                x-content-type: application/json
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.workflows_controller
+  /api/v1/tools/status:
+    get:
+      tags:
+      - Tools
+      summary: 獲取工具狀態
+      operationId: get_tools_status
+      responses:
+        "200":
+          description: A list of available tools and their status
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                x-content-type: application/json
+      security:
+      - bearerAuth: []
+      x-openapi-router-controller: swagger_server.controllers.tools_controller
+components:
+  schemas:
+    ErrorResponse:
+      required:
+      - error
+      - message
+      type: object
+      properties:
+        error:
+          type: string
+          description: 錯誤代碼
+        message:
+          type: string
+          description: 錯誤訊息
+        details:
+          type: object
+          description: 錯誤詳情
+        request_id:
+          type: string
+          description: 請求追蹤 ID
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: 當前頁碼
+        page_size:
+          type: integer
+          description: 每頁筆數
+        total:
+          type: integer
+          description: 總筆數
+        total_pages:
+          type: integer
+          description: 總頁數
+      example:
+        total: 1
+        page: 0
+        total_pages: 5
+        page_size: 6
+    HealthStatus:
+      required:
+      - status
+      - timestamp
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - healthy
+          - unhealthy
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+        uptime:
+          type: integer
+          description: 運行時間（秒）
+      example:
+        version: version
+        status: healthy
+        timestamp: 2000-01-23T04:56:07.000+00:00
+        uptime: 0
+    ReadinessStatus:
+      required:
+      - checks
+      - ready
+      type: object
+      properties:
+        ready:
+          type: boolean
+        checks:
+          $ref: "#/components/schemas/ReadinessStatus_checks"
+      example:
+        checks:
+          loki: true
+          prometheus: true
+          control_plane: true
+        ready: true
+    DiagnosticRequest:
+      required:
+      - affected_services
+      - incident_id
+      - severity
+      type: object
+      properties:
+        incident_id:
+          type: string
+        severity:
+          type: string
+          enum:
+          - P0
+          - P1
+          - P2
+          - P3
+        affected_services:
+          type: array
+          items:
+            type: string
+        context:
+          type: object
+          additionalProperties: true
+    DiagnosticTaskResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - accepted
+          - processing
+          - completed
+          - failed
+        message:
+          type: string
+        estimated_time:
+          type: integer
+          description: 預估完成時間（秒）
+      example:
+        session_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        message: message
+        status: accepted
+        estimated_time: 0
+    DiagnosticStatus:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+          - processing
+          - completed
+          - failed
+        progress:
+          maximum: 100
+          minimum: 0
+          type: integer
+        current_step:
+          type: string
+        result:
+          $ref: "#/components/schemas/DiagnosticResult"
+        error:
+          type: string
+      example:
+        result:
+          summary: summary
+          recommended_actions:
+          - recommended_actions
+          - recommended_actions
+          tools_used:
+          - tools_used
+          - tools_used
+          findings:
+          - severity: critical
+            evidence: {}
+            source: source
+            message: message
+            timestamp: 2000-01-23T04:56:07.000+00:00
+          - severity: critical
+            evidence: {}
+            source: source
+            message: message
+            timestamp: 2000-01-23T04:56:07.000+00:00
+          confidence_score: 0.6027456
+          execution_time: 1.46581298050294517310021547018550336360931396484375
+        session_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91
+        progress: 8
+        error: error
+        status: processing
+        current_step: current_step
+    DiagnosticResult:
+      type: object
+      properties:
+        summary:
+          type: string
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagnosticResult_findings"
+        recommended_actions:
+          type: array
+          items:
+            type: string
+        confidence_score:
+          maximum: 1
+          minimum: 0
+          type: number
+          format: float
+        tools_used:
+          type: array
+          items:
+            type: string
+        execution_time:
+          type: number
+          description: 執行時間（秒）
+      example:
+        summary: summary
+        recommended_actions:
+        - recommended_actions
+        - recommended_actions
+        tools_used:
+        - tools_used
+        - tools_used
+        findings:
+        - severity: critical
+          evidence: {}
+          source: source
+          message: message
+          timestamp: 2000-01-23T04:56:07.000+00:00
+        - severity: critical
+          evidence: {}
+          source: source
+          message: message
+          timestamp: 2000-01-23T04:56:07.000+00:00
+        confidence_score: 0.6027456
+        execution_time: 1.46581298050294517310021547018550336360931396484375
+    DiagnosticHistoryList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagnosticHistoryList_items"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+      example:
+        pagination:
+          total: 1
+          page: 0
+          total_pages: 5
+          page_size: 6
+        items:
+        - summary: summary
+          completed_at: 2000-01-23T04:56:07.000+00:00
+          incident_id: incident_id
+          session_id: session_id
+          created_at: 2000-01-23T04:56:07.000+00:00
+          status: status
+        - summary: summary
+          completed_at: 2000-01-23T04:56:07.000+00:00
+          incident_id: incident_id
+          session_id: session_id
+          created_at: 2000-01-23T04:56:07.000+00:00
+          status: status
+    AlertAnalysisRequest:
+      required:
+      - alert_ids
+      type: object
+      properties:
+        alert_ids:
+          type: array
+          items:
+            type: string
+        correlation_window:
+          type: integer
+          description: 關聯時間窗口（秒）
+          default: 300
+    CapacityAnalysisRequest:
+      required:
+      - metric_type
+      - resource_ids
+      type: object
+      properties:
+        resource_ids:
+          type: array
+          items:
+            type: string
+        metric_type:
+          type: string
+          enum:
+          - cpu
+          - memory
+          - disk
+          - network
+        forecast_days:
+          maximum: 365
+          minimum: 7
+          type: integer
+          default: 30
+    CapacityAnalysisResponse:
+      type: object
+      properties:
+        current_usage:
+          $ref: "#/components/schemas/CapacityAnalysisResponse_current_usage"
+        forecast:
+          $ref: "#/components/schemas/CapacityAnalysisResponse_forecast"
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapacityAnalysisResponse_recommendations"
+        chart_data:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapacityAnalysisResponse_chart_data"
+      example:
+        chart_data:
+        - date: 2000-01-23
+          historical: 2.027123023002321833274663731572218239307403564453125
+          predicted: 4.1456080298839363962315474054776132106781005859375
+        - date: 2000-01-23
+          historical: 2.027123023002321833274663731572218239307403564453125
+          predicted: 4.1456080298839363962315474054776132106781005859375
+        current_usage:
+          average: 0.80082819046101150206595775671303272247314453125
+          percentile_95: 1.46581298050294517310021547018550336360931396484375
+          peak: 6.02745618307040320615897144307382404804229736328125
+        forecast:
+          capacity_alerts:
+          - severity: severity
+            estimated_date: 2000-01-23T04:56:07.000+00:00
+            threshold: threshold
+            days_remaining: 2
+            alert_type: alert_type
+          - severity: severity
+            estimated_date: 2000-01-23T04:56:07.000+00:00
+            threshold: threshold
+            days_remaining: 2
+            alert_type: alert_type
+          growth_rate: 5.63737665663332876420099637471139430999755859375
+          trend: increasing
+          days_to_capacity: 5
+        recommendations:
+        - resource: resource
+          current_allocation: 7.061401241503109105224211816675961017608642578125
+          reasoning: reasoning
+          cost_impact:
+            currency: USD
+            monthly_increase: 3.61607674925191080461672754609026014804840087890625
+          type: scale_up
+          priority: immediate
+          recommended_allocation: 9.301444243932575517419536481611430644989013671875
+        - resource: resource
+          current_allocation: 7.061401241503109105224211816675961017608642578125
+          reasoning: reasoning
+          cost_impact:
+            currency: USD
+            monthly_increase: 3.61607674925191080461672754609026014804840087890625
+          type: scale_up
+          priority: immediate
+          recommended_allocation: 9.301444243932575517419536481611430644989013671875
+    v1_execute_body:
+      type: object
+      properties:
+        query:
+          type: string
+        context:
+          type: object
+        options:
+          type: object
+    ReadinessStatus_checks:
+      type: object
+      properties:
+        prometheus:
+          type: boolean
+        loki:
+          type: boolean
+        control_plane:
+          type: boolean
+      example:
+        loki: true
+        prometheus: true
+        control_plane: true
+    DiagnosticResult_findings:
+      type: object
+      properties:
+        source:
+          type: string
+        severity:
+          type: string
+          enum:
+          - critical
+          - warning
+          - info
+        message:
+          type: string
+        evidence:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+      example:
+        severity: critical
+        evidence: {}
+        source: source
+        message: message
+        timestamp: 2000-01-23T04:56:07.000+00:00
+    DiagnosticHistoryList_items:
+      type: object
+      properties:
+        session_id:
+          type: string
+        incident_id:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        summary:
+          type: string
+      example:
+        summary: summary
+        completed_at: 2000-01-23T04:56:07.000+00:00
+        incident_id: incident_id
+        session_id: session_id
+        created_at: 2000-01-23T04:56:07.000+00:00
+        status: status
+    CapacityAnalysisResponse_current_usage:
+      type: object
+      properties:
+        average:
+          type: number
+        peak:
+          type: number
+        percentile_95:
+          type: number
+      example:
+        average: 0.80082819046101150206595775671303272247314453125
+        percentile_95: 1.46581298050294517310021547018550336360931396484375
+        peak: 6.02745618307040320615897144307382404804229736328125
+    CapacityAnalysisResponse_forecast_capacity_alerts:
+      type: object
+      properties:
+        alert_type:
+          type: string
+        threshold:
+          type: string
+        estimated_date:
+          type: string
+          format: date-time
+        days_remaining:
+          type: integer
+        severity:
+          type: string
+      example:
+        severity: severity
+        estimated_date: 2000-01-23T04:56:07.000+00:00
+        threshold: threshold
+        days_remaining: 2
+        alert_type: alert_type
+    CapacityAnalysisResponse_forecast:
+      type: object
+      properties:
+        trend:
+          type: string
+          enum:
+          - increasing
+          - stable
+          - decreasing
+        days_to_capacity:
+          type: integer
+          description: 預測多少天後達到容量上限
+        growth_rate:
+          type: number
+          description: 月增長率百分比
+        capacity_alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/CapacityAnalysisResponse_forecast_capacity_alerts"
+      example:
+        capacity_alerts:
+        - severity: severity
+          estimated_date: 2000-01-23T04:56:07.000+00:00
+          threshold: threshold
+          days_remaining: 2
+          alert_type: alert_type
+        - severity: severity
+          estimated_date: 2000-01-23T04:56:07.000+00:00
+          threshold: threshold
+          days_remaining: 2
+          alert_type: alert_type
+        growth_rate: 5.63737665663332876420099637471139430999755859375
+        trend: increasing
+        days_to_capacity: 5
+    CapacityAnalysisResponse_cost_impact:
+      type: object
+      properties:
+        monthly_increase:
+          type: number
+        currency:
+          type: string
+          default: USD
+      example:
+        currency: USD
+        monthly_increase: 3.61607674925191080461672754609026014804840087890625
+    CapacityAnalysisResponse_recommendations:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - scale_up
+          - scale_down
+          - optimize
+        resource:
+          type: string
+        priority:
+          type: string
+          enum:
+          - immediate
+          - high
+          - medium
+          - low
+        current_allocation:
+          type: number
+        recommended_allocation:
+          type: number
+        reasoning:
+          type: string
+        cost_impact:
+          $ref: "#/components/schemas/CapacityAnalysisResponse_cost_impact"
+      example:
+        resource: resource
+        current_allocation: 7.061401241503109105224211816675961017608642578125
+        reasoning: reasoning
+        cost_impact:
+          currency: USD
+          monthly_increase: 3.61607674925191080461672754609026014804840087890625
+        type: scale_up
+        priority: immediate
+        recommended_allocation: 9.301444243932575517419536481611430644989013671875
+    CapacityAnalysisResponse_chart_data:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        historical:
+          type: number
+        predicted:
+          type: number
+      example:
+        date: 2000-01-23
+        historical: 2.027123023002321833274663731572218239307403564453125
+        predicted: 4.1456080298839363962315474054776132106781005859375
+  responses:
+    BadRequest:
+      description: 請求參數錯誤
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: 未授權
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: 無權限
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: 資源不存在
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalServerError:
+      description: 內部伺服器錯誤
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: 頁碼（從 1 開始）
+      required: false
+      style: form
+      explode: true
+      schema:
+        minimum: 1
+        type: integer
+        default: 1
+    PageSizeParam:
+      name: page_size
+      in: query
+      description: 每頁筆數
+      required: false
+      style: form
+      explode: true
+      schema:
+        maximum: 100
+        minimum: 1
+        type: integer
+        default: 20
+  securitySchemes:
+    bearerAuth:
+      type: http
+      description: Keycloak M2M JWT Token
+      scheme: bearer
+      bearerFormat: JWT
+      x-bearerInfoFunc: swagger_server.controllers.authorization_controller.check_bearerAuth
+
