@@ -1,104 +1,187 @@
-# AGENT.md - SRE Platform AI 代理開發指南
+# 🤖 AGENT.md - SRE Platform AI 代理開發指南
 
-本文件為 AI 代理提供操作此 Monorepo 的具體、可執行的指南。
+> 本文件為 AI 代理與開發者提供操作 **SRE Platform Monorepo** 的具體指引，確保團隊在本地環境即可高效開發、測試與維護。
 
-## 1. 專案概覽
+---
 
-SRE Platform 是一個採用 Monorepo 架構的現代化維運平台，整合了兩個核心服務：
+## 📋 專案總覽
 
-- **Control Plane (Go)**: 指揮中心，提供 UI 介面與應用管理。
-- **SRE Assistant (Python)**: 無介面的專家代理，執行診斷與自動化任務。
+SRE Platform 採用 **Monorepo 架構**，核心由兩大服務組成：
 
-**核心互動模式**: `Control Plane` 作為指揮官，透過呼叫 `SRE Assistant` 的 API 來執行複雜任務。
+### 🏗️ 核心服務架構
 
-## 2. 環境設定與執行
+| 服務 | 技術棧 | 主要責任 |
+|------|--------|----------|
+| **Control Plane** | Go + HTMX | 指揮中心，負責 UI、資源管理與指令下達 |
+| **SRE Assistant** | Python/FastAPI | 後端專家代理，執行診斷、自動化與維運任務 |
 
-本專案使用 `make` 提供統一的開發體驗。**所有操作都應從專案根目錄執行。**
+### 🔄 服務互動模式
+```
+Control Plane ←─ OpenAPI ─→ SRE Assistant
+     │                           │
+     ├── UI 操作                 ├── AI 診斷
+     ├── 資源管理                 ├── 自動化任務
+     └── 任務協調                 └── 維運分析
+```
 
-### 2.1. 一鍵設定
+---
 
-若要設定完整的本地開發環境，包含所有系統依賴、Go 模組和 Python 套件，請執行：
+## ⚙️ 開發環境設定
+
+本專案提供統一的 `Makefile` 指令，所有操作需於 **專案根目錄** 執行。
+
+### 🚀 快速開始
+
+#### 1️⃣ 一鍵初始化環境
 ```bash
 make setup-dev
 ```
 
-### 2.2. 啟動與停止服務
+**功能**: 安裝所有依賴項
+- ✅ Go 模組與工具
+- ✅ Python 套件 (Poetry)
+- ✅ 開發工具與檢查器
 
-- **啟動所有背景服務** (Keycloak, PostgreSQL, VictoriaMetrics, Redis, ChromaDB, etc.):
-  ```bash
-  make start-services
-  ```
-- **停止所有背景服務**:
-  ```bash
-  make stop-services
-  ```
-- **驗證環境**:
-  ```bash
-  make verify
-  ```
+#### 2️⃣ 啟動基礎服務
+```bash
+# 啟動所有依賴服務
+make start-services
 
-## 3. 開發與測試
+# 停止所有服務
+make stop-services
 
-### 3.1. 執行測試
+# 驗證環境狀態
+make verify
+```
 
-- **執行所有測試** (Go & Python):
-  ```bash
-  make test
-  ```
-- **僅執行 Control Plane (Go) 測試**:
-  ```bash
-  make test-go
-  ```
-- **僅執行 SRE Assistant (Python) 測試**:
-  ```bash
-  make test-py
-  ```
+**啟動的服務**:
+- 🔐 **Keycloak** - 身份認證與授權
+- 🗄️ **PostgreSQL** - 主要資料庫
+- ⚡ **Redis** - 快取與任務佇列
+- 📊 **VictoriaMetrics** - 時間序列資料庫
+- 🧠 **ChromaDB** - 向量資料庫
 
-### 3.2. 獨立開發
+---
 
-- **Control Plane**:
-  ```bash
-  # 進入服務目錄
-  cd services/control-plane
-  # 執行 (需先啟動依賴服務)
-  go run cmd/server/main.go
-  ```
+## 🛠️ 開發與測試流程
 
-- **SRE Assistant**:
-  ```bash
-  # 進入服務目錄
-  cd services/sre-assistant
-  # 執行 (需先啟動依賴服務)
-  poetry run python -m sre_assistant.main
-  ```
+### 🧪 測試執行
 
-## 4. 關鍵原則與規範
+```bash
+# 執行所有測試套件
+make test
 
-### 4.1. API 契約
+# 分別執行各服務測試
+make test-go    # Control Plane (Go)
+make test-py    # SRE Assistant (Python)
+```
 
-- **唯一真實來源**:
-  - `pkg/api/control-plane-openapi.yaml` (用於 Control Plane)
-  - `pkg/api/sre-assistant-openapi.yaml` (用於 SRE Assistant)
-- **修改流程**: 任何 API 變更必須更新對應服務的 OpenAPI 文件。
+### 🔧 獨立開發模式
 
-### 4.2. 認證
+#### Control Plane (Go)
+```bash
+cd services/control-plane
+go run cmd/server/main.go
+```
 
-- **機制**: Keycloak M2M JWT Token。
-- **流程**: `Control Plane` 獲取 Token，並在呼叫 `SRE Assistant` 時於 `Authorization` 標頭中提供。
+#### SRE Assistant (Python)
+```bash
+cd services/sre-assistant
+poetry run python -m sre_assistant.main
+```
 
-### 4.3. Git Commit
+### 📊 開發工作流程建議
 
-- **規範**: 使用 Conventional Commits，訊息使用繁體中文。
-- **範例**:
-  ```
-  feat: 新增部署診斷功能
-  fix: 修復 JWT 驗證錯誤
-  docs: 更新 API 文件
-  ```
+1. **功能開發** → 2. **單元測試** → 3. **整合測試** → 4. **API 測試** → 5. **提交 PR**
 
-### 4.4. 重要注意事項
+---
 
-- **不要直接修改** `pkg/api/openapi.yaml` 以外的 API 定義。
-- **不要硬編碼**敏感資訊，使用環境變數。
-- **務必更新**相關文件當修改架構或 API。
-- **保持服務**之間的低耦合，透過 API 通訊。
+## 📏 關鍵規範
+
+### 📄 API 契約規範
+
+#### 🎯 唯一真實來源 (Single Source of Truth)
+
+| 服務 | OpenAPI 規範文件 | 用途 |
+|------|------------------|------|
+| **Control Plane** | `pkg/api/control-plane-openapi.yaml` | UI 與資源管理 API |
+| **SRE Assistant** | `pkg/api/sre-assistant-openapi.yaml` | 診斷與自動化 API |
+
+#### ⚠️ 修改原則
+- 🔄 **API 更新** = **OpenAPI 文件修改** + **程式碼實作**
+- ✅ **PR 要求**: 必須同步包含 API 文件與程式碼變更
+- 🚫 **禁止**: 直接修改服務程式碼中的 API 定義
+        
+
+### 🔐 認證與授權
+
+#### 🛡️ 安全架構
+- **身份驗證**: Keycloak M2M JWT Token
+- **授權模式**: 服務間認證 (Service-to-Service)
+
+#### 🔄 認證流程
+```
+Control Plane → Keycloak (取得 JWT)
+     ↓
+Control Plane → SRE Assistant (攜帶 Bearer Token)
+     ↓
+SRE Assistant ← 驗證 JWT 有效性
+```
+
+**請求範例**:
+```bash
+curl -H "Authorization: Bearer <jwt_token>" \
+     http://localhost:8000/api/v1/diagnostics/deployment
+```
+    
+
+### 📝 Git 提交規範
+
+#### 📋 規範要求
+- **格式**: [Conventional Commits](https://www.conventionalcommits.org/)
+- **語言**: **繁體中文** 提交訊息
+- **範圍**: 可選，但建議指定服務名稱
+
+#### 💡 提交類型
+| 類型 | 說明 | 範例 |
+|------|------|------|
+| `feat` | 新功能 | `feat(control-plane): 新增資源管理介面` |
+| `fix` | 錯誤修復 | `fix(sre-assistant): 修正診斷任務狀態追蹤` |
+| `docs` | 文件更新 | `docs: 補充 API 參考文件` |
+| `refactor` | 重構 | `refactor: 優化資料庫查詢效能` |
+| `test` | 測試相關 | `test: 新增整合測試案例` |
+| `chore` | 建置/工具 | `chore: 更新依賴套件版本` |
+    
+
+### ⚠️ 開發注意事項
+
+#### 🚫 禁止事項
+- ❌ **API 修改**: 直接修改服務程式碼中的 API 定義（必須透過 `pkg/api/*.yaml`）
+- ❌ **硬編碼**: 不可將敏感資訊寫死在程式碼中
+- ❌ **直接呼叫**: 禁止服務間直接呼叫，必須透過 API
+
+#### ✅ 最佳實務
+- ✅ **同步更新**: 修改 API 時必須同步更新文件與測試
+- ✅ **低耦合**: 保持服務間的低耦合設計
+- ✅ **環境變數**: 統一使用環境變數管理配置
+- ✅ **文件優先**: OpenAPI 文件為唯一真實來源
+
+---
+
+## 🎯 推進原則
+
+| 原則 | 說明 | 實作方式 |
+|------|------|----------|
+| **🔧 務實** | 本地環境完整運行 | Sandbox 環境支援所有功能開發 |
+| **📚 可維護** | 程式碼與文件同步 | 程式碼 + API 文件 + 測試三者一致 |
+| **📊 可觀測** | 完整的監控能力 | 健康檢查、日誌、指標完整輸出 |
+| **🤖 自動化** | 統一工作流程 | `Makefile` + CI/CD 自動化 |
+
+---
+
+## 📚 相關文件
+
+- 📖 **API 參考**: [`docs/API_REFERENCE.md`](../docs/API_REFERENCE.md)
+- 🗺️ **開發路線圖**: [`docs/ROADMAP.md`](../docs/ROADMAP.md)
+- 🏗️ **架構說明**: [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
+- 📋 **開發指南**: [`docs/dev-guide.md`](../docs/dev-guide.md)
