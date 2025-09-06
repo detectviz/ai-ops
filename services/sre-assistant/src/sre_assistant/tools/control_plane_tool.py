@@ -14,7 +14,7 @@ import time
 from pydantic import ValidationError
 
 from ..contracts import ToolResult, ToolError
-from .control_plane_contracts import Resource
+from .control_plane_contracts import Resource, ResourceList, ResourceGroupList
 
 logger = logging.getLogger(__name__)
 
@@ -73,20 +73,43 @@ class ControlPlaneTool:
     # --- Roadmap Task 1.3: ControlPlaneTool Implementation ---
 
     async def query_resources(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
-        """查詢資源狀態 (GET /api/v1/resources)"""
+        """
+        查詢資源狀態 (GET /api/v1/resources)，並使用 Pydantic 模型驗證回應。
+        """
         try:
-            logger.info("🛂 (ControlPlaneTool) 正在查詢資源...")
-            response = await self._make_request(
+            logger.info(f"🛂 (ControlPlaneTool) 正在查詢資源，參數: {params}")
+
+            response_data = await self._make_request(
                 method="GET",
                 endpoint="/api/v1/resources",
                 params=params
             )
-            # 修正：data 應為 dict
-            return ToolResult(success=True, data={"resources": response.get("data", [])})
+
+            resource_list = ResourceList.model_validate(response_data)
+
+            return ToolResult(success=True, data=resource_list.model_dump())
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ (ControlPlaneTool) 查詢資源時 API 錯誤: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolError(
+                code="API_ERROR",
+                message=f"Control Plane API returned status {e.response.status_code}: {e.response.text}",
+                details={"params": params}
+            )
+        except ValidationError as e:
+            logger.error(f"❌ (ControlPlaneTool) 查詢資源回應的資料格式無效: {e}", exc_info=True)
+            return ToolError(
+                code="INVALID_DATA_FORMAT",
+                message="從 Control Plane 收到的資源列表資料格式不符預期。",
+                details={"params": params, "errors": e.errors()}
+            )
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢資源時發生錯誤: {e}", exc_info=True)
-            # 修正：使用正確的 ToolError 模型
-            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
+            logger.error(f"❌ (ControlPlaneTool) 查詢資源時發生未預期錯誤: {e}", exc_info=True)
+            return ToolError(
+                code="UNEXPECTED_ERROR",
+                message=str(e),
+                details={"params": params}
+            )
 
     async def get_resource_details(self, resource_id: str) -> Union[ToolResult, ToolError]:
         """
@@ -113,8 +136,8 @@ class ControlPlaneTool:
             logger.error(f"❌ (ControlPlaneTool) 獲取資源詳情時 API 錯誤: {e.response.status_code} - {e.response.text}", exc_info=True)
             return ToolError(
                 code="API_ERROR",
-                message=f"Control Plane API returned status {e.response.status_code}",
-                details={"resource_id": resource_id, "response": e.response.text}
+                message=f"Control Plane API returned status {e.response.status_code}: {e.response.text}",
+                details={"resource_id": resource_id}
             )
         except ValidationError as e:
             # 處理 Pydantic 驗證失敗的錯誤
@@ -134,18 +157,43 @@ class ControlPlaneTool:
             )
 
     async def query_resource_groups(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
-        """查詢資源群組 (GET /api/v1/resource-groups)"""
+        """
+        查詢資源群組 (GET /api/v1/resource-groups)，並使用 Pydantic 模型驗證回應。
+        """
         try:
-            logger.info("🛂 (ControlPlaneTool) 正在查詢資源群組...")
-            response = await self._make_request(
+            logger.info(f"🛂 (ControlPlaneTool) 正在查詢資源群組，參數: {params}")
+
+            response_data = await self._make_request(
                 method="GET",
                 endpoint="/api/v1/resource-groups",
                 params=params
             )
-            return ToolResult(success=True, data={"groups": response.get("data", [])})
+
+            group_list = ResourceGroupList.model_validate(response_data)
+
+            return ToolResult(success=True, data=group_list.model_dump())
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ (ControlPlaneTool) 查詢資源群組時 API 錯誤: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolError(
+                code="API_ERROR",
+                message=f"Control Plane API returned status {e.response.status_code}: {e.response.text}",
+                details={"params": params}
+            )
+        except ValidationError as e:
+            logger.error(f"❌ (ControlPlaneTool) 查詢資源群組回應的資料格式無效: {e}", exc_info=True)
+            return ToolError(
+                code="INVALID_DATA_FORMAT",
+                message="從 Control Plane 收到的資源群組列表資料格式不符預期。",
+                details={"params": params, "errors": e.errors()}
+            )
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢資源群組時發生錯誤: {e}", exc_info=True)
-            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
+            logger.error(f"❌ (ControlPlaneTool) 查詢資源群組時發生未預期錯誤: {e}", exc_info=True)
+            return ToolError(
+                code="UNEXPECTED_ERROR",
+                message=str(e),
+                details={"params": params}
+            )
 
     async def query_audit_logs(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
         """查詢部署相關的審計日誌 (GET /api/v1/audit-logs)"""

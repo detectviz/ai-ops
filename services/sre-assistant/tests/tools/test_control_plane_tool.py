@@ -38,9 +38,17 @@ def control_plane_tool(mock_config, mocker):
 @pytest.mark.asyncio
 @respx.mock
 async def test_query_resources_success(control_plane_tool: ControlPlaneTool):
-    """測試：成功查詢資源列表"""
+    """測試：成功查詢資源列表並通過 Pydantic 驗證"""
     # 安排
-    mock_response_data = {"data": [{"id": "res1", "name": "Resource 1"}]}
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    mock_response_data = {
+        "items": [{
+            "id": "res1", "name": "Resource 1", "status": "healthy", "type": "database",
+            "createdAt": now, "updatedAt": now
+        }],
+        "pagination": {"page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
+    }
     respx.get(f"{BASE_URL}/api/v1/resources").mock(return_value=Response(200, json=mock_response_data))
 
     # 執行
@@ -48,8 +56,44 @@ async def test_query_resources_success(control_plane_tool: ControlPlaneTool):
 
     # 斷言
     assert isinstance(result, ToolResult)
-    assert result.success is True  # 修正: is_successful -> success
-    assert result.data["resources"] == mock_response_data["data"] # 修正: 匹配新的資料結構
+    assert result.success is True
+    assert len(result.data["items"]) == 1
+    assert result.data["items"][0]["name"] == "Resource 1"
+    assert result.data["pagination"]["total"] == 1
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_query_resources_api_error(control_plane_tool: ControlPlaneTool):
+    """測試：查詢資源列表時 API 回傳 500 錯誤"""
+    # 安排
+    respx.get(f"{BASE_URL}/api/v1/resources").mock(return_value=Response(500))
+
+    # 執行
+    result = await control_plane_tool.query_resources()
+
+    # 斷言
+    assert isinstance(result, ToolError)
+    assert result.code == "API_ERROR"
+    assert "500" in result.message
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_query_resources_validation_error(control_plane_tool: ControlPlaneTool):
+    """測試：查詢資源列表時 API 回傳格式錯誤的資料"""
+    # 安排
+    # 缺少 'items' 欄位，將導致 Pydantic 驗證失敗
+    mock_invalid_data = {
+        "pagination": {"page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
+    }
+    respx.get(f"{BASE_URL}/api/v1/resources").mock(return_value=Response(200, json=mock_invalid_data))
+
+    # 執行
+    result = await control_plane_tool.query_resources()
+
+    # 斷言
+    assert isinstance(result, ToolError)
+    assert result.code == "INVALID_DATA_FORMAT"
+    assert "不符預期" in result.message
 
 @pytest.mark.asyncio
 @respx.mock
@@ -83,8 +127,33 @@ async def test_get_resource_details_success(control_plane_tool: ControlPlaneTool
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_query_resource_groups_success(control_plane_tool: ControlPlaneTool):
+    """測試：成功查詢資源群組列表"""
+    # 安排
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    mock_response_data = {
+        "items": [{
+            "id": "grp1", "name": "Group 1", "resourceCount": 5,
+            "createdAt": now, "updatedAt": now
+        }],
+        "total": 1
+    }
+    respx.get(f"{BASE_URL}/api/v1/resource-groups").mock(return_value=Response(200, json=mock_response_data))
+
+    # 執行
+    result = await control_plane_tool.query_resource_groups()
+
+    # 斷言
+    assert isinstance(result, ToolResult)
+    assert result.success is True
+    assert len(result.data["items"]) == 1
+    assert result.data["items"][0]["name"] == "Group 1"
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_query_resource_groups_api_error(control_plane_tool: ControlPlaneTool):
-    """測試：當 API 回傳 500 錯誤時，工具能正確處理"""
+    """測試：查詢資源群組時 API 回傳 500 錯誤"""
     # 安排
     respx.get(f"{BASE_URL}/api/v1/resource-groups").mock(return_value=Response(500, text="Internal Server Error"))
 
@@ -93,10 +162,24 @@ async def test_query_resource_groups_api_error(control_plane_tool: ControlPlaneT
 
     # 斷言
     assert isinstance(result, ToolError)
-    # 修正: ToolError 模型沒有 is_successful 欄位
-    assert result.code == "QUERY_FAILED"
-    assert "500" in result.message # 修正: error_message -> message
+    assert result.code == "API_ERROR"
+    assert "500" in result.message
     assert "Internal Server Error" in result.message
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_query_resource_groups_validation_error(control_plane_tool: ControlPlaneTool):
+    """測試：查詢資源群組時 API 回傳格式錯誤的資料"""
+    # 安排
+    mock_invalid_data = {"items": [{"id": "grp1"}]} # 缺少 name, resourceCount 等欄位
+    respx.get(f"{BASE_URL}/api/v1/resource-groups").mock(return_value=Response(200, json=mock_invalid_data))
+
+    # 執行
+    result = await control_plane_tool.query_resource_groups()
+
+    # 斷言
+    assert isinstance(result, ToolError)
+    assert result.code == "INVALID_DATA_FORMAT"
 
 @pytest.mark.asyncio
 async def test_auth_token_is_mocked(control_plane_tool: ControlPlaneTool, mocker):

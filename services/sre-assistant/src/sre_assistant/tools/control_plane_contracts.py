@@ -8,6 +8,18 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
+class Pagination(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 Pagination schema。
+    """
+    page: int
+    page_size: int = Field(..., alias='pageSize')
+    total: int
+    total_pages: int = Field(..., alias='totalPages')
+
+    class Config:
+        populate_by_name = True
+
 class Resource(BaseModel):
     """
     對應 control-plane-openapi.yaml 中的 Resource schema。
@@ -30,3 +42,32 @@ class Resource(BaseModel):
     class Config:
         populate_by_name = True # 允許使用 alias (例如 ipAddress)
         from_attributes = True # 允許從 ORM 物件轉換
+
+class ResourceList(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 ResourceList schema。
+    """
+    items: List[Resource]
+    pagination: Pagination
+
+class ResourceGroup(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 ResourceGroup schema。
+    """
+    id: str
+    name: str
+    description: Optional[str] = None
+    parent_group_id: Optional[str] = Field(None, alias='parentGroupId')
+    resource_count: int = Field(..., alias='resourceCount')
+    created_at: datetime = Field(..., alias='createdAt')
+    updated_at: datetime = Field(..., alias='updatedAt')
+
+    class Config:
+        populate_by_name = True
+
+class ResourceGroupList(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 ResourceGroupList schema。
+    """
+    items: List[ResourceGroup]
+    total: int
