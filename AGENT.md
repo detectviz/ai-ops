@@ -4,6 +4,11 @@
 
 ---
 
+### Jules 🚫 禁止事項
+- ❌ **安裝 Docker**: Sandbox 環境無法安裝 Docker，必須使用本地安裝 `install/install.md` 中的方式安裝
+
+---
+
 ### 🛡️ AI 代理職責：專案文件守護者
 
 本代理（Jules）被賦予**專案文件守護者**的角色，核心職責是確保**程式碼、文件與 API 契約**之間保持嚴格的一致性。
@@ -195,7 +200,7 @@ curl -H "Authorization: Bearer <jwt_token>" \
 
 ## 📚 相關文件
 
-- 📖 **API 參考**: [`docs/API_REFERENCE.md`](../docs/API_REFERENCE.md)
-- 🗺️ **開發路線圖**: [`docs/ROADMAP.md`](../docs/ROADMAP.md)
-- 🏗️ **架構說明**: [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
-- 📋 **開發指南**: [`docs/dev-guide.md`](../docs/dev-guide.md)
+- 📖 **API 參考**: [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md)
+- 🗺️ **開發路線圖**: [`docs/ROADMAP.md`](./docs/ROADMAP.md)
+- 🏗️ **架構說明**: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+- 📋 **開發指南**: [`docs/DEV_GUIDE.md`](./docs/DEV_GUIDE.md)

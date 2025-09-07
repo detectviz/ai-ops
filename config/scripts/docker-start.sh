@@ -126,8 +126,7 @@ check_service "Keycloak" "wget --quiet --tries=1 --spider http://localhost:8080"
 
 # --- 網路監控服務 ---
 echo -e "\n--- 網路監控服務 ---"
-# SNMP Exporter 配置有兼容性問題，暫時跳過檢查
-echo "🔍 正在檢查 SNMP Exporter             ... ⚠️  配置兼容性問題，暫時跳過"
+check_service "SNMP Exporter" "curl -s --fail http://localhost:9116/metrics | grep -q 'snmp_exporter_build_info'"
 
 echo ""
 echo "========================================="

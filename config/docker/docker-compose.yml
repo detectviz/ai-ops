@@ -147,15 +147,10 @@ services:
 
   # SNMP Exporter
   snmp-exporter:
-    image: prom/snmp-exporter:v0.29.0
+    image: prom/snmp-exporter:v0.20.0
     container_name: sre-snmp-exporter
     ports:
       - "9116:9116"
-    volumes:
-      - ../monitoring/snmp.yml:/etc/snmp_exporter/snmp.yml:ro
-    command:
-      - --config.file=/etc/snmp_exporter/snmp.yml
-      - --web.listen-address=:9116
     networks:
       - sre-network
 
