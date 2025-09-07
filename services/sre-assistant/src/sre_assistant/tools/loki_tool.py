@@ -49,7 +49,7 @@ class LokiLogQueryTool:
                 response = await client.get(f"{self.base_url}/ready")
                 response.raise_for_status()
                 # Loki 成功時會回傳 "ready"
-                if "ready" in response.text:
+                if response.text.strip() == "ready":
                     logger.debug(f"Loki health check successful: {response.status_code}")
                     return True
                 logger.warning(f"Loki health check response is not 'ready': {response.text}")
@@ -459,27 +459,27 @@ class LokiLogQueryTool:
         
         for message in error_messages:
             # 提取關鍵詞（簡化版本）
+            import re
             key_parts = []
             
-            # 尋找異常類型
-            if "Exception" in message:
-                exception_start = message.find("Exception")
-                exception_end = message.find(" ", exception_start)
-                if exception_end == -1:
-                    exception_end = len(message)
-                key_parts.append(message[exception_start:exception_end])
+            # 尋找異常類型 (e.g., NullPointerException, IOException)
+            # 這種方法更穩健，可以處理完整的異常名稱
+            exception_words = re.findall(r'\b\w*Exception\b', message)
+            if exception_words:
+                # 使用最長的異常名稱作為最具体的關鍵詞
+                key_parts.append(max(exception_words, key=len))
 
             # 尋找錯誤代碼
-            import re
             error_codes = re.findall(r'\b[4-5]\d{2}\b', message)
             if error_codes:
                 key_parts.extend(error_codes)
             
-            # 如果沒有找到特定模式，使用前 50 個字元
+            # 如果沒有找到特定模式，使用第一行的前 50 個字元
             if not key_parts:
-                key_parts.append(message[:50])
+                key_parts.append(message.splitlines()[0][:50])
             
-            cluster_key = " | ".join(key_parts)
+            # 為了保持一致性，對關鍵詞進行排序
+            cluster_key = " | ".join(sorted(list(set(key_parts))))
             clusters[cluster_key] = clusters.get(cluster_key, 0) + 1
         
         return clusters
