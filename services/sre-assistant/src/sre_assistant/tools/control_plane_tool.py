@@ -4,7 +4,7 @@ Control Plane 整合工具
 用於回調 Control Plane API 獲取審計日誌和變更歷史
 """
 
-import logging
+import structlog
 import httpx
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime, timedelta, timezone
@@ -18,7 +18,7 @@ from .control_plane_contracts import (
     Resource, ResourceList, ResourceGroupList, AlertRuleList, ExecutionList
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ControlPlaneTool:

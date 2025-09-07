@@ -4,7 +4,7 @@ Prometheus 查詢工具
 用於查詢服務的關鍵指標（四大黃金訊號）
 """
 
-import logging
+import structlog
 import httpx
 import json
 from typing import Dict, Any, Optional, List
@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 
 from ..contracts import ToolResult, ToolError
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class PrometheusQueryTool:

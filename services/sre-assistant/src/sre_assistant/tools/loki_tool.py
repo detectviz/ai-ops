@@ -4,7 +4,7 @@ Loki 日誌查詢工具
 用於查詢和分析服務日誌
 """
 
-import logging
+import structlog
 import httpx
 import json
 from typing import Dict, Any, Optional, List
@@ -13,7 +13,7 @@ from urllib.parse import quote
 
 from ..contracts import ToolResult, ToolError
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class LokiLogQueryTool:

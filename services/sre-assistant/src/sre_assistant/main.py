@@ -36,9 +36,42 @@ from .contracts import (
 from .workflow import SREWorkflow, SREWorkflowRequest
 from .config.config_manager import ConfigManager
 
-# 設定日誌
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# --- 結構化日誌設定 ---
+import structlog
+import contextvars
+
+# 1. 為請求 ID 建立 ContextVar
+request_id_var = contextvars.ContextVar("request_id", default=None)
+
+def configure_logging():
+    """設定 structlog 以輸出 JSON 格式的日誌"""
+
+    # structlog 處理器鏈
+    processors = [
+        # 將 contextvars (如 request_id) 合併到日誌記錄中
+        structlog.contextvars.merge_contextvars,
+        # 新增日誌級別和名稱等標準屬性
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        # 新增時間戳
+        structlog.processors.TimeStamper(fmt="iso"),
+        # 如果有異常，格式化它
+        structlog.processors.format_exc_info,
+        # 渲染為 JSON
+        structlog.processors.JSONRenderer(),
+    ]
+
+    structlog.configure(
+        processors=processors,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
+# 在應用啟動時設定日誌
+configure_logging()
+logger = structlog.get_logger(__name__)
+# --- 結構化日誌設定結束 ---
 
 # 全域變數
 config_manager: Optional[ConfigManager] = None
@@ -106,6 +139,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Request ID 中介層 ---
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    """
+    攔截請求，生成唯一的 request_id，並將其放入 context var。
+    """
+    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+    request_id_var.set(request_id)
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
 
 security = HTTPBearer()
 

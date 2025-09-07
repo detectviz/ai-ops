@@ -5,7 +5,7 @@ SRE 工作流程協調器 (已重構以支援非同步任務)
 
 import asyncio
 import functools
-import logging
+import structlog
 import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
@@ -30,7 +30,7 @@ from .tools.prometheus_tool import PrometheusQueryTool
 from .tools.loki_tool import LokiLogQueryTool
 from .tools.control_plane_tool import ControlPlaneTool
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class SREWorkflow:

@@ -28,15 +28,15 @@
 - [x] SRE Assistant：/api/v1/readyz（ReadinessStatus：checks=prometheus/loki/control_plane）
 - [x] SRE Assistant：/api/v1/metrics（text/plain; Prometheus exposition format）
 - [x] SRE Assistant：control_plane.base_url → http://localhost:8081/api/v1
-- [ ] 工具層錯誤處理分類與統一 ToolError（httpx HTTPStatusError/Timeout/ConnectError）
-- [ ] 工具層單元測試（成功/超時/例外/快取命中）
+- [x] 工具層錯誤處理分類與統一 ToolError（httpx HTTPStatusError/Timeout/ConnectError）
+- [x] 工具層單元測試（成功/超時/例外/快取命中）
 - [x] Control Plane：/api/v1/healthz、/api/v1/readyz、/api/v1/metrics
 - [x] Control Plane：/api/v1/dashboard/trends、/api/v1/dashboard/resource-distribution（最小實作）
 - [x] Control Plane：Cookie/Session 金鑰改為環境變數（CONTROL_PLANE_SESSION_KEY）
 
 ### 2) 中優先度（2–3 週）
-- [ ] 結構化日誌一致性：
-  - Python：structlog/python-json-logger + Request/Trace ID 中介層
+- [x] 結構化日誌一致性：
+  - [x] Python：structlog/python-json-logger + Request/Trace ID 中介層
   - Go：RequestID middleware + otelzap JSON 欄位一致
 - [ ] HTTP 逾時/重試/連線池策略統一（httpx / net/http）
 - [ ] ControlPlaneTool 唯讀能力覆蓋（resources/resource-groups/audit-logs/incidents/alert-rules/automation/executions）並以 Pydantic 驗證
