@@ -304,10 +304,10 @@
     - **任務**: 解決程式碼庫中的小問題：1) 刪除重複的 `tools/workflow.py` 檔案。2) 完整實現 `main.py` 中的健康檢查 (`check_database`, `check_redis`)。3) 將 `main.py` 中的認證邏輯重構到獨立的模組中。
     - **相關子任務**:
         - [ ] 刪除重複的 `tools/workflow.py`
-        - [ ] **健康檢查 (`/readyz`)**:
+        - [x] **健康檢查 (`/readyz`)**:
             - [x] 實現對 Redis 的即時連線檢查
-            - [ ] 實現對 Database 的連線檢查
-        - [ ] 將認證邏輯重構到獨立模組
+            - [x] 實現對 Database 的連線檢查
+        - [x] 將認證邏輯重構到獨立模組
     - **參考**:
         - **專案結構**: [`docs/references/agent-starter-pack/`](./references/agent-starter-pack/)
         - **SRE 理論 - 消除瑣事**: [`docs/references/google-sre-book/Chapter-05-Eliminating-Toil.md`](./references/google-sre-book/Chapter-05-Eliminating-Toil.md)

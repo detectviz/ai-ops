@@ -202,7 +202,7 @@ class TestAuthentication:
         assert response.status_code == 403
         assert "Not authenticated" in response.text
 
-    @patch("sre_assistant.main.fetch_jwks")
+    @patch("sre_assistant.auth.fetch_jwks")
     def test_invalid_token_structure(self, mock_fetch_jwks, client):
         """測試提供了無效結構的 Token (非 Bearer)"""
         # 即使 JWKS 正確，token 格式錯誤也應該失敗
