@@ -93,10 +93,13 @@ func RequireAuth(authSvc *auth.KeycloakService) func(http.Handler) http.Handler 
 			}
 			rawToken := parts[1]
 
-			_, err := authSvc.VerifyToken(r.Context(), rawToken)
-			if err != nil {
-				http.Error(w, "無效的權杖: "+err.Error(), http.StatusUnauthorized)
-				return
+			// 在 dev 模式下，如果 authSvc 為 nil，則跳過權杖驗證
+			if authSvc != nil {
+				_, err := authSvc.VerifyToken(r.Context(), rawToken)
+				if err != nil {
+					http.Error(w, "無效的權杖: "+err.Error(), http.StatusUnauthorized)
+					return
+				}
 			}
 
 			// 權杖有效，繼續處理請求

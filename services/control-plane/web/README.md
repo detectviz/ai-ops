@@ -124,7 +124,7 @@ make test-go
 - ✅ **Resources**: 資源管理頁面 (`templates/pages/resources.html`)
 - ✅ **Incidents (告警紀錄)**: 事件/告警紀錄頁面 (`templates/pages/incidents.html`)
 - ❌ **Groups (資源群組)**: 尚未實作
-- ❌ **Teams (團隊管理)**: 尚未實作
+- ✅ **Teams (團隊管理)**: 已實作列表、新增、編輯、刪除功能。
 - ❌ **Rules (告警規則)**: 尚未實作
 - ❌ **Personnel (人員管理)**: 尚未實作
 - ❌ **Channels (通知管道)**: 尚未實作

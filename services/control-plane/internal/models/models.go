@@ -111,7 +111,7 @@ type AlertRule struct {
 	Duration         string        `json:"duration"`
 	CustomTitle      string        `json:"custom_title"`
 	CustomContent    string        `json:"custom_content"`
-	AutomationScript *Script       `json:"automation_script,omitempty"`
+	AutomationScript *Script       `gorm:"foreignKey:ScriptID" json:"automation_script,omitempty"`
 	ScriptID         *uint         `json:"script_id,omitempty"`
 	Enabled          bool          `json:"enabled"`
 	CreatedAt        time.Time     `json:"created_at"`

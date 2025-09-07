@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/detectviz/control-plane/internal/auth"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.uber.org/zap"
 )
@@ -22,23 +21,29 @@ type SreAssistantClient interface {
 	PollDiagnosticStatus(ctx context.Context, sessionID string) (*DiagnosticResult, error)
 }
 
+// SreAssistantTokenProvider 定義了獲取 M2M 權杖所需的方法。
+// 這樣可以解耦 SreAssistantClient 與具體的 KeycloakService 實現。
+type SreAssistantTokenProvider interface {
+	GetM2MToken(ctx context.Context) (string, error)
+}
+
 // SreAssistantClientImpl 是 SreAssistantClient 的具體實現
 type SreAssistantClientImpl struct {
-	baseURL    string
-	httpClient *http.Client
-	authSvc    auth.KeycloakService
-	logger     *otelzap.Logger
+	baseURL       string
+	httpClient    *http.Client
+	tokenProvider SreAssistantTokenProvider
+	logger        *otelzap.Logger
 }
 
 // NewSreAssistantClient 建立一個新的 SRE Assistant 客戶端實例
-func NewSreAssistantClient(baseURL string, authSvc auth.KeycloakService, logger *otelzap.Logger) SreAssistantClient {
+func NewSreAssistantClient(baseURL string, tokenProvider SreAssistantTokenProvider, logger *otelzap.Logger) SreAssistantClient {
 	return &SreAssistantClientImpl{
-		baseURL: baseURL,
+		baseURL:    baseURL,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		authSvc: authSvc,
-		logger:  logger,
+		tokenProvider: tokenProvider,
+		logger:        logger,
 	}
 }
 
@@ -88,10 +93,18 @@ type DiagnosticStatus struct {
 func (c *SreAssistantClientImpl) DiagnoseDeployment(ctx context.Context, req *DiagnosticRequest) (*DiagnosticResponse, error) {
 	c.logger.Ctx(ctx).Info("準備呼叫 SRE Assistant 進行部署診斷", zap.String("incidentID", req.IncidentID))
 
-	token, err := c.authSvc.GetM2MToken(ctx)
-	if err != nil {
-		c.logger.Ctx(ctx).Error("無法獲取 M2M 權杖", zap.Error(err))
-		return nil, fmt.Errorf("無法獲取 M2M 權杖: %w", err)
+	var token string
+	var err error
+	if c.tokenProvider != nil {
+		token, err = c.tokenProvider.GetM2MToken(ctx)
+		if err != nil {
+			c.logger.Ctx(ctx).Error("無法獲取 M2M 權杖", zap.Error(err))
+			return nil, fmt.Errorf("無法獲取 M2M 權杖: %w", err)
+		}
+	} else {
+		// DEV 模式下，使用一個假的 token
+		token = "dev-mode-token"
+		c.logger.Ctx(ctx).Info("在 DEV 模式下運行，使用假的 M2M token")
 	}
 
 	payload, err := json.Marshal(req)
@@ -130,9 +143,15 @@ func (c *SreAssistantClientImpl) DiagnoseDeployment(ctx context.Context, req *Di
 
 // GetDiagnosticStatus 呼叫 SRE Assistant 的 /api/v1/diagnostics/{session_id}/status 端點
 func (c *SreAssistantClientImpl) GetDiagnosticStatus(ctx context.Context, sessionID string) (*DiagnosticStatus, error) {
-	token, err := c.authSvc.GetM2MToken(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("無法獲取 M2M 權杖: %w", err)
+	var token string
+	var err error
+	if c.tokenProvider != nil {
+		token, err = c.tokenProvider.GetM2MToken(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("無法獲取 M2M 權杖: %w", err)
+		}
+	} else {
+		token = "dev-mode-token"
 	}
 
 	url := fmt.Sprintf("%s/api/v1/diagnostics/%s/status", c.baseURL, sessionID)

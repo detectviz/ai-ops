@@ -21,7 +21,7 @@ type Services struct {
 }
 
 // NewServices 建立並返回一個新的 Services 實例。
-func NewServices(db *database.DB, cfg *config.Config, logger *otelzap.Logger, authSvc auth.KeycloakService) *Services { // << 修改：接受 *database.DB
+func NewServices(db *database.DB, cfg *config.Config, logger *otelzap.Logger, authSvc *auth.KeycloakService) *Services { // << 修改：接受 *database.DB 和 *auth.KeycloakService
 	sreClient := NewSreAssistantClient(cfg.SREAssistant.BaseURL, authSvc, logger)
 	return &Services{
 		DB:                 db,
