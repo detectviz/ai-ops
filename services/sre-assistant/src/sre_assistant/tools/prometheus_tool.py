@@ -259,6 +259,25 @@ class PrometheusQueryTool:
         value = await self._execute_instant_query(query)
         return {"value": value, "query": query}
     
+    async def check_health(self) -> bool:
+        """
+        執行對 Prometheus 的健康檢查。
+
+        Returns:
+            如果 Prometheus 可達且健康，則返回 True，否則返回 False。
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                # Prometheus 的標準健康檢查端點
+                response = await client.get(f"{self.base_url}/-/healthy")
+                response.raise_for_status()
+                logger.debug(f"Prometheus health check successful: {response.status_code}")
+                return True
+        except (httpx.HTTPStatusError, httpx.RequestError) as e:
+            # 捕獲所有 httpx 相關的錯誤
+            logger.warning(f"Prometheus health check failed: {e}")
+            return False
+
     async def _execute_instant_query(self, query: str) -> Optional[float]:
         """
         執行即時查詢，並增加 Redis 快取機制。

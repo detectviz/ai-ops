@@ -12,6 +12,7 @@ from datetime import datetime, timezone, timedelta
 import os
 import logging
 import uuid
+import asyncio
 from typing import Dict, Any, Optional, List
 import redis.asyncio as redis
 from jose import jwt, jwk
@@ -78,6 +79,7 @@ config_manager: Optional[ConfigManager] = None
 workflow: Optional[SREWorkflow] = None
 redis_client: Optional[redis.Redis] = None
 app_ready = False
+startup_time = time.time() # 應用程式啟動時間
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -308,10 +310,9 @@ def check_liveness():
     返回 HealthStatus 結構，符合 OpenAPI 規範
     """
     from datetime import datetime
-    import time
 
     # 計算運行時間（從應用啟動至今）
-    uptime = int(time.time() - startup_time) if 'startup_time' in globals() else 0
+    uptime = int(time.time() - startup_time)
 
     return {
         "status": "healthy",
@@ -336,44 +337,35 @@ async def check_readiness(response: Response):
 
     if not app_ready or not workflow or not redis_client:
         response.status_code = 503
-        return {
-            "ready": False,
-            "checks": checks
-        }
+        return {"ready": False, "checks": checks}
 
     try:
-        # 驗證與 Redis 的即時連線
-        await redis_client.ping()
-        checks["redis"] = True
+        # 使用 asyncio.gather 並行執行所有健康檢查
+        results = await asyncio.gather(
+            redis_client.ping(),
+            workflow.prometheus_tool.check_health(),
+            workflow.loki_tool.check_health(),
+            workflow.control_plane_tool.check_health(),
+            return_exceptions=True  # 即使有檢查失敗也繼續
+        )
 
-        # 這裡可以加入其他依賴檢查
-        # TODO: 檢查與 Prometheus 的連線
-        # TODO: 檢查與 Loki 的連線
-        # TODO: 檢查與 Control Plane 的連線
+        # 處理檢查結果
+        # redis_client.ping() 成功時返回 True，失敗則拋出異常
+        checks["redis"] = results[0] is True
+        checks["prometheus"] = results[1] is True
+        checks["loki"] = results[2] is True
+        checks["control_plane"] = results[3] is True
 
-        # 目前只檢查 Redis，所以其他檢查設為 True（表示不進行檢查）
-        checks["prometheus"] = True
-        checks["loki"] = True
-        checks["control_plane"] = True
+        is_ready = all(checks.values())
+        if not is_ready:
+            response.status_code = 503
 
-        return {
-            "ready": all(checks.values()),
-            "checks": checks
-        }
-    except redis.exceptions.ConnectionError as e:
-        logger.error(f"Redis 連線檢查失敗: {e}", exc_info=True)
-        response.status_code = 503
-        return {
-            "ready": False,
-            "checks": checks
-        }
+        return {"ready": is_ready, "checks": checks}
     except Exception as e:
+        # 這是最後的防線，捕捉 asyncio.gather 本身或其他未預期的錯誤
         logger.error(f"就緒檢查時發生未預期的錯誤: {e}", exc_info=True)
         response.status_code = 503
-        return {
-            "ready": False,
-            "checks": checks
-        }
+        return {"ready": False, "checks": checks}
 
 @app.get("/api/v1/metrics", tags=["Health"])
 def get_metrics():
