@@ -169,6 +169,8 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 	apiRouter := r.PathPrefix("/api/v1").Subrouter()
 	apiRouter.Use(middleware.RequireAuth(auth))
 	apiRouter.HandleFunc("/dashboard/summary", api.GetDashboardSummary(h.Services)).Methods("GET")
+	apiRouter.HandleFunc("/dashboard/trends", api.GetDashboardTrends(h.Services)).Methods("GET")
+	apiRouter.HandleFunc("/dashboard/resource-distribution", api.GetResourceDistribution(h.Services)).Methods("GET")
 	apiRouter.HandleFunc("/resources", api.ListResources(h.Services)).Methods("GET")
 	apiRouter.HandleFunc("/resources", api.CreateResource(h.Services)).Methods("POST")
 	apiRouter.HandleFunc("/resources/{resourceId}", api.GetResource(h.Services)).Methods("GET")

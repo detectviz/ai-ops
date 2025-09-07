@@ -4,12 +4,12 @@ Loki 日誌查詢工具
 用於查詢和分析服務日誌
 """
 
+import asyncio
 import structlog
 import httpx
 import json
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta, timezone
-from urllib.parse import quote
 
 from ..contracts import ToolResult, ToolError
 
@@ -35,6 +35,28 @@ class LokiLogQueryTool:
         self.max_time_range = config.loki.max_time_range
         
         logger.info(f"✅ Loki 工具初始化: {self.base_url}")
+
+    async def check_health(self) -> bool:
+        """
+        執行對 Loki 的健康檢查。
+
+        Returns:
+            如果 Loki 可達且就緒，則返回 True，否則返回 False。
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                # Loki 的標準健康檢查端點
+                response = await client.get(f"{self.base_url}/ready")
+                response.raise_for_status()
+                # Loki 成功時會回傳 "ready"
+                if "ready" in response.text:
+                    logger.debug(f"Loki health check successful: {response.status_code}")
+                    return True
+                logger.warning(f"Loki health check response is not 'ready': {response.text}")
+                return False
+        except (httpx.HTTPStatusError, httpx.RequestError) as e:
+            logger.warning(f"Loki health check failed: {e}")
+            return False
     
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         """

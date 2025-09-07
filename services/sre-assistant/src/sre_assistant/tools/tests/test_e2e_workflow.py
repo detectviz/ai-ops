@@ -10,7 +10,6 @@ from sre_assistant.workflow import SREWorkflow
 from sre_assistant.contracts import SRERequest, SeverityLevel
 
 # 使用來自 conftest.py 或其他測試文件的共享 fixture
-from test_workflow import mock_config, workflow
 
 
 @pytest.mark.asyncio

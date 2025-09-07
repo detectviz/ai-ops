@@ -5,13 +5,11 @@ ControlPlaneTool 的單元測試
 
 import pytest
 import respx
-import httpx
 from httpx import Response, TimeoutException, ConnectError
 from unittest.mock import MagicMock
 from datetime import datetime, timezone
 
 from sre_assistant.tools.control_plane_tool import ControlPlaneTool
-from sre_assistant.contracts import ToolResult, ToolError
 
 # 測試用的基本 URL 和通用時間戳
 BASE_URL = "http://mock-control-plane"

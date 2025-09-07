@@ -209,6 +209,9 @@ class ConfigManager:
                 "diagnosis_timeout_seconds": 120,
                 "max_retries": 2,
                 "retry_delay_seconds": 1
+            },
+            "database": {
+                "url": os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/sre-platform")
             }
         }
     

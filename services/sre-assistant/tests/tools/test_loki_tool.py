@@ -5,7 +5,6 @@ from httpx import Response
 from unittest.mock import MagicMock
 
 from sre_assistant.tools.loki_tool import LokiLogQueryTool
-from sre_assistant.contracts import ToolResult, ToolError
 
 BASE_URL = "http://mock-loki"
 

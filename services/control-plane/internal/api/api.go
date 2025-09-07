@@ -102,6 +102,49 @@ func GetDashboardSummary(svcs *services.Services) http.HandlerFunc {
 	}
 }
 
+// GetDashboardTrends 處理儀表板趨勢數據的請求 (骨架)。
+func GetDashboardTrends(svcs *services.Services) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        period := r.URL.Query().Get("period")
+        if period == "" {
+            period = "24h"
+        }
+        mockTrends := map[string]interface{}{
+            "period": period,
+            "data_points": []map[string]interface{}{
+                {"timestamp": time.Now().Add(-2 * time.Hour).Format(time.RFC3339), "incidents": 5, "cpu_usage": 60.5},
+                {"timestamp": time.Now().Add(-1 * time.Hour).Format(time.RFC3339), "incidents": 3, "cpu_usage": 65.2},
+                {"timestamp": time.Now().Format(time.RFC3339), "incidents": 2, "cpu_usage": 63.1},
+            },
+        }
+        jsonResponse(w, http.StatusOK, mockTrends)
+    }
+}
+
+// GetResourceDistribution 處理資源分佈數據的請求 (骨架)。
+func GetResourceDistribution(svcs *services.Services) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        mockDistribution := map[string]interface{}{
+            "by_status": map[string]int{
+                "healthy":  145,
+                "warning":  3,
+                "critical": 2,
+            },
+            "by_type": map[string]int{
+                "server":      100,
+                "database":    20,
+                "application": 30,
+            },
+            "by_group": []map[string]interface{}{
+                {"group_name": "Core Services", "count": 50},
+                {"group_name": "Data Platform", "count": 40},
+                {"group_name": "Web Services", "count": 60},
+            },
+        }
+        jsonResponse(w, http.StatusOK, mockDistribution)
+    }
+}
+
 // --- Resources Handlers (Skeletons) ---
 
 func ListResources(svcs *services.Services) http.HandlerFunc {

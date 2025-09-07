@@ -6,8 +6,7 @@ Control Plane 整合工具
 
 import structlog
 import httpx
-from typing import Dict, Any, Optional, List, Union
-from datetime import datetime, timedelta, timezone
+from typing import Dict, Any, Optional
 import jwt
 import time
 
@@ -45,6 +44,29 @@ class ControlPlaneTool:
         self.token_expires_at = 0  # token 到期時間
         
         logger.info(f"✅ Control Plane 工具初始化: {self.base_url}")
+
+    async def check_health(self) -> bool:
+        """
+        執行對 Control Plane 的健康檢查。
+
+        Returns:
+            如果 Control Plane 可達且健康，則返回 True，否則返回 False。
+        """
+        try:
+            # 複用 _make_request 以自動處理認證
+            # 注意：Control Plane 的健康檢查端點可能不需要認證，
+            # 但使用此方法可以確保一致性，並在未來需要時無縫接軌。
+            response = await self._make_request(method="GET", endpoint="/api/v1/healthz")
+            # 根據 Go 服務的慣例，健康的響應應該包含 'status': 'healthy'
+            if response.get("status") == "healthy":
+                logger.debug("Control Plane health check successful.")
+                return True
+            logger.warning(f"Control Plane health check response is not healthy: {response}")
+            return False
+        except Exception as e:
+            # _make_request 已經記錄了詳細錯誤，這裡只需記錄檢查失敗即可
+            logger.warning(f"Control Plane health check failed: {e}")
+            return False
 
     async def get_audit_logs(self, service_name: str, limit: int = 10) -> ToolResult:
         """
@@ -133,7 +155,7 @@ class ControlPlaneTool:
     async def query_audit_logs(self, params: Optional[Dict] = None) -> ToolResult:
         """查詢部署相關的審計日誌 (GET /api/v1/audit-logs)"""
         try:
-            logger.info(f"🛂 (ControlPlaneTool) 正在查詢審計日誌...")
+            logger.info("🛂 (ControlPlaneTool) 正在查詢審計日誌...")
             response = await self._make_request(method="GET", endpoint="/api/v1/audit-logs", params=params)
             return ToolResult(success=True, data={"logs": response.get("data", [])})
         except httpx.HTTPStatusError as e:
