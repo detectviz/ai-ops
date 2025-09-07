@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/detectviz/control-plane/internal/config"
@@ -22,8 +23,8 @@ import (
 
 // SessionStore 和名稱設定
 var (
-	// TODO: 在生產環境中，金鑰應從安全的設定源載入。
-	Store = sessions.NewCookieStore([]byte("secret-key-for-dev-should-be-replaced"))
+	// CookieStore 金鑰從環境變數載入，生產環境應設定 CONTROL_PLANE_SESSION_KEY
+	Store = sessions.NewCookieStore(getSessionKey())
 )
 
 // SessionName 是儲存在 cookie 中的 session 名稱。
@@ -181,4 +182,15 @@ func (s *KeycloakService) GetUserInfo(ctx context.Context, token *oauth2.Token) 
 	}
 
 	return &claims, nil
+}
+
+// getSessionKey 從環境變數獲取 session 金鑰，如果未設定則使用安全的預設值
+func getSessionKey() []byte {
+	key := os.Getenv("CONTROL_PLANE_SESSION_KEY")
+	if key == "" {
+		// 開發環境使用一個相對安全的預設值，但建議在生產環境設定環境變數
+		fmt.Println("⚠️ 警告: 未設定 CONTROL_PLANE_SESSION_KEY 環境變數，使用開發環境預設值")
+		return []byte("dev-session-key-change-in-production-2024")
+	}
+	return []byte(key)
 }

@@ -185,7 +185,7 @@ class ConfigManager:
                 }
             },
             "control_plane": {
-                "base_url": "http://localhost:8081",
+                "base_url": "http://localhost:8081/api/v1",
                 "timeout_seconds": 20,
                 "client_id": "sre-assistant",
                 "client_secret": os.getenv("SRE_ASSISTANT_CLIENT_SECRET", "a_secure_secret_for_dev_only")

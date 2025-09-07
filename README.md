@@ -357,7 +357,7 @@ sequenceDiagram
 | **[🎯 使用者指南](docs/USER_GUIDE.md)** | SRE 工程師、運維人員 | Control Plane UI 操作指南、功能說明 |
 | **[🏗️ 架構設計書](docs/ARCHITECTURE.md)** | 技術架構師、開發者 | 系統架構、設計理念、技術選型 |
 | **[🗺️ 開發路線圖](docs/ROADMAP.md)** | 專案經理、開發團隊 | 開發階段、任務規劃、里程碑 |
-| **[🤖 SRE Assistant 指南](docs/SRE_ASSISTANT.md)** | Python 開發者 | SRE Assistant 開發、API、工具 |
+| **[🤖 SRE Assistant 指南](docs/DEV_GUIDE.md#🤖-sre-assistant-架構深度分析)** | Python 開發者 | SRE Assistant 開發、API、工具 |
 | **[🔌 Control Plane API](pkg/api/control-plane-openapi.yaml)** | Go 開發者、前端 | 指揮中心 API 契約 |
 | **[🔌 SRE Assistant API](pkg/api/sre-assistant-openapi.yaml)** | Python 開發者、AI | 智能代理 API 契約 |
 | **[🤖 AI 代理指南](AGENT.md)** | AI 開發者、代理系統 | AI 代理操作指南、自動化流程 |
@@ -485,15 +485,37 @@ refactor: 重構診斷工作流程
 ### 🐳 Docker 快速部署
 
 ```bash
-# 🏗️ 建置映像
-docker-compose build
+# 🚀 一鍵啟動（推薦）
+./start-docker.sh
 
-# 🚀 啟動服務
-docker-compose up -d
+# 或手動啟動
+docker-compose -f config/docker/docker-compose.yml up -d
 
-# 📊 檢查狀態  
-docker-compose ps
+# 📊 檢查狀態
+docker-compose -f config/docker/docker-compose.yml ps
+
+# 📝 查看服務日誌
+docker-compose -f config/docker/docker-compose.yml logs -f
 ```
+
+#### 📁 配置檔案結構
+
+所有配置檔案已整理至 `config/` 目錄：
+
+```
+config/
+├── docker/docker-compose.yml     # 服務編排配置
+├── monitoring/prometheus.yml     # 監控配置
+├── scripts/docker-start.sh      # 啟動腳本
+├── env-example.txt              # 環境變數模板
+└── README.md                    # 配置說明
+```
+
+#### 🔧 自定義配置
+
+1. **環境變數**: 複製 `config/env-example.txt` 為 `.env` 並修改
+2. **端口調整**: 編輯 `config/docker/docker-compose.yml` 修改端口映射
+3. **監控配置**: 修改 `config/monitoring/prometheus.yml` 添加自定義指標
 
 ### ☸️ Kubernetes 部署
 

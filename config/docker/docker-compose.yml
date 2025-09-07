@@ -1,0 +1,230 @@
+services:
+  # PostgreSQL 資料庫
+  postgres:
+    image: postgres:15
+    container_name: sre-postgres
+    environment:
+      POSTGRES_DB: sre_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - sre-network
+
+  # Redis 快取
+  redis:
+    image: redis:7-alpine
+    container_name: sre-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - sre-network
+
+  # Grafana 儀表板
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: sre-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - postgres
+      - prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - sre-network
+
+  # VictoriaMetrics vmstorage
+  vmstorage:
+    image: victoriametrics/vmstorage:v1.125.0-cluster
+    container_name: sre-vmstorage
+    ports:
+      - "8400:8400"
+      - "8401:8401"
+      - "8482:8482"
+    volumes:
+      - vmstorage_data:/storage
+    command:
+      - --storageDataPath=/storage
+      - --retentionPeriod=1
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:8482/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - sre-network
+
+  # VictoriaMetrics vminsert
+  vminsert:
+    image: victoriametrics/vminsert:v1.125.0-cluster
+    container_name: sre-vminsert
+    ports:
+      - "8480:8480"
+    depends_on:
+      vmstorage:
+        condition: service_healthy
+    command:
+      - --storageNode=vmstorage:8400
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:8480/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - sre-network
+
+  # VictoriaMetrics vmselect
+  vmselect:
+    image: victoriametrics/vmselect:v1.125.0-cluster
+    container_name: sre-vmselect
+    ports:
+      - "8481:8481"
+    depends_on:
+      vmstorage:
+        condition: service_healthy
+    command:
+      - --storageNode=vmstorage:8401
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:8481/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - sre-network
+
+  # Prometheus (VictoriaMetrics vmagent 作為 Prometheus 替代)
+  prometheus:
+    image: victoriametrics/vmagent:v1.125.0
+    container_name: sre-prometheus
+    ports:
+      - "8429:8429"  # vmagent metrics
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --promscrape.config=/etc/prometheus/prometheus.yml
+      - --promscrape.config.strictParse=false
+      - --remoteWrite.url=http://vminsert:8480/insert/0/prometheus
+    depends_on:
+      vminsert:
+        condition: service_healthy
+      snmp-exporter:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:8429/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - sre-network
+
+  # SNMP Exporter
+  snmp-exporter:
+    image: prom/snmp-exporter:v0.29.0
+    container_name: sre-snmp-exporter
+    ports:
+      - "9116:9116"
+    volumes:
+      - ../monitoring/snmp.yml:/etc/snmp_exporter/snmp.yml:ro
+    command:
+      - --config.file=/etc/snmp_exporter/snmp.yml
+      - --web.listen-address=:9116
+    networks:
+      - sre-network
+
+  # ChromaDB 向量資料庫
+  chromadb:
+    image: chromadb/chroma:0.4.24
+    container_name: sre-chromadb
+    ports:
+      - "8000:8000"
+    environment:
+      CHROMA_SERVER_HOST: 0.0.0.0
+      CHROMA_SERVER_HTTP_PORT: 8000
+    volumes:
+      - chromadb_data:/chroma/chroma
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - sre-network
+
+  # Keycloak 身份驗證服務
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.3
+    container_name: sre-keycloak
+    environment:
+      KC_HOSTNAME: localhost
+      KC_HTTP_ENABLED: true
+      KC_HOSTNAME_PORT: 8080
+      KC_HOSTNAME_STRICT_BACKCHANNEL: false
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HEALTH_ENABLED: true
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/sre_dev
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["start-dev", "--import-realm"]
+    volumes:
+      - ../../pkg/auth/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8080 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    networks:
+      - sre-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  grafana_data:
+    driver: local
+  vmstorage_data:
+    driver: local
+  chromadb_data:
+    driver: local
+
+networks:
+  sre-network:
+    driver: bridge

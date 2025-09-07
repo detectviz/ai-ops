@@ -60,9 +60,9 @@ echo "正在停止可能正在運行的舊版監控服務..."
 sudo systemctl stop vmstorage vminsert vmselect vmagent snmp_exporter >/dev/null 2>&1 || true
 
 echo "正在從本地文件複製 VictoriaMetrics Cluster 元件..."
-sudo cp ./local/victoria-metrics-linux-amd64-v1.125.0-cluster/vmstorage-prod /usr/local/bin/vmstorage
-sudo cp ./local/victoria-metrics-linux-amd64-v1.125.0-cluster/vminsert-prod /usr/local/bin/vminsert
-sudo cp ./local/victoria-metrics-linux-amd64-v1.125.0-cluster/vmselect-prod /usr/local/bin/vmselect
+sudo cp ./install/linux-amd64/victoria-metrics-linux-amd64-v1.125.0-cluster/vmstorage-prod /usr/local/bin/vmstorage
+sudo cp ./install/linux-amd64/victoria-metrics-linux-amd64-v1.125.0-cluster/vminsert-prod /usr/local/bin/vminsert
+sudo cp ./install/linux-amd64/victoria-metrics-linux-amd64-v1.125.0-cluster/vmselect-prod /usr/local/bin/vmselect
 
 echo "建立 VictoriaMetrics 資料目錄..."
 sudo mkdir -p /var/lib/victoriametrics
@@ -119,7 +119,7 @@ echo "--- VictoriaMetrics Cluster 元件已安裝。---"
 # --- 6. vmagent (From local files) ---
 echo ">>> [步驟 6/8] 安裝 vmagent..."
 echo "正在從本地文件複製 vmagent..."
-sudo cp ./local/vmutils-linux-amd64-v1.125.0/vmagent-prod /usr/local/bin/vmagent
+sudo cp ./install/linux-amd64/vmutils-linux-amd64-v1.125.0/vmagent-prod /usr/local/bin/vmagent
 
 echo "建立 vmagent 設定檔目錄與檔案..."
 sudo mkdir -p /etc/vmagent
@@ -157,7 +157,7 @@ echo "--- vmagent 已安裝。---"
 # --- 7. snmp_exporter (From local files) ---
 echo ">>> [步驟 7/8] 安裝 snmp_exporter..."
 echo "正在從本地文件複製 snmp_exporter..."
-sudo cp ./local/snmp_exporter-0.29.0.linux-amd64/snmp_exporter /usr/local/bin/
+sudo cp ./install/linux-amd64/snmp_exporter-0.29.0.linux-amd64/snmp_exporter /usr/local/bin/
 
 echo "建立 snmp_exporter 設定檔目錄與檔案..."
 sudo mkdir -p /etc/snmp_exporter
@@ -190,7 +190,7 @@ echo ">>> [步驟 8/8] 安裝 Keycloak..."
 # Keycloak 需要 Java 執行環境
 sudo apt-get install -y default-jdk
 echo "正在從本地文件複製 Keycloak..."
-sudo cp -r ./local/keycloak-26.3.3 /opt/keycloak
+sudo cp -r ./install/keycloak-26.3.3 /opt/keycloak
 echo "變更 Keycloak 目錄擁有者以允許開發模式..."
 sudo chown -R $SUDO_USER:$SUDO_USER /opt/keycloak
 echo "--- Keycloak 已安裝至 /opt/keycloak。需要手動建立服務。---"

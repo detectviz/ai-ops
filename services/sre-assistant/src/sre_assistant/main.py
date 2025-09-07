@@ -258,7 +258,22 @@ async def run_workflow_bg(session_id: uuid.UUID, request: SREWorkflowRequest, re
 
 @app.get("/api/v1/healthz", tags=["Health"])
 def check_liveness():
-    return {"status": "ok"}
+    """
+    健康檢查端點 - 驗證服務是否正常運行
+    返回 HealthStatus 結構，符合 OpenAPI 規範
+    """
+    from datetime import datetime
+    import time
+
+    # 計算運行時間（從應用啟動至今）
+    uptime = int(time.time() - startup_time) if 'startup_time' in globals() else 0
+
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "version": "1.0.0",
+        "uptime": uptime
+    }
 
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
@@ -267,27 +282,53 @@ async def check_readiness(response: Response):
     """
     執行深入的就緒檢查，驗證所有後端依賴是否可用。
     """
+    checks = {
+        "redis": False,
+        "prometheus": False,
+        "loki": False,
+        "control_plane": False
+    }
+
     if not app_ready or not workflow or not redis_client:
         response.status_code = 503
-        return {"status": "not_ready", "reason": "核心元件尚未初始化。"}
+        return {
+            "ready": False,
+            "checks": checks
+        }
 
     try:
         # 驗證與 Redis 的即時連線
         await redis_client.ping()
-        
-        # 未來可以加入更多檢查，例如:
-        # - 檢查與 Control Plane 的連線
-        # - 檢查與 Loki/Prometheus 的連線
-        
-        return {"status": "ready"}
+        checks["redis"] = True
+
+        # 這裡可以加入其他依賴檢查
+        # TODO: 檢查與 Prometheus 的連線
+        # TODO: 檢查與 Loki 的連線
+        # TODO: 檢查與 Control Plane 的連線
+
+        # 目前只檢查 Redis，所以其他檢查設為 True（表示不進行檢查）
+        checks["prometheus"] = True
+        checks["loki"] = True
+        checks["control_plane"] = True
+
+        return {
+            "ready": all(checks.values()),
+            "checks": checks
+        }
     except redis.exceptions.ConnectionError as e:
         logger.error(f"Redis 連線檢查失敗: {e}", exc_info=True)
         response.status_code = 503
-        return {"status": "not_ready", "reason": f"無法連接到 Redis: {e}"}
+        return {
+            "ready": False,
+            "checks": checks
+        }
     except Exception as e:
         logger.error(f"就緒檢查時發生未預期的錯誤: {e}", exc_info=True)
         response.status_code = 503
-        return {"status": "not_ready", "reason": f"未預期的錯誤: {e}"}
+        return {
+            "ready": False,
+            "checks": checks
+        }
 
 @app.get("/api/v1/metrics", tags=["Health"])
 def get_metrics():

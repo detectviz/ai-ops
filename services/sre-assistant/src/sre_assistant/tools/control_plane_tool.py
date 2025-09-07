@@ -74,7 +74,7 @@ class ControlPlaneTool:
 
     # --- Roadmap Task 1.3: ControlPlaneTool Implementation ---
 
-    async def query_resources(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
+    async def query_resources(self, params: Optional[Dict] = None) -> ToolResult:
         """
         查詢資源狀態 (GET /api/v1/resources)，並使用 Pydantic 模型驗證回應。
         """
@@ -92,28 +92,75 @@ class ControlPlaneTool:
             return ToolResult(success=True, data=resource_list.model_dump())
             
         except httpx.HTTPStatusError as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢資源時 API 錯誤: {e.response.status_code} - {e.response.text}", exc_info=True)
-            return ToolError(
-                code="API_ERROR", 
-                message=f"Control Plane API returned status {e.response.status_code}: {e.response.text}", 
-                details={"params": params}
+            logger.error(f"❌ Control Plane API 查詢失敗: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="HTTP_STATUS_ERROR",
+                    message=f"Control Plane API returned HTTP {e.response.status_code}: {e.response.reason_phrase}",
+                    details={
+                        "status_code": e.response.status_code,
+                        "response_body": e.response.text[:500],
+                        "request_url": str(e.request.url),
+                        "params": params
+                    }
+                )
+            )
+        except httpx.TimeoutException as e:
+            logger.error(f"❌ Control Plane API 請求超時: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="TIMEOUT_ERROR",
+                    message=f"Control Plane API request timed out after {self.timeout}s",
+                    details={
+                        "timeout_seconds": self.timeout,
+                        "request_url": str(e.request.url) if hasattr(e, 'request') else None,
+                        "params": params
+                    }
+                )
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"❌ Control Plane API 連線失敗: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="CONNECTION_ERROR",
+                    message=f"Failed to connect to Control Plane: {str(e)}",
+                    details={
+                        "base_url": self.base_url,
+                        "params": params
+                    }
+                )
             )
         except ValidationError as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢資源回應的資料格式無效: {e}", exc_info=True)
-            return ToolError(
-                code="INVALID_DATA_FORMAT", 
-                message="從 Control Plane 收到的資源列表資料格式不符預期。",
-                details={"params": params, "errors": e.errors()}
+            logger.error(f"❌ Control Plane API 回應資料格式無效: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="VALIDATION_ERROR",
+                    message="Control Plane API response data format invalid",
+                    details={
+                        "validation_errors": e.errors(),
+                        "params": params
+                    }
+                )
             )
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢資源時發生未預期錯誤: {e}", exc_info=True)
-            return ToolError(
-                code="UNEXPECTED_ERROR", 
-                message=str(e), 
-                details={"params": params}
+            logger.error(f"❌ Control Plane 工具執行時發生未預期錯誤: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="UNEXPECTED_ERROR",
+                    message=f"Unexpected error in Control Plane tool: {str(e)}",
+                    details={
+                        "error_type": type(e).__name__,
+                        "params": params
+                    }
+                )
             )
 
-    async def get_resource_details(self, resource_id: str) -> Union[ToolResult, ToolError]:
+    async def get_resource_details(self, resource_id: str) -> ToolResult:
         """
         獲取資源詳情 (GET /api/v1/resources/{resourceId})。
         此方法現在會將回應驗證為結構化的 Resource 物件。
@@ -134,28 +181,72 @@ class ControlPlaneTool:
             return ToolResult(success=True, data=resource.model_dump())
             
         except httpx.HTTPStatusError as e:
-            # 處理 API 回傳的錯誤 (例如 404 Not Found)
-            logger.error(f"❌ (ControlPlaneTool) 獲取資源詳情時 API 錯誤: {e.response.status_code} - {e.response.text}", exc_info=True)
-            return ToolError(
-                code="API_ERROR", 
-                message=f"Control Plane API returned status {e.response.status_code}: {e.response.text}", 
-                details={"resource_id": resource_id}
+            logger.error(f"❌ Control Plane API 查詢失敗: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="HTTP_STATUS_ERROR",
+                    message=f"Control Plane API returned HTTP {e.response.status_code}: {e.response.reason_phrase}",
+                    details={
+                        "status_code": e.response.status_code,
+                        "response_body": e.response.text[:500],
+                        "request_url": str(e.request.url),
+                        "resource_id": resource_id
+                    }
+                )
+            )
+        except httpx.TimeoutException as e:
+            logger.error(f"❌ Control Plane API 請求超時: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="TIMEOUT_ERROR",
+                    message=f"Control Plane API request timed out after {self.timeout}s",
+                    details={
+                        "timeout_seconds": self.timeout,
+                        "request_url": str(e.request.url) if hasattr(e, 'request') else None,
+                        "resource_id": resource_id
+                    }
+                )
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"❌ Control Plane API 連線失敗: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="CONNECTION_ERROR",
+                    message=f"Failed to connect to Control Plane: {str(e)}",
+                    details={
+                        "base_url": self.base_url,
+                        "resource_id": resource_id
+                    }
+                )
             )
         except ValidationError as e:
-            # 處理 Pydantic 驗證失敗的錯誤
-            logger.error(f"❌ (ControlPlaneTool) 資源詳情回應的資料格式無效: {e}", exc_info=True)
-            return ToolError(
-                code="INVALID_DATA_FORMAT", 
-                message="從 Control Plane 收到的資料格式不符預期。",
-                details={"resource_id": resource_id, "errors": e.errors()}
+            logger.error(f"❌ Control Plane API 回應資料格式無效: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="VALIDATION_ERROR",
+                    message="Control Plane API response data format invalid",
+                    details={
+                        "validation_errors": e.errors(),
+                        "resource_id": resource_id
+                    }
+                )
             )
         except Exception as e:
-            # 處理其他所有未預期的錯誤
-            logger.error(f"❌ (ControlPlaneTool) 獲取資源詳情時發生未預期錯誤: {e}", exc_info=True)
-            return ToolError(
-                code="UNEXPECTED_ERROR", 
-                message=str(e), 
-                details={"resource_id": resource_id}
+            logger.error(f"❌ Control Plane 工具執行時發生未預期錯誤: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="UNEXPECTED_ERROR",
+                    message=f"Unexpected error in Control Plane tool: {str(e)}",
+                    details={
+                        "error_type": type(e).__name__,
+                        "resource_id": resource_id
+                    }
+                )
             )
 
     async def query_resource_groups(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:

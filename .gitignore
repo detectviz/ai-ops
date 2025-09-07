@@ -27,7 +27,9 @@ go.work.sum
 
 # Environment files
 .env
+.env.*
 deploy/.env
+config/.env*
 
 # Local data
 deploy/data/
@@ -105,3 +107,10 @@ Thumbs.db
 *.code-workspace
 
 WARP.md
+services/control-plane/server
+
+# vmagent Data
+vmagent-remotewrite-data/
+
+# Redis Data
+dump.rdb

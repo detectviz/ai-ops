@@ -8,6 +8,58 @@
 
 ---
 
+## 綜合審查修正建議（Audit Fixes）
+
+最後更新：2025-09-07
+
+### 本次更新摘要
+- 已完成
+  - SRE Assistant：/api/v1/healthz、/api/v1/readyz、/api/v1/metrics 端點對齊 OpenAPI（就緒 checks 僅含 prometheus/loki/control_plane）
+  - SRE Assistant：control_plane.base_url 預設改為 /api/v1，避免下游 404
+  - Control Plane：/api/v1/healthz、/api/v1/readyz、/api/v1/metrics 端點已新增（最小可用）
+  - Control Plane：/api/v1/dashboard/trends 與 /api/v1/dashboard/resource-distribution 已最小實作，回覆結構對齊 OpenAPI
+  - Control Plane：Cookie/Session 金鑰改為環境變數（CONTROL_PLANE_SESSION_KEY）
+- 待辦
+  - 工具層單元測試與錯誤分類補齊（Prometheus/Loki/ControlPlaneTool）
+  - 契約回歸測試與 CI 整合（make test 聚合兩服務的契約測試）
+
+### 1) 高優先度（本週內）
+- [x] SRE Assistant：/api/v1/healthz（HealthStatus）
+- [x] SRE Assistant：/api/v1/readyz（ReadinessStatus：checks=prometheus/loki/control_plane）
+- [x] SRE Assistant：/api/v1/metrics（text/plain; Prometheus exposition format）
+- [x] SRE Assistant：control_plane.base_url → http://localhost:8081/api/v1
+- [ ] 工具層錯誤處理分類與統一 ToolError（httpx HTTPStatusError/Timeout/ConnectError）
+- [ ] 工具層單元測試（成功/超時/例外/快取命中）
+- [x] Control Plane：/api/v1/healthz、/api/v1/readyz、/api/v1/metrics
+- [x] Control Plane：/api/v1/dashboard/trends、/api/v1/dashboard/resource-distribution（最小實作）
+- [x] Control Plane：Cookie/Session 金鑰改為環境變數（CONTROL_PLANE_SESSION_KEY）
+
+### 2) 中優先度（2–3 週）
+- [ ] 結構化日誌一致性：
+  - Python：structlog/python-json-logger + Request/Trace ID 中介層
+  - Go：RequestID middleware + otelzap JSON 欄位一致
+- [ ] HTTP 逾時/重試/連線池策略統一（httpx / net/http）
+- [ ] ControlPlaneTool 唯讀能力覆蓋（resources/resource-groups/audit-logs/incidents/alert-rules/automation/executions）並以 Pydantic 驗證
+- [ ] 測試覆蓋 ≥ 60%（第一階段）與 E2E：部署診斷 202→輪詢→完成
+
+### 3) 低優先度（4–6 週）
+- [ ] 修復 Control Plane Tracer 依賴並恢復 OTel Trace；與 SRE Assistant 串接 trace-id
+- [ ] 限流與安全加固（IP/使用者限流；SCA/SAST 納入 CI）
+- [ ] 由 OpenAPI 生成內部 SDK（避免 client 漂移）
+
+### 驗收標準（Definition of Done）
+- 路徑/方法/狀態碼/Content-Type/基本鍵值 與 pkg/api/*.yaml 一致
+- 新增/調整端點皆有對應測試：單元（成功/錯誤/超時）、契約（狀態碼/型別）、必要時 E2E
+- 服務提供 GET /api/v1/metrics 可被 Prometheus 抓取
+- 日誌具備 request_id/trace_id，為 JSON 結構化
+- CI 綠燈（含契約測試）
+
+### 參考（本地文件）
+- OpenAPI 與測試：docs/references/adk-docs/tools-openapi-tools.md、docs/references/adk-docs/get-started-testing.md
+- 認證與安全：docs/references/adk-docs/tools-authentication.md、docs/references/adk-agent-samples/headless_agent_auth/
+- 工作流：docs/references/adk-docs/agents-workflow-agents-parallel-agents.md、docs/references/adk-agent-samples/google-adk-workflows/
+- 觀測性：docs/references/adk-docs/observability-logging.md、docs/references/adk-docs/observability-cloud-trace.md
+
 ## Phase 1: 核心整合 (Core Integration)
 
 - **主題**: 專注於完成 `sre-assistant` 與 `control-plane` 之間的所有技術對接工作，確保兩者能夠安全、可靠地協同工作。
@@ -126,6 +178,8 @@
         - [ ] 實作實際的業務邏輯（非模擬資料）
         - [ ] 完成批次操作功能
         - [ ] 實作與 SRE Assistant 的完整整合
+    - **進度更新（2025-09-07）**:
+        - 已補齊儀表板端點：`GET /api/v1/dashboard/trends`、`GET /api/v1/dashboard/resource-distribution`（最小版，回覆結構已對齊 OpenAPI）
     - **參考**:
         - **全端架構範本**: [`docs/references/agent-starter-pack/`](./references/agent-starter-pack/)
         - **前端實作參考**: [`docs/references/adk-agent-samples/gemini-fullstack/frontend/`](./references/adk-agent-samples/gemini-fullstack/frontend/)

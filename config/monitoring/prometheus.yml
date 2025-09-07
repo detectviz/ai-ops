@@ -1,0 +1,58 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # SRE Assistant
+  - job_name: "sre-assistant"
+    static_configs:
+      - targets: ["host.docker.internal:8001"]
+    scrape_interval: 5s
+    metrics_path: "/api/v1/metrics"
+
+  # Control Plane
+  - job_name: "control-plane"
+    static_configs:
+      - targets: ["host.docker.internal:8081"]
+    scrape_interval: 5s
+    metrics_path: "/api/v1/metrics"
+
+  # VictoriaMetrics vmagent (自身指標)
+  - job_name: "vmagent"
+    static_configs:
+      - targets: ["prometheus:8429"]
+
+  # SNMP Exporter
+  - job_name: "snmp"
+    static_configs:
+      - targets: ["snmp-exporter:9116"]
+    scrape_interval: 30s
+
+  # PostgreSQL
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["postgres:5432"]
+    scrape_interval: 30s
+
+  # Redis
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis:6379"]
+    scrape_interval: 30s
+
+  # ChromaDB
+  - job_name: "chromadb"
+    static_configs:
+      - targets: ["chromadb:8000"]
+    scrape_interval: 30s
+
+  # Keycloak
+  - job_name: "keycloak"
+    static_configs:
+      - targets: ["keycloak:8080"]
+    scrape_interval: 30s
+    metrics_path: "/auth/realms/master/metrics"

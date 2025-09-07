@@ -52,7 +52,7 @@ start-services:
 	@echo "啟動 ChromaDB..."
 	@nohup /opt/chroma_venv/bin/chroma run --path /tmp/chroma_db > /tmp/chroma.log 2>&1 &
 	@echo "啟動 Keycloak..."
-	@nohup ./local/keycloak-26.3.3/bin/kc.sh start-dev > /tmp/keycloak.log 2>&1 &
+	@nohup ./install/keycloak-26.3.3/bin/kc.sh start-dev > /tmp/keycloak.log 2>&1 &
 	@echo "⏳ 等待服務就緒 (約 20 秒)..."
 	@sleep 20
 	@make ps
@@ -63,8 +63,8 @@ restart-services: stop-services start-services
 # 驗證環境
 verify:
 	@echo "🔍 驗證環境..."
-	@chmod +x ./local/verify_environment.sh
-	@./local/verify_environment.sh
+	@chmod +x ./install/verify_environment.sh
+	@./install/verify_environment.sh
 	@make ps
 
 # 查看日誌
@@ -78,7 +78,7 @@ ps:
 	@systemctl is-active postgresql redis-server grafana-server vmstorage vminsert vmselect vmagent snmp_exporter || true
 	@echo ""
 	@echo "📊 背景進程狀態 (ps):"
-	@ps aux | grep -E '/opt/chroma_venv/bin/chroma run|Dkc.home.dir=./local/keycloak-26.3.3' | grep -v 'grep' || echo "ChromaDB 或 Keycloak 未運行"
+	@ps aux | grep -E '/opt/chroma_venv/bin/chroma run|Dkc.home.dir=./install/keycloak-26.3.3' | grep -v 'grep' || echo "ChromaDB 或 Keycloak 未運行"
 
 # 執行所有測試
 test: test-go test-py
@@ -113,8 +113,8 @@ clean:
 # 執行安裝腳本
 install-deps:
 	@echo "📦 執行主安裝腳本..."
-	@chmod +x ./local/setup_local_environment.sh
-	@sudo ./local/setup_local_environment.sh
+	@chmod +x ./install/setup_local_environment.sh
+	@sudo ./install/setup_local_environment.sh
 
 # 手動設定 PostgreSQL
 setup-postgres:

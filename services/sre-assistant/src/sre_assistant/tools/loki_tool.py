@@ -99,9 +99,41 @@ class LokiLogQueryTool:
             return ToolResult(
                 success=False,
                 error=ToolError(
-                    code="API_ERROR",
-                    message=f"Loki API returned status {e.response.status_code}: {e.response.text}",
-                    details={"params": params}
+                    code="HTTP_STATUS_ERROR",
+                    message=f"Loki API returned HTTP {e.response.status_code}: {e.response.reason_phrase}",
+                    details={
+                        "status_code": e.response.status_code,
+                        "response_body": e.response.text[:500],  # 限制回應內容長度
+                        "request_url": str(e.request.url),
+                        "params": params
+                    }
+                )
+            )
+        except httpx.TimeoutException as e:
+            logger.error(f"❌ Loki API 請求超時: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="TIMEOUT_ERROR",
+                    message=f"Loki API request timed out after {self.timeout}s",
+                    details={
+                        "timeout_seconds": self.timeout,
+                        "request_url": str(e.request.url) if hasattr(e, 'request') else None,
+                        "params": params
+                    }
+                )
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"❌ Loki API 連線失敗: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="CONNECTION_ERROR",
+                    message=f"Failed to connect to Loki: {str(e)}",
+                    details={
+                        "base_url": self.base_url,
+                        "params": params
+                    }
                 )
             )
         except Exception as e:
@@ -110,8 +142,11 @@ class LokiLogQueryTool:
                 success=False,
                 error=ToolError(
                     code="UNEXPECTED_ERROR",
-                    message=str(e),
-                    details={"params": params}
+                    message=f"Unexpected error in Loki tool: {str(e)}",
+                    details={
+                        "error_type": type(e).__name__,
+                        "params": params
+                    }
                 )
             )
     

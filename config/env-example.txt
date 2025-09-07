@@ -1,0 +1,42 @@
+# SRE Platform Docker 環境變數配置
+# 複製此文件為 .env 並根據需要修改
+
+# ============================================
+# 資料庫配置
+# ============================================
+POSTGRES_DB=sre_dev
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+
+# ============================================
+# Redis 配置
+# ============================================
+REDIS_URL=redis://redis:6379/0
+
+# ============================================
+# Grafana 配置
+# ============================================
+GF_SECURITY_ADMIN_USER=admin
+GF_SECURITY_ADMIN_PASSWORD=admin
+
+# ============================================
+# Keycloak 配置
+# ============================================
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=admin
+
+# ============================================
+# SRE Assistant 配置
+# ============================================
+SRE_ASSISTANT_CLIENT_SECRET=a_secure_secret_for_dev_only
+
+# ============================================
+# Control Plane 配置
+# ============================================
+CONTROL_PLANE_SESSION_KEY=dev-session-key-change-in-production-2024
+
+# ============================================
+# 其他配置
+# ============================================
+KEYCLOAK_URL=http://keycloak:8080
+KEYCLOAK_REALM=sre-platform

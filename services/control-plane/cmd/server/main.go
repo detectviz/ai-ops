@@ -53,7 +53,9 @@ func main() {
 		}
 		logger.Info("✅ Keycloak 認證服務已初始化")
 	} else {
-		logger.Info("🔍 在 DEV 模式下運行，跳過 Keycloak 初始化")
+		// 在 DEV 模式下創建一個空的 KeycloakService 以避免 nil 指針
+		authService = &auth.KeycloakService{}
+		logger.Info("🔍 在 DEV 模式下運行，使用空的認證服務")
 	}
 
 	services := services.NewServices(db, cfg, logger, authService)
@@ -208,22 +210,22 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 	htmxRouter.HandleFunc("/resources/table", h.ResourcesTable).Methods("GET")
 	htmxRouter.HandleFunc("/resources/new", h.AddResourceForm).Methods("GET")
 	htmxRouter.HandleFunc("/resources/create", h.CreateResource).Methods("POST")
-	htmxRouter.HandleFunc("/teams/list", h.TeamList).Methods("GET")             // 團隊列表
-	htmxRouter.HandleFunc("/teams/new", h.AddTeamForm).Methods("GET")           // 新增團隊表單
-	htmxRouter.HandleFunc("/teams/create", h.CreateTeam).Methods("POST")        // 創建團隊
-	htmxRouter.HandleFunc("/teams/{id}/confirm-delete", h.ConfirmDeleteTeam).Methods("GET") // 顯示刪除確認
-	htmxRouter.HandleFunc("/teams/{id}", h.DeleteTeam).Methods("DELETE")      // 刪除團隊
-	htmxRouter.HandleFunc("/teams/{id}/edit", h.EditTeamForm).Methods("GET")    // 顯示編輯表單
-	htmxRouter.HandleFunc("/teams/{id}", h.UpdateTeam).Methods("PUT")         // 更新團隊
-	htmxRouter.HandleFunc("/alerts/list", h.AlertRuleList).Methods("GET")       // 告警規則列表
-	htmxRouter.HandleFunc("/alerts/new", h.AddAlertRuleForm).Methods("GET")     // 新增告警規則表單
-	htmxRouter.HandleFunc("/alerts/create", h.CreateAlertRule).Methods("POST")  // 創建告警規則
-	htmxRouter.HandleFunc("/alerts/{id}/edit", h.EditAlertRuleForm).Methods("GET") // 編輯告警規則表單
-	htmxRouter.HandleFunc("/alerts/{id}", h.UpdateAlertRule).Methods("PUT")     // 更新告警規則
+	htmxRouter.HandleFunc("/teams/list", h.TeamList).Methods("GET")                               // 團隊列表
+	htmxRouter.HandleFunc("/teams/new", h.AddTeamForm).Methods("GET")                             // 新增團隊表單
+	htmxRouter.HandleFunc("/teams/create", h.CreateTeam).Methods("POST")                          // 創建團隊
+	htmxRouter.HandleFunc("/teams/{id}/confirm-delete", h.ConfirmDeleteTeam).Methods("GET")       // 顯示刪除確認
+	htmxRouter.HandleFunc("/teams/{id}", h.DeleteTeam).Methods("DELETE")                          // 刪除團隊
+	htmxRouter.HandleFunc("/teams/{id}/edit", h.EditTeamForm).Methods("GET")                      // 顯示編輯表單
+	htmxRouter.HandleFunc("/teams/{id}", h.UpdateTeam).Methods("PUT")                             // 更新團隊
+	htmxRouter.HandleFunc("/alerts/list", h.AlertRuleList).Methods("GET")                         // 告警規則列表
+	htmxRouter.HandleFunc("/alerts/new", h.AddAlertRuleForm).Methods("GET")                       // 新增告警規則表單
+	htmxRouter.HandleFunc("/alerts/create", h.CreateAlertRule).Methods("POST")                    // 創建告警規則
+	htmxRouter.HandleFunc("/alerts/{id}/edit", h.EditAlertRuleForm).Methods("GET")                // 編輯告警規則表單
+	htmxRouter.HandleFunc("/alerts/{id}", h.UpdateAlertRule).Methods("PUT")                       // 更新告警規則
 	htmxRouter.HandleFunc("/alerts/{id}/confirm-delete", h.ConfirmDeleteAlertRule).Methods("GET") // 顯示刪除確認
-	htmxRouter.HandleFunc("/alerts/{id}", h.DeleteAlertRule).Methods("DELETE")  // 刪除告警規則
-	htmxRouter.HandleFunc("/incidents/list", h.IncidentList).Methods("GET") // 事件列表
-	htmxRouter.HandleFunc("/incidents/{id}/details", h.IncidentDetails).Methods("GET") // 事件詳情模態框
+	htmxRouter.HandleFunc("/alerts/{id}", h.DeleteAlertRule).Methods("DELETE")                    // 刪除告警規則
+	htmxRouter.HandleFunc("/incidents/list", h.IncidentList).Methods("GET")                       // 事件列表
+	htmxRouter.HandleFunc("/incidents/{id}/details", h.IncidentDetails).Methods("GET")            // 事件詳情模態框
 	htmxRouter.HandleFunc("/diagnose/deployment/{id}", h.DiagnoseDeployment).Methods("POST")
 	htmxRouter.HandleFunc("/close", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(""))

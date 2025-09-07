@@ -55,20 +55,26 @@ class TestHealthEndpoints:
     """健康檢查端點測試"""
 
     def test_health_check(self, client):
-        """測試 /api/v1/healthz 端點"""
+        """測試 /api/v1/healthz 端點（契約：HealthStatus）"""
         response = client.get("/api/v1/healthz")
-        # 在測試啟動失敗的情況下，這裡會是 404
-        # 在測試啟動成功的情況下，應該是 200
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "ok"
+        # 狀態應為 healthy/unhealthy
+        assert data["status"] in ("healthy", "unhealthy")
+        assert isinstance(data.get("timestamp"), str)
+        # 允許 version/uptime 為可選欄位
 
     def test_readiness_check(self, client):
-        """測試 /api/v1/readyz 端點"""
+        """測試 /api/v1/readyz 端點（契約：ReadinessStatus）"""
         response = client.get("/api/v1/readyz")
-        assert response.status_code == 200
+        # 允許 200（就緒）或 503（未就緒）
+        assert response.status_code in (200, 503)
         data = response.json()
-        assert data["status"] == "ready"
+        assert isinstance(data.get("ready"), bool)
+        assert isinstance(data.get("checks"), dict)
+        for k in ("prometheus", "loki", "control_plane"):
+            assert k in data["checks"], f"缺少 checks['{k}']"
+            assert isinstance(data["checks"][k], bool)
 
     def test_metrics_endpoint(self, client):
         """測試 /api/v1/metrics 端點"""

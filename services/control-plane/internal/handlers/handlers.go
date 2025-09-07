@@ -333,7 +333,6 @@ func (h *Handlers) MetricsCheck(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("# HELP control_plane_up Control Plane service status\n# TYPE control_plane_up gauge\ncontrol_plane_up 1\n"))
 }
 
-
 func (h *Handlers) LoginPage(w http.ResponseWriter, r *http.Request) {
 	err := h.Templates.ExecuteTemplate(w, "layouts/auth.html", nil)
 	if err != nil {
@@ -343,15 +342,21 @@ func (h *Handlers) LoginPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
-    if h.Services.Config.Auth.Mode == "dev" {
-		if err := r.ParseForm(); err != nil { http.Error(w, "無法解析表單", http.StatusBadRequest); return }
+	if h.Services.Config.Auth.Mode == "dev" {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "無法解析表單", http.StatusBadRequest)
+			return
+		}
 		username := r.PostFormValue("username")
 		password := r.PostFormValue("password")
 		if username == "admin" && password == "admin" {
 			session, _ := auth.Store.Get(r, auth.SessionName)
 			session.Values["authenticated"] = true
 			session.Values["user"] = username
-			if err := session.Save(r, w); err != nil { http.Error(w, "無法儲存 Session", http.StatusInternalServerError); return }
+			if err := session.Save(r, w); err != nil {
+				http.Error(w, "無法儲存 Session", http.StatusInternalServerError)
+				return
+			}
 			http.Redirect(w, r, "/", http.StatusFound)
 		} else {
 			http.Redirect(w, r, "/auth/login?error=invalid_credentials", http.StatusFound)
@@ -379,28 +384,31 @@ func (h *Handlers) AuthCallback(w http.ResponseWriter, r *http.Request) {}
 
 func (h *Handlers) Dashboard(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Ctx(r.Context()).Info("--- EXECUTING Dashboard HANDLER ---") // DEBUG
-	data := map[string]interface{}{ "Title": "總覽儀表板", "Page": "dashboard" }
+	data := map[string]interface{}{"Title": "總覽儀表板", "Page": "dashboard"}
 	err := h.Templates.ExecuteTemplate(w, "pages/dashboard.html", data)
 	if err != nil {
-		h.Logger.Ctx(r.Context()).Error("無法渲染儀表板頁面", zap.Error(err)); http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
+		h.Logger.Ctx(r.Context()).Error("無法渲染儀表板頁面", zap.Error(err))
+		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
 	}
 }
 
 func (h *Handlers) ResourcesPage(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Ctx(r.Context()).Info("--- EXECUTING ResourcesPage HANDLER ---") // DEBUG
-	data := map[string]interface{}{ "Title": "資源管理", "Page": "resources" }
+	data := map[string]interface{}{"Title": "資源管理", "Page": "resources"}
 	err := h.Templates.ExecuteTemplate(w, "pages/resources.html", data)
 	if err != nil {
-		h.Logger.Ctx(r.Context()).Error("無法渲染資源頁面模板", zap.Error(err)); http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
+		h.Logger.Ctx(r.Context()).Error("無法渲染資源頁面模板", zap.Error(err))
+		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
 	}
 }
 
 func (h *Handlers) IncidentsPage(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Ctx(r.Context()).Info("--- EXECUTING IncidentsPage HANDLER ---") // DEBUG
-	data := map[string]interface{}{ "Title": "告警紀錄", "Page": "incidents" }
+	data := map[string]interface{}{"Title": "告警紀錄", "Page": "incidents"}
 	err := h.Templates.ExecuteTemplate(w, "pages/incidents.html", data)
 	if err != nil {
-		h.Logger.Ctx(r.Context()).Error("無法渲染事件頁面", zap.Error(err)); http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
+		h.Logger.Ctx(r.Context()).Error("無法渲染事件頁面", zap.Error(err))
+		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
 	}
 }
 
@@ -408,7 +416,8 @@ func (h *Handlers) renderPlaceholder(w http.ResponseWriter, r *http.Request, tit
 	data := map[string]interface{}{"Title": title, "Page": page}
 	err := h.Templates.ExecuteTemplate(w, "pages/placeholder.html", data)
 	if err != nil {
-		h.Logger.Ctx(r.Context()).Error("無法渲染佔位頁面", zap.Error(err), zap.String("page", page)); http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
+		h.Logger.Ctx(r.Context()).Error("無法渲染佔位頁面", zap.Error(err), zap.String("page", page))
+		http.Error(w, "頁面渲染錯誤", http.StatusInternalServerError)
 	}
 }
 
@@ -432,16 +441,26 @@ func (h *Handlers) AlertsPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handlers) AutomationPage(w http.ResponseWriter, r *http.Request) { h.renderPlaceholder(w, r, "自動化", "automation") }
-func (h *Handlers) CapacityPage(w http.ResponseWriter, r *http.Request) { h.renderPlaceholder(w, r, "容量規劃", "capacity") }
-func (h *Handlers) ChannelsPage(w http.ResponseWriter, r *http.Request) { h.renderPlaceholder(w, r, "通知管道", "channels") }
-func (h *Handlers) ProfilePage(w http.ResponseWriter, r *http.Request) { h.renderPlaceholder(w, r, "個人資料", "profile") }
-func (h *Handlers) SettingsPage(w http.ResponseWriter, r *http.Request) { h.renderPlaceholder(w, r, "系統設定", "settings") }
+func (h *Handlers) AutomationPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "自動化", "automation")
+}
+func (h *Handlers) CapacityPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "容量規劃", "capacity")
+}
+func (h *Handlers) ChannelsPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "通知管道", "channels")
+}
+func (h *Handlers) ProfilePage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "個人資料", "profile")
+}
+func (h *Handlers) SettingsPage(w http.ResponseWriter, r *http.Request) {
+	h.renderPlaceholder(w, r, "系統設定", "settings")
+}
 
 // --- HTMX Handlers ---
 
 func (h *Handlers) DashboardCards(w http.ResponseWriter, r *http.Request) {
-	type cardData struct { Name, Value, Change, ChangeType, Icon string }
+	type cardData struct{ Name, Value, Change, ChangeType, Icon string }
 	cards := []cardData{
 		{Name: "新告警 (New)", Value: "7", Change: "+11%", ChangeType: "increase", Icon: "siren"},
 		{Name: "處理中 (In Progress)", Value: "7", Change: "+6%", ChangeType: "increase", Icon: "loader-circle"},
@@ -451,16 +470,23 @@ func (h *Handlers) DashboardCards(w http.ResponseWriter, r *http.Request) {
 		{Name: "平均網路延遲", Value: "23 ms", Icon: "bar-chart-horizontal"},
 	}
 	err := h.Templates.ExecuteTemplate(w, "partials/dashboard-cards.html", map[string]interface{}{"Cards": cards})
-	if err != nil { h.Logger.Ctx(r.Context()).Error("無法渲染儀表板卡片模板", zap.Error(err)) }
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染儀表板卡片模板", zap.Error(err))
+	}
 }
 
 func (h *Handlers) AddResourceForm(w http.ResponseWriter, r *http.Request) {
 	err := h.Templates.ExecuteTemplate(w, "partials/resource-form.html", nil)
-	if err != nil { h.Logger.Ctx(r.Context()).Error("無法渲染資源表單模板", zap.Error(err)) }
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染資源表單模板", zap.Error(err))
+	}
 }
 
 func (h *Handlers) CreateResource(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil { h.Logger.Ctx(r.Context()).Error("無法解析表單", zap.Error(err)); return }
+	if err := r.ParseForm(); err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法解析表單", zap.Error(err))
+		return
+	}
 	newRes := resourceMock{
 		ID:        uuid.NewString(),
 		Name:      r.PostFormValue("name"),
@@ -492,7 +518,9 @@ func (h *Handlers) ResourcesTable(w http.ResponseWriter, r *http.Request) {
 		copy(filteredResources, mockResources)
 	}
 	err := h.Templates.ExecuteTemplate(w, "partials/resource-table.html", map[string]interface{}{"Resources": filteredResources})
-	if err != nil { h.Logger.Ctx(r.Context()).Error("無法渲染資源表格模板", zap.Error(err)) }
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染資源表格模板", zap.Error(err))
+	}
 }
 
 // TeamList 處理獲取團隊列表的 HTMX 請求
@@ -593,9 +621,9 @@ func (h *Handlers) ConfirmDeleteTeam(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]string{
-		"ItemType": "團隊",
-		"ItemName": teamName,
-		"DeleteURL":  "/htmx/teams/" + id,
+		"ItemType":  "團隊",
+		"ItemName":  teamName,
+		"DeleteURL": "/htmx/teams/" + id,
 	}
 	err := h.Templates.ExecuteTemplate(w, "partials/confirm-delete-modal.html", data)
 	if err != nil {
@@ -899,135 +927,11 @@ func (h *Handlers) DeleteAlertRule(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handlers) ConfirmDeleteTeam(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-	var teamName string
-	for _, t := range mockTeams {
-		if t.ID == id {
-			teamName = t.Name
-			break
-		}
-	}
-	if teamName == "" {
-		http.NotFound(w, r)
-		return
-	}
-
-	data := map[string]string{
-		"ItemType": "團隊",
-		"ItemName": teamName,
-		"DeleteURL":  "/htmx/teams/" + id,
-	}
-	err := h.Templates.ExecuteTemplate(w, "partials/confirm-delete-modal.html", data)
-	if err != nil {
-		h.Logger.Ctx(r.Context()).Error("無法渲染刪除確認模板", zap.Error(err))
-	}
-}
-
-func (h *Handlers) DeleteTeam(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	h.mu.Lock()
-	var found bool
-	for i, t := range mockTeams {
-		if t.ID == id {
-			mockTeams = append(mockTeams[:i], mockTeams[i+1:]...)
-			found = true
-			break
-		}
-	}
-	h.mu.Unlock()
-
-	if !found {
-		http.NotFound(w, r)
-		return
-	}
-
-	h.Logger.Ctx(r.Context()).Info("成功刪除團隊 (模擬)", zap.String("id", id))
-
-	w.Header().Set("HX-Refresh", "true")
-	w.WriteHeader(http.StatusOK)
-}
-
-func (h *Handlers) EditTeamForm(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-	var teamToEdit teamMock
-	var found bool
-	for _, t := range mockTeams {
-		if t.ID == id {
-			teamToEdit = t
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		http.NotFound(w, r)
-		return
-	}
-
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	data := map[string]interface{}{
-		"Team":     teamToEdit,
-		"Users":    mockUsers,
-		"Channels": mockChannels,
-	}
-	err := h.Templates.ExecuteTemplate(w, "partials/team-form.html", data)
-	if err != nil {
-		h.Logger.Ctx(r.Context()).Error("無法渲染團隊編輯表單模板", zap.Error(err))
-	}
-}
-
-func (h *Handlers) UpdateTeam(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	if err := r.ParseForm(); err != nil {
-		h.Logger.Ctx(r.Context()).Error("無法解析團隊更新表單", zap.Error(err))
-		http.Error(w, "無效的請求", http.StatusBadRequest)
-		return
-	}
-
-	h.mu.Lock()
-	var found bool
-	for i, t := range mockTeams {
-		if t.ID == id {
-			mockTeams[i].Name = r.PostFormValue("name")
-			mockTeams[i].Description = r.PostFormValue("description")
-			mockTeams[i].ManagerID = r.PostFormValue("manager_id")
-			for _, u := range mockUsers {
-				if u.ID == mockTeams[i].ManagerID {
-					mockTeams[i].ManagerName = u.Name
-					break
-				}
-			}
-			mockTeams[i].NotificationSettings.PrimaryContact = r.PostFormValue("primary_contact")
-			mockTeams[i].NotificationSettings.EscalationContact = r.PostFormValue("escalation_contact")
-			found = true
-			break
-		}
-	}
-	h.mu.Unlock()
-
-	if !found {
-		http.NotFound(w, r)
-		return
-	}
-
-	h.Logger.Ctx(r.Context()).Info("成功更新團隊 (模擬)", zap.String("id", id))
-
-	w.Header().Set("HX-Refresh", "true")
-	w.WriteHeader(http.StatusOK)
-}
-
-
 func (h *Handlers) IncidentList(w http.ResponseWriter, r *http.Request) {
 	err := h.Templates.ExecuteTemplate(w, "partials/incident-list.html", map[string]interface{}{"Incidents": mockIncidents})
-	if err != nil { h.Logger.Ctx(r.Context()).Error("無法渲染事件列表模板", zap.Error(err)) }
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染事件列表模板", zap.Error(err))
+	}
 }
 
 func (h *Handlers) IncidentDetails(w http.ResponseWriter, r *http.Request) {
@@ -1040,9 +944,14 @@ func (h *Handlers) IncidentDetails(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	if foundIncident.ID == "" { http.NotFound(w, r); return }
+	if foundIncident.ID == "" {
+		http.NotFound(w, r)
+		return
+	}
 	err := h.Templates.ExecuteTemplate(w, "partials/incident-details-modal.html", map[string]interface{}{"Incident": foundIncident})
-	if err != nil { h.Logger.Ctx(r.Context()).Error("無法渲染事件詳情模態框", zap.Error(err)) }
+	if err != nil {
+		h.Logger.Ctx(r.Context()).Error("無法渲染事件詳情模態框", zap.Error(err))
+	}
 }
 
 // --- SRE Assistant Related Handlers ---
@@ -1051,7 +960,10 @@ func (h *Handlers) DiagnoseDeployment(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	deploymentID, ok := vars["id"]
-	if !ok { h.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "缺少 deployment ID"}); return }
+	if !ok {
+		h.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "缺少 deployment ID"})
+		return
+	}
 	h.Logger.Ctx(ctx).Info("開始部署診斷", zap.String("deploymentID", deploymentID))
 	deployment, err := h.Services.GetDeploymentByID(ctx, deploymentID)
 	if err != nil {
@@ -1075,7 +987,10 @@ func (h *Handlers) GetDiagnosisStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	sessionID, ok := vars["session_id"]
-	if !ok { h.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "缺少 session_id"}); return }
+	if !ok {
+		h.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "缺少 session_id"})
+		return
+	}
 	status, err := h.Services.CheckDiagnosisStatus(ctx, sessionID)
 	if err != nil {
 		h.Logger.Ctx(ctx).Error("查詢狀態失敗", zap.Error(err), zap.String("sessionID", sessionID))

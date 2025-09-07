@@ -4,16 +4,16 @@
 
 ## 1. 自動化安裝
 
-我們強烈建議使用 `setup_local_environment.sh` 腳本來一鍵安裝所有必要的服務。此腳本會從 `local/` 目錄中複製必要的元件，並設定相關的 systemd 服務。
+我們強烈建議使用 `setup_local_environment.sh` 腳本來一鍵安裝所有必要的服務。此腳本會從 `install/` 目錄中複製必要的元件，並設定相關的 systemd 服務。
 
 **執行腳本：**
 
 ```bash
 # 賦予腳本執行權限
-chmod +x ./local/setup_local_environment.sh
+chmod +x ./install/setup_local_environment.sh
 
 # 執行安裝
-./local/setup_local_environment.sh
+./install/setup_local_environment.sh
 ```
 
 此腳本會自動安裝並啟動以下服務：
@@ -56,10 +56,10 @@ chroma run --path /path/to/your/chroma/db
 
 ```bash
 # 賦予腳本執行權限
-chmod +x ./local/verify_environment.sh
+chmod +x ./install/verify_environment.sh
 
 # 執行驗證
-./local/verify_environment.sh
+./install/verify_environment.sh
 ```
 
 此腳本會檢查核心監控服務、Grafana、Redis 和 PostgreSQL 的狀態。
