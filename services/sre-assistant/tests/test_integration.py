@@ -2,7 +2,6 @@ import pytest
 import os
 from fastapi.testclient import TestClient
 from unittest.mock import patch, AsyncMock
-import uuid
 
 # 確保在 app 匯入前設定環境變數
 os.environ["ENVIRONMENT"] = "development" # 使用 development 設定以連接真實服務
@@ -90,7 +89,6 @@ class TestAlertDiagnosisIntegration:
         - 驗證最終結果是否包含來自 Loki/Prometheus 的發現。
         """
         from sre_assistant.contracts import ToolResult
-        from unittest.mock import patch, AsyncMock
         from datetime import datetime, timezone
         import time
 

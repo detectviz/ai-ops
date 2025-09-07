@@ -8,8 +8,7 @@ import structlog
 import httpx
 import json
 from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta, timezone
-from urllib.parse import urlencode
+from datetime import datetime, timezone
 
 from ..contracts import ToolResult, ToolError
 

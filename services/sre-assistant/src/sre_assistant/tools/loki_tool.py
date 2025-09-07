@@ -4,12 +4,12 @@ Loki 日誌查詢工具
 用於查詢和分析服務日誌
 """
 
+import asyncio
 import structlog
 import httpx
 import json
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta, timezone
-from urllib.parse import quote
 
 from ..contracts import ToolResult, ToolError
 

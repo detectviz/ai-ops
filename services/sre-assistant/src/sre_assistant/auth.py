@@ -8,7 +8,7 @@
 import time
 import httpx
 import structlog
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials

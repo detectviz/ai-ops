@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, AsyncMock
 import json
 
 from sre_assistant.tools.prometheus_tool import PrometheusQueryTool
-from sre_assistant.contracts import ToolResult, ToolError
+from sre_assistant.contracts import ToolResult
 
 BASE_URL = "http://mock-prometheus"
 

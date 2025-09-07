@@ -8,17 +8,16 @@ from fastapi import FastAPI, HTTPException, Depends, Request, BackgroundTasks, R
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
-import os
-import logging
 import uuid
 import asyncio
 from typing import Dict, Any, Optional, List
 import redis.asyncio as redis
 import asyncpg
 import time
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # 依賴項和認證邏輯已重構
-from .dependencies import config_manager, security
+from .dependencies import config_manager
 from .auth import verify_token
 
 from .contracts import (
@@ -217,8 +216,6 @@ def check_liveness():
         "uptime": uptime
     }
 
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-
 @app.get("/api/v1/readyz", tags=["Health"])
 async def check_readiness(response: Response):
     """
@@ -342,15 +339,11 @@ async def analyze_capacity(
     """
     接收容量分析請求，並同步處理。
     """
-    # 這是同步端點的骨架，目前返回模擬數據
-    # 實際邏輯將在 workflow.py 中實現
-    logger.info(f"接收到容量分析請求: {request.resource_ids}")
-    # TODO: 呼叫 workflow 中的同步方法
-    return CapacityAnalysisResponse(
-        current_usage={"average": 55.5, "peak": 80.2},
-        forecast={"trend": "increasing", "days_to_capacity": 45},
-        recommendations=[{"type": "scale_up", "resource": request.resource_ids[0], "priority": "high", "reasoning": "預測使用量將在 45 天後達到瓶頸"}]
-    )
+    if not workflow:
+        raise HTTPException(status_code=503, detail="工作流程引擎尚未初始化。")
+
+    # 呼叫工作流程中新的、具備真實邏輯的方法
+    return await workflow.analyze_capacity(request)
 
 @app.post("/api/v1/execute", tags=["Diagnostics"], status_code=202, response_model=DiagnosticResponse)
 async def execute_query(

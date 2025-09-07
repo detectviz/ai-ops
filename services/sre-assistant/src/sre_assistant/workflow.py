@@ -24,11 +24,12 @@ from .contracts import (
     CapacityAnalysisResponse,
 )
 
-# Define a union type for all possible request models
-SREWorkflowRequest = Union[DiagnosticRequest, AlertAnalysisRequest, CapacityAnalysisRequest, ExecuteRequest]
 from .tools.prometheus_tool import PrometheusQueryTool
 from .tools.loki_tool import LokiLogQueryTool
 from .tools.control_plane_tool import ControlPlaneTool
+
+# Define a union type for all possible request models
+SREWorkflowRequest = Union[DiagnosticRequest, AlertAnalysisRequest, CapacityAnalysisRequest, ExecuteRequest]
 
 logger = structlog.get_logger(__name__)
 
@@ -286,6 +287,97 @@ class SREWorkflow:
             tools_used=tools_used
         )
 
+    async def analyze_capacity(self, request: CapacityAnalysisRequest) -> CapacityAnalysisResponse:
+        """
+        分析給定資源的容量。
+
+        此方法會並行查詢所有請求資源的飽和度指標，
+        計算平均使用率，並產生一個簡單的預測和建議。
+        """
+        logger.info(f"📈 開始分析容量，資源: {request.resource_ids}")
+
+        # 為每個資源建立一個並行查詢任務
+        tasks = [
+            self._run_task_with_retry(
+                name=f"saturation_check_{resource_id}",
+                coro_factory=functools.partial(
+                    self.prometheus_tool.execute,
+                    {"service": resource_id, "metric_type": "saturation"}
+                )
+            )
+            for resource_id in request.resource_ids
+        ]
+
+        # 執行所有查詢
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # 處理和匯總結果
+        total_cpu = 0
+        total_mem = 0
+        valid_results = 0
+
+        for result in results:
+            if isinstance(result, ToolResult) and result.success and result.data:
+                saturation_data = result.data.get("saturation", {})
+                try:
+                    cpu_usage = float(saturation_data.get("cpu_usage", "0%").replace("%", ""))
+                    mem_usage = float(saturation_data.get("memory_usage", "0%").replace("%", ""))
+                    total_cpu += cpu_usage
+                    total_mem += mem_usage
+                    valid_results += 1
+                except (ValueError, TypeError):
+                    logger.warning(f"無法解析飽和度數據: {saturation_data}")
+                    continue
+
+        if valid_results == 0:
+            logger.warning("所有資源的容量指標查詢均失敗。")
+            # 返回一個表示失敗或數據不足的回應
+            return CapacityAnalysisResponse(
+                current_usage={"average": 0, "peak": 0},
+                forecast={"trend": "unknown", "days_to_capacity": -1},
+                recommendations=[{"type": "investigate", "resource": "all", "priority": "high", "reasoning": "無法獲取任何資源的容量指標。"}]
+            )
+
+        avg_cpu = total_cpu / valid_results
+        avg_mem = total_mem / valid_results
+
+        # 產生簡單的預測和建議
+        trend = "stable"
+        days_to_capacity = 999
+        recommendations = []
+
+        if avg_cpu > 85 or avg_mem > 85:
+            trend = "critical"
+            days_to_capacity = 1
+            recommendations.append({
+                "type": "scale_up",
+                "resource": "all_requested",
+                "priority": "critical",
+                "reasoning": f"平均資源使用率過高 (CPU: {avg_cpu:.1f}%, Memory: {avg_mem:.1f}%)"
+            })
+        elif avg_cpu > 70 or avg_mem > 70:
+            trend = "increasing"
+            days_to_capacity = 30
+            recommendations.append({
+                "type": "scale_up",
+                "resource": "all_requested",
+                "priority": "high",
+                "reasoning": f"平均資源使用率偏高 (CPU: {avg_cpu:.1f}%, Memory: {avg_mem:.1f}%)"
+            })
+        else:
+            recommendations.append({
+                "type": "none",
+                "resource": "all_requested",
+                "priority": "low",
+                "reasoning": "目前資源使用率在正常範圍內。"
+            })
+
+        return CapacityAnalysisResponse(
+            current_usage={"average": round((avg_cpu + avg_mem) / 2, 2), "peak": max(avg_cpu, avg_mem)},
+            forecast={"trend": trend, "days_to_capacity": days_to_capacity},
+            recommendations=recommendations
+        )
+
     async def _diagnose_alerts(self, session_id: uuid.UUID, request: AlertAnalysisRequest, status: DiagnosticStatus) -> DiagnosticResult:
         """
         診斷告警問題。
@@ -418,7 +510,7 @@ class SREWorkflow:
                 findings.append(Finding(
                     source="Prometheus",
                     severity="info",
-                    message=f"執行告警相關的 Prometheus 查詢成功。",
+                    message="執行告警相關的 Prometheus 查詢成功。",
                     evidence=results["prometheus"].data
                 ))
 

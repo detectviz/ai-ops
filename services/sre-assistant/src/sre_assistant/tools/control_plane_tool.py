@@ -6,8 +6,7 @@ Control Plane 整合工具
 
 import structlog
 import httpx
-from typing import Dict, Any, Optional, List, Union
-from datetime import datetime, timedelta, timezone
+from typing import Dict, Any, Optional
 import jwt
 import time
 
@@ -156,7 +155,7 @@ class ControlPlaneTool:
     async def query_audit_logs(self, params: Optional[Dict] = None) -> ToolResult:
         """查詢部署相關的審計日誌 (GET /api/v1/audit-logs)"""
         try:
-            logger.info(f"🛂 (ControlPlaneTool) 正在查詢審計日誌...")
+            logger.info("🛂 (ControlPlaneTool) 正在查詢審計日誌...")
             response = await self._make_request(method="GET", endpoint="/api/v1/audit-logs", params=params)
             return ToolResult(success=True, data={"logs": response.get("data", [])})
         except httpx.HTTPStatusError as e:

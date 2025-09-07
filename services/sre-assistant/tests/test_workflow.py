@@ -3,7 +3,6 @@ SRE 工作流程測試 (已重構以匹配目前的實作)
 """
 
 import pytest
-import asyncio
 import uuid
 from unittest.mock import Mock, AsyncMock, patch
 
@@ -12,9 +11,7 @@ from sre_assistant.contracts import (
     DiagnosticRequest,
     ToolResult,
     ToolError,
-    Finding,
     DiagnosticStatus,
-    DiagnosticResult,
 )
 
 
