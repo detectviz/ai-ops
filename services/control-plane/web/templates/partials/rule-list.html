@@ -1,0 +1,43 @@
+<div id="rule-list-container">
+    <table class="w-full text-sm text-left text-slate-500">
+        <thead class="text-xs text-slate-700 uppercase bg-slate-50">
+        <tr>
+            <th scope="col" class="px-6 py-3">狀態</th>
+            <th scope="col" class="px-6 py-3">規則名稱</th>
+            <th scope="col" class="px-6 py-3">監控目標</th>
+            <th scope="col" class="px-6 py-3">嚴重性</th>
+            <th scope="col" class="px-6 py-3 text-center">操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{if .Rules}}
+        {{range .Rules}}
+        <tr class="bg-white border-b hover:bg-slate-50">
+            <td class="px-6 py-4">
+                {{if .Enabled}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">啟用中</span>
+                {{else}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">已停用</span>
+                {{end}}
+            </td>
+            <td class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{{.Name}}</td>
+            <td class="px-6 py-4">{{index .ResourceFilter.Groups 0}}</td>
+            <td class="px-6 py-4">{{.Severity}}</td>
+            <td class="px-6 py-4 text-center">
+                <button hx-get="/htmx/alerts/{{.ID}}/edit" hx-target="body" hx-swap="beforeend"
+                        class="font-medium text-blue-600 hover:underline">編輯</button>
+                <button hx-get="/htmx/alerts/{{.ID}}/confirm-delete" hx-target="body" hx-swap="beforeend"
+                        class="font-medium text-red-600 hover:underline ml-4">刪除</button>
+            </td>
+        </tr>
+        {{end}}
+        {{else}}
+        <tr class="bg-white border-b">
+            <td colspan="5" class="text-center py-8 text-slate-500">
+                沒有找到符合條件的告警規則。
+            </td>
+        </tr>
+        {{end}}
+        </tbody>
+    </table>
+</div>
