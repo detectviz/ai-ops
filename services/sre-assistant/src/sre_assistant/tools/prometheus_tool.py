@@ -71,9 +71,13 @@ class PrometheusQueryTool:
             
             logger.info(f"📊 查詢 Prometheus: service={service}, namespace={namespace}, type={metric_type}")
             
-            # 根據指標類型執行查詢
-            if metric_type == "all":
-                metrics = await self._query_golden_signals(service, namespace, time_range)
+            # 優先處理自定義查詢
+            query = params.get("query")
+            if query:
+                metrics = await self._query_custom(query, time_range)
+            # 否則，根據指標類型執行查詢
+            elif metric_type == "all":
+                metrics = await self.query_golden_signals(service, namespace, time_range)
             elif metric_type == "latency":
                 metrics = await self._query_latency(service, namespace, time_range)
             elif metric_type == "traffic":
@@ -83,7 +87,8 @@ class PrometheusQueryTool:
             elif metric_type == "saturation":
                 metrics = await self._query_saturation(service, namespace, time_range)
             else:
-                metrics = await self._query_custom(params.get("query", ""), time_range)
+                # 保留一個後備，儘管在上面的邏輯中不太可能到達
+                metrics = {"error": f"未知指標類型: {metric_type}"}
             
             return ToolResult(
                 success=True,

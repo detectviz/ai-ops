@@ -8,7 +8,7 @@ import functools
 import logging
 import uuid
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from typing import Union
 from .contracts import (
@@ -288,18 +288,141 @@ class SREWorkflow:
 
     async def _diagnose_alerts(self, session_id: uuid.UUID, request: AlertAnalysisRequest, status: DiagnosticStatus) -> DiagnosticResult:
         """
-        診斷告警問題 (骨架)
-        """
-        logger.info(f"🔍 [Session: {session_id}] 診斷告警: {request.alert_ids}")
-        status.current_step = "分析告警關聯性"
-        status.progress = 50
-        await self._update_task_status(session_id, status)
-        await asyncio.sleep(2) # 模擬工作
+        診斷告警問題。
 
-        status.current_step = "生成告警診斷報告"
-        status.progress = 90
+        此方法會並行調查多個告警，收集相關的日誌和指標，
+        並將結果匯總成一份診斷報告。
+        """
+        logger.info(f"🔍 [Session: {session_id}] 開始診斷告警: {request.alert_ids}")
+        status.current_step = "建立並行告警調查任務"
+        status.progress = 20
         await self._update_task_status(session_id, status)
-        return DiagnosticResult(summary=f"已分析 {len(request.alert_ids)} 個告警。", findings=[], recommended_actions=["檢查關聯服務的日誌"])
+
+        # 為每個告警 ID 建立一個調查任務
+        investigation_tasks = [
+            self._investigate_single_alert(alert_id, request.correlation_window)
+            for alert_id in request.alert_ids
+        ]
+
+        # 並行執行所有調查
+        all_findings_lists = await asyncio.gather(*investigation_tasks, return_exceptions=True)
+
+        status.current_step = "整合與分析調查結果"
+        status.progress = 80
+        await self._update_task_status(session_id, status)
+
+        # 處理並扁平化結果
+        all_findings: List[Finding] = []
+        tools_used = set()
+        for result in all_findings_lists:
+            if isinstance(result, Exception):
+                logger.error(f"調查任務失敗: {result}", exc_info=True)
+                all_findings.append(Finding(
+                    source="SREWorkflow",
+                    severity="warning",
+                    message=f"一個告警調查子任務失敗: {result}"
+                ))
+            elif isinstance(result, tuple):
+                findings, used_tool_names = result
+                all_findings.extend(findings)
+                tools_used.update(used_tool_names)
+
+        # 產生最終報告
+        if not all_findings:
+            summary = "完成告警分析，未發現任何具體的日誌或指標異常。"
+            recommended_actions = ["建議手動檢查告警儀表板以獲取更多上下文。"]
+            confidence_score = 0.4
+        else:
+            summary = f"告警分析完成，共產生 {len(all_findings)} 條相關發現。"
+            # TODO: Add more sophisticated summary logic
+            recommended_actions = ["請檢閱下方的發現以了解詳細資訊。", "根據發現的嚴重性採取行動。"]
+            confidence_score = 0.75
+
+        return DiagnosticResult(
+            summary=summary,
+            findings=all_findings,
+            recommended_actions=recommended_actions,
+            confidence_score=confidence_score,
+            tools_used=list(tools_used)
+        )
+
+    async def _investigate_single_alert(self, alert_id: str, window_seconds: int) -> tuple[List[Finding], List[str]]:
+        """
+        調查單一告警，獲取相關的日誌和指標。
+        """
+        findings: List[Finding] = []
+        tools_used: List[str] = []
+
+        # 1. 從 Control Plane 獲取告警詳情
+        incident_result = await self.control_plane_tool.query_incidents(params={"search": alert_id, "limit": 1})
+        tools_used.append("ControlPlaneTool (Incidents)")
+
+        if not incident_result.success or not incident_result.data.get("incidents"):
+            findings.append(Finding(source="ControlPlaneTool", severity="warning", message=f"無法獲取 ID 為 {alert_id} 的告警詳情。"))
+            return findings, tools_used
+
+        incident = incident_result.data["incidents"][0]
+        service_name = incident.get("service_name", "unknown-service")
+        alert_time_str = incident.get("created_at", datetime.now(timezone.utc).isoformat())
+        alert_time = datetime.fromisoformat(alert_time_str)
+
+        findings.append(Finding(
+            source="ControlPlaneTool",
+            severity="info",
+            message=f"正在調查告警 '{incident.get('title', alert_id)}'，影響服務: {service_name}。",
+            evidence=incident,
+            timestamp=alert_time
+        ))
+
+        # 2. 準備並行查詢日誌和指標
+        half_window = window_seconds / 2
+        start_time = alert_time - timedelta(seconds=half_window)
+        end_time = alert_time + timedelta(seconds=half_window)
+
+        loki_params = {
+            "service": service_name,
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            "limit": 100
+        }
+
+        # 假設告警規則中可能包含 prometheus 查詢
+        # 這部分邏輯可以根據實際的 `incident` 資料結構進行擴充
+        prom_query = incident.get("details", {}).get("prometheus_query")
+
+        tool_tasks = [
+            ("loki", functools.partial(self.loki_tool.execute, loki_params))
+        ]
+        if prom_query:
+            prom_params = {"query": prom_query, "time": alert_time.isoformat()}
+            tool_tasks.append(("prometheus", functools.partial(self.prometheus_tool.execute, prom_params)))
+
+        # 3. 執行查詢
+        results = await self._execute_parallel_tasks(tool_tasks)
+
+        # 4. 處理查詢結果
+        if "loki" in results:
+            tools_used.append("LokiLogQueryTool")
+            if results["loki"].success and results["loki"].data.get("logs"):
+                log_count = len(results["loki"].data["logs"])
+                findings.append(Finding(
+                    source="Loki",
+                    severity="info",
+                    message=f"在告警時間窗口內發現 {log_count} 條日誌。",
+                    evidence=results["loki"].data
+                ))
+
+        if "prometheus" in results:
+            tools_used.append("PrometheusQueryTool")
+            if results["prometheus"].success and results["prometheus"].data.get("value"):
+                findings.append(Finding(
+                    source="Prometheus",
+                    severity="info",
+                    message=f"執行告警相關的 Prometheus 查詢成功。",
+                    evidence=results["prometheus"].data
+                ))
+
+        return findings, tools_used
 
     async def _analyze_capacity(self, session_id: uuid.UUID, request: CapacityAnalysisRequest, status: DiagnosticStatus) -> CapacityAnalysisResponse:
         """
