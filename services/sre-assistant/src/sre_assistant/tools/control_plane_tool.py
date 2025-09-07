@@ -46,31 +46,69 @@ class ControlPlaneTool:
         
         logger.info(f"✅ Control Plane 工具初始化: {self.base_url}")
 
-    async def get_audit_logs(self, service_name: str, limit: int = 10) -> List[Dict[str, Any]]:
+    async def get_audit_logs(self, service_name: str, limit: int = 10) -> ToolResult:
         """
-        查詢指定服務的審計日誌
+        查詢指定服務的審計日誌。這是一個範例方法，展示了如何新增一個具備完整錯誤處理的工具方法。
         
         Args:
             service_name: 服務名稱
             limit: 返回的日誌數量
             
         Returns:
-            審計日誌列表
+            包含審計日誌列表的 ToolResult 物件。
         """
-        logger.info(f"🛂 正在向 Control Plane 查詢 {service_name} 的審計日誌...")
-        
-        params = {
-            "service_name": service_name,
-            "limit": limit
-        }
-        
-        response = await self._make_request(
-            method="GET",
-            endpoint="/v1/audit-logs",
-            params=params
-        )
-        
-        return response.get("logs", [])
+        params = {"service_name": service_name, "limit": limit}
+        try:
+            logger.info(f"🛂 (ControlPlaneTool) 正在查詢 {service_name} 的審計日誌...")
+
+            response_data = await self._make_request(
+                method="GET",
+                endpoint="/v1/audit-logs",
+                params=params
+            )
+
+            return ToolResult(success=True, data={"logs": response_data.get("logs", [])})
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ Control Plane API 查詢審計日誌失敗: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="HTTP_STATUS_ERROR",
+                    message=f"Control Plane API returned HTTP {e.response.status_code}: {e.response.reason_phrase}",
+                    details={"status_code": e.response.status_code, "response_body": e.response.text[:500], "request_url": str(e.request.url), "params": params}
+                )
+            )
+        except httpx.TimeoutException as e:
+            logger.error(f"❌ Control Plane API 查詢審計日誌請求超時: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="TIMEOUT_ERROR",
+                    message=f"Control Plane API request timed out after {self.timeout}s",
+                    details={"timeout_seconds": self.timeout, "request_url": str(e.request.url) if hasattr(e, 'request') else None, "params": params}
+                )
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"❌ Control Plane API 查詢審計日誌連線失敗: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="CONNECTION_ERROR",
+                    message=f"Failed to connect to Control Plane: {str(e)}",
+                    details={"base_url": self.base_url, "params": params}
+                )
+            )
+        except Exception as e:
+            logger.error(f"❌ Control Plane 工具查詢審計日誌時發生未預期錯誤: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="UNEXPECTED_ERROR",
+                    message=f"Unexpected error in Control Plane tool while querying audit logs: {str(e)}",
+                    details={"error_type": type(e).__name__, "params": params}
+                )
+            )
 
     # --- Roadmap Task 1.3: ControlPlaneTool Implementation ---
 
@@ -249,149 +287,366 @@ class ControlPlaneTool:
                 )
             )
 
-    async def query_resource_groups(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
+    async def query_resource_groups(self, params: Optional[Dict] = None) -> ToolResult:
         """
         查詢資源群組 (GET /api/v1/resource-groups)，並使用 Pydantic 模型驗證回應。
         """
         try:
             logger.info(f"🛂 (ControlPlaneTool) 正在查詢資源群組，參數: {params}")
-            
+
             response_data = await self._make_request(
                 method="GET",
                 endpoint="/api/v1/resource-groups",
                 params=params
             )
-            
+
             group_list = ResourceGroupList.model_validate(response_data)
-            
+
             return ToolResult(success=True, data=group_list.model_dump())
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢資源群組時 API 錯誤: {e.response.status_code} - {e.response.text}", exc_info=True)
-            return ToolError(
-                code="API_ERROR", 
-                message=f"Control Plane API returned status {e.response.status_code}: {e.response.text}", 
-                details={"params": params}
+            logger.error(f"❌ Control Plane API 查詢資源群組失敗: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="HTTP_STATUS_ERROR",
+                    message=f"Control Plane API returned HTTP {e.response.status_code}: {e.response.reason_phrase}",
+                    details={
+                        "status_code": e.response.status_code,
+                        "response_body": e.response.text[:500],
+                        "request_url": str(e.request.url),
+                        "params": params
+                    }
+                )
+            )
+        except httpx.TimeoutException as e:
+            logger.error(f"❌ Control Plane API 查詢資源群組請求超時: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="TIMEOUT_ERROR",
+                    message=f"Control Plane API request timed out after {self.timeout}s",
+                    details={
+                        "timeout_seconds": self.timeout,
+                        "request_url": str(e.request.url) if hasattr(e, 'request') else None,
+                        "params": params
+                    }
+                )
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"❌ Control Plane API 查詢資源群組連線失敗: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="CONNECTION_ERROR",
+                    message=f"Failed to connect to Control Plane: {str(e)}",
+                    details={
+                        "base_url": self.base_url,
+                        "params": params
+                    }
+                )
             )
         except ValidationError as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢資源群組回應的資料格式無效: {e}", exc_info=True)
-            return ToolError(
-                code="INVALID_DATA_FORMAT", 
-                message="從 Control Plane 收到的資源群組列表資料格式不符預期。",
-                details={"params": params, "errors": e.errors()}
+            logger.error(f"❌ Control Plane API 查詢資源群組回應資料格式無效: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="VALIDATION_ERROR",
+                    message="Control Plane API response data format invalid for resource groups.",
+                    details={
+                        "validation_errors": e.errors(),
+                        "params": params
+                    }
+                )
             )
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢資源群組時發生未預期錯誤: {e}", exc_info=True)
-            return ToolError(
-                code="UNEXPECTED_ERROR", 
-                message=str(e), 
-                details={"params": params}
+            logger.error(f"❌ Control Plane 工具查詢資源群組時發生未預期錯誤: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="UNEXPECTED_ERROR",
+                    message=f"Unexpected error in Control Plane tool while querying resource groups: {str(e)}",
+                    details={
+                        "error_type": type(e).__name__,
+                        "params": params
+                    }
+                )
             )
 
-    async def query_audit_logs(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
+    async def query_audit_logs(self, params: Optional[Dict] = None) -> ToolResult:
         """查詢部署相關的審計日誌 (GET /api/v1/audit-logs)"""
         try:
-            logger.info("🛂 (ControlPlaneTool) 正在查詢審計日誌...")
-            response = await self._make_request(
+            logger.info(f"🛂 (ControlPlaneTool) 正在查詢審計日誌，參數: {params}")
+            response_data = await self._make_request(
                 method="GET",
                 endpoint="/api/v1/audit-logs",
                 params=params
             )
-            return ToolResult(success=True, data={"logs": response.get("data", [])})
+            # 假設回應的結構是 {"data": [...]}
+            return ToolResult(success=True, data={"logs": response_data.get("data", [])})
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ Control Plane API 查詢審計日誌失敗: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="HTTP_STATUS_ERROR",
+                    message=f"Control Plane API returned HTTP {e.response.status_code}: {e.response.reason_phrase}",
+                    details={"status_code": e.response.status_code, "response_body": e.response.text[:500], "request_url": str(e.request.url), "params": params}
+                )
+            )
+        except httpx.TimeoutException as e:
+            logger.error(f"❌ Control Plane API 查詢審計日誌請求超時: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="TIMEOUT_ERROR",
+                    message=f"Control Plane API request timed out after {self.timeout}s",
+                    details={"timeout_seconds": self.timeout, "request_url": str(e.request.url) if hasattr(e, 'request') else None, "params": params}
+                )
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"❌ Control Plane API 查詢審計日誌連線失敗: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="CONNECTION_ERROR",
+                    message=f"Failed to connect to Control Plane: {str(e)}",
+                    details={"base_url": self.base_url, "params": params}
+                )
+            )
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢審計日誌時發生錯誤: {e}", exc_info=True)
-            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
+            logger.error(f"❌ Control Plane 工具查詢審計日誌時發生未預期錯誤: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="UNEXPECTED_ERROR",
+                    message=f"Unexpected error in Control Plane tool while querying audit logs: {str(e)}",
+                    details={"error_type": type(e).__name__, "params": params}
+                )
+            )
 
-    async def query_incidents(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
+    async def query_incidents(self, params: Optional[Dict] = None) -> ToolResult:
         """查詢相關事件 (GET /api/v1/incidents)"""
         try:
-            logger.info("🛂 (ControlPlaneTool) 正在查詢事件...")
-            response = await self._make_request(
+            logger.info(f"🛂 (ControlPlaneTool) 正在查詢事件，參數: {params}")
+            response_data = await self._make_request(
                 method="GET",
                 endpoint="/api/v1/incidents",
                 params=params
             )
-            return ToolResult(success=True, data={"incidents": response.get("data", [])})
+            # 假設回應的結構是 {"data": [...]}
+            return ToolResult(success=True, data={"incidents": response_data.get("data", [])})
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ Control Plane API 查詢事件失敗: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="HTTP_STATUS_ERROR",
+                    message=f"Control Plane API returned HTTP {e.response.status_code}: {e.response.reason_phrase}",
+                    details={"status_code": e.response.status_code, "response_body": e.response.text[:500], "request_url": str(e.request.url), "params": params}
+                )
+            )
+        except httpx.TimeoutException as e:
+            logger.error(f"❌ Control Plane API 查詢事件請求超時: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="TIMEOUT_ERROR",
+                    message=f"Control Plane API request timed out after {self.timeout}s",
+                    details={"timeout_seconds": self.timeout, "request_url": str(e.request.url) if hasattr(e, 'request') else None, "params": params}
+                )
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"❌ Control Plane API 查詢事件連線失敗: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="CONNECTION_ERROR",
+                    message=f"Failed to connect to Control Plane: {str(e)}",
+                    details={"base_url": self.base_url, "params": params}
+                )
+            )
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢事件時發生錯誤: {e}", exc_info=True)
-            return ToolError(code="QUERY_FAILED", message=str(e), details={"source": "control_plane_tool"})
+            logger.error(f"❌ Control Plane 工具查詢事件時發生未預期錯誤: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="UNEXPECTED_ERROR",
+                    message=f"Unexpected error in Control Plane tool while querying incidents: {str(e)}",
+                    details={"error_type": type(e).__name__, "params": params}
+                )
+            )
 
-    async def get_alert_rules(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
+    async def get_alert_rules(self, params: Optional[Dict] = None) -> ToolResult:
         """
         獲取告警規則狀態 (GET /api/v1/alert-rules)，並使用 Pydantic 模型驗證回應。
         """
         try:
             logger.info(f"🛂 (ControlPlaneTool) 正在查詢告警規則，參數: {params}")
-            
+
             response_data = await self._make_request(
                 method="GET",
                 endpoint="/api/v1/alert-rules",
                 params=params
             )
-            
+
             rule_list = AlertRuleList.model_validate(response_data)
-            
+
             return ToolResult(success=True, data=rule_list.model_dump())
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢告警規則時 API 錯誤: {e.response.status_code} - {e.response.text}", exc_info=True)
-            return ToolError(
-                code="API_ERROR", 
-                message=f"Control Plane API returned status {e.response.status_code}: {e.response.text}", 
-                details={"params": params}
+            logger.error(f"❌ Control Plane API 查詢告警規則失敗: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="HTTP_STATUS_ERROR",
+                    message=f"Control Plane API returned HTTP {e.response.status_code}: {e.response.reason_phrase}",
+                    details={
+                        "status_code": e.response.status_code,
+                        "response_body": e.response.text[:500],
+                        "request_url": str(e.request.url),
+                        "params": params
+                    }
+                )
+            )
+        except httpx.TimeoutException as e:
+            logger.error(f"❌ Control Plane API 查詢告警規則請求超時: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="TIMEOUT_ERROR",
+                    message=f"Control Plane API request timed out after {self.timeout}s",
+                    details={
+                        "timeout_seconds": self.timeout,
+                        "request_url": str(e.request.url) if hasattr(e, 'request') else None,
+                        "params": params
+                    }
+                )
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"❌ Control Plane API 查詢告警規則連線失敗: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="CONNECTION_ERROR",
+                    message=f"Failed to connect to Control Plane: {str(e)}",
+                    details={
+                        "base_url": self.base_url,
+                        "params": params
+                    }
+                )
             )
         except ValidationError as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢告警規則回應的資料格式無效: {e}", exc_info=True)
-            return ToolError(
-                code="INVALID_DATA_FORMAT", 
-                message="從 Control Plane 收到的告警規則列表資料格式不符預期。",
-                details={"params": params, "errors": e.errors()}
+            logger.error(f"❌ Control Plane API 查詢告警規則回應資料格式無效: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="VALIDATION_ERROR",
+                    message="Control Plane API response data format invalid for alert rules.",
+                    details={
+                        "validation_errors": e.errors(),
+                        "params": params
+                    }
+                )
             )
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢告警規則時發生未預期錯誤: {e}", exc_info=True)
-            return ToolError(
-                code="UNEXPECTED_ERROR", 
-                message=str(e), 
-                details={"params": params}
+            logger.error(f"❌ Control Plane 工具查詢告警規則時發生未預期錯誤: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="UNEXPECTED_ERROR",
+                    message=f"Unexpected error in Control Plane tool while querying alert rules: {str(e)}",
+                    details={
+                        "error_type": type(e).__name__,
+                        "params": params
+                    }
+                )
             )
 
-    async def query_automation_executions(self, params: Optional[Dict] = None) -> Union[ToolResult, ToolError]:
+    async def query_automation_executions(self, params: Optional[Dict] = None) -> ToolResult:
         """
         查詢自動化腳本執行歷史 (GET /api/v1/automation/executions)，並使用 Pydantic 模型驗證回應。
         """
         try:
             logger.info(f"🛂 (ControlPlaneTool) 正在查詢自動化腳本執行歷史，參數: {params}")
-            
+
             response_data = await self._make_request(
                 method="GET",
                 endpoint="/api/v1/automation/executions",
                 params=params
             )
-            
+
             execution_list = ExecutionList.model_validate(response_data)
-            
+
             return ToolResult(success=True, data=execution_list.model_dump())
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢自動化執行歷史時 API 錯誤: {e.response.status_code} - {e.response.text}", exc_info=True)
-            return ToolError(
-                code="API_ERROR", 
-                message=f"Control Plane API returned status {e.response.status_code}: {e.response.text}", 
-                details={"params": params}
+            logger.error(f"❌ Control Plane API 查詢自動化執行歷史失敗: {e.response.status_code} - {e.response.text}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="HTTP_STATUS_ERROR",
+                    message=f"Control Plane API returned HTTP {e.response.status_code}: {e.response.reason_phrase}",
+                    details={
+                        "status_code": e.response.status_code,
+                        "response_body": e.response.text[:500],
+                        "request_url": str(e.request.url),
+                        "params": params
+                    }
+                )
+            )
+        except httpx.TimeoutException as e:
+            logger.error(f"❌ Control Plane API 查詢自動化執行歷史請求超時: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="TIMEOUT_ERROR",
+                    message=f"Control Plane API request timed out after {self.timeout}s",
+                    details={
+                        "timeout_seconds": self.timeout,
+                        "request_url": str(e.request.url) if hasattr(e, 'request') else None,
+                        "params": params
+                    }
+                )
+            )
+        except httpx.ConnectError as e:
+            logger.error(f"❌ Control Plane API 查詢自動化執行歷史連線失敗: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="CONNECTION_ERROR",
+                    message=f"Failed to connect to Control Plane: {str(e)}",
+                    details={
+                        "base_url": self.base_url,
+                        "params": params
+                    }
+                )
             )
         except ValidationError as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢自動化執行歷史回應的資料格式無效: {e}", exc_info=True)
-            return ToolError(
-                code="INVALID_DATA_FORMAT", 
-                message="從 Control Plane 收到的自動化執行歷史列表資料格式不符預期。",
-                details={"params": params, "errors": e.errors()}
+            logger.error(f"❌ Control Plane API 查詢自動化執行歷史回應資料格式無效: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="VALIDATION_ERROR",
+                    message="Control Plane API response data format invalid for automation executions.",
+                    details={
+                        "validation_errors": e.errors(),
+                        "params": params
+                    }
+                )
             )
         except Exception as e:
-            logger.error(f"❌ (ControlPlaneTool) 查詢自動化執行歷史時發生未預期錯誤: {e}", exc_info=True)
-            return ToolError(
-                code="UNEXPECTED_ERROR", 
-                message=str(e), 
-                details={"params": params}
+            logger.error(f"❌ Control Plane 工具查詢自動化執行歷史時發生未預期錯誤: {e}", exc_info=True)
+            return ToolResult(
+                success=False,
+                error=ToolError(
+                    code="UNEXPECTED_ERROR",
+                    message=f"Unexpected error in Control Plane tool while querying automation executions: {str(e)}",
+                    details={
+                        "error_type": type(e).__name__,
+                        "params": params
+                    }
+                )
             )
 
     async def _get_auth_token(self) -> Optional[str]:
