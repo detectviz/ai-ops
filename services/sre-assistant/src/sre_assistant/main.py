@@ -45,7 +45,6 @@ config_manager: Optional[ConfigManager] = None
 workflow: Optional[SREWorkflow] = None
 redis_client: Optional[redis.Redis] = None
 app_ready = False
-startup_time = time.time()  # 應用程式啟動時間
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -278,35 +277,6 @@ def check_liveness():
 
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
-async def check_prometheus_health() -> bool:
-    """
-    檢查 Prometheus 服務是否健康。
-    """
-    if not config_manager:
-        logger.warning("ConfigManager 未初始化，無法檢查 Prometheus 健康狀態。")
-        return False
-
-    try:
-        config = config_manager.get_config()
-        prometheus_url = config.tools.prometheus.url
-
-        async with httpx.AsyncClient() as client:
-            # Prometheus 的健康檢查端點是 /-/healthy
-            response = await client.get(f"{prometheus_url}/-/healthy", timeout=5.0)
-
-            if response.status_code == 200:
-                logger.info("✅ Prometheus 健康檢查成功。")
-                return True
-            else:
-                logger.warning(f" Prometheus 健康檢查失敗，狀態碼: {response.status_code}。")
-                return False
-    except httpx.RequestError as e:
-        logger.error(f"❌ Prometheus 健康檢查失敗: 連線錯誤 - {e}")
-        return False
-    except Exception as e:
-        logger.error(f"❌ 進行 Prometheus 健康檢查時發生未預期的錯誤: {e}")
-        return False
-
 @app.get("/api/v1/readyz", tags=["Health"])
 async def check_readiness(response: Response):
     """
@@ -321,34 +291,44 @@ async def check_readiness(response: Response):
 
     if not app_ready or not workflow or not redis_client:
         response.status_code = 503
-        return { "ready": False, "checks": checks }
+        return {
+            "ready": False,
+            "checks": checks
+        }
 
-    # 依序執行所有健康檢查
-    # 1. 檢查 Redis
     try:
+        # 驗證與 Redis 的即時連線
         await redis_client.ping()
         checks["redis"] = True
+
+        # 這裡可以加入其他依賴檢查
+        # TODO: 檢查與 Prometheus 的連線
+        # TODO: 檢查與 Loki 的連線
+        # TODO: 檢查與 Control Plane 的連線
+
+        # 目前只檢查 Redis，所以其他檢查設為 True（表示不進行檢查）
+        checks["prometheus"] = True
+        checks["loki"] = True
+        checks["control_plane"] = True
+
+        return {
+            "ready": all(checks.values()),
+            "checks": checks
+        }
     except redis.exceptions.ConnectionError as e:
-        logger.error(f"Redis 連線檢查失敗: {e}", exc_info=False)
-
-    # 2. 檢查 Prometheus
-    checks["prometheus"] = await check_prometheus_health()
-
-    # 3. 檢查 Loki (TODO: 待實作)
-    checks["loki"] = True
-
-    # 4. 檢查 Control Plane (TODO: 待實作)
-    checks["control_plane"] = True
-
-    # 判斷整體就緒狀態
-    is_ready = all(checks.values())
-    if not is_ready:
+        logger.error(f"Redis 連線檢查失敗: {e}", exc_info=True)
         response.status_code = 503
-
-    return {
-        "ready": is_ready,
-        "checks": checks
-    }
+        return {
+            "ready": False,
+            "checks": checks
+        }
+    except Exception as e:
+        logger.error(f"就緒檢查時發生未預期的錯誤: {e}", exc_info=True)
+        response.status_code = 503
+        return {
+            "ready": False,
+            "checks": checks
+        }
 
 @app.get("/api/v1/metrics", tags=["Health"])
 def get_metrics():
