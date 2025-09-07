@@ -186,3 +186,114 @@ async def test_workflow_catastrophic_failure(workflow, mock_redis_client):
     final_status = DiagnosticStatus.model_validate_json(await redis_client.get(str(session_id)))
     assert final_status.status == "failed"
     assert "Something broke badly" in final_status.error
+
+
+@pytest.mark.asyncio
+async def test_diagnose_alerts_success(workflow, mock_redis_client):
+    """
+    測試一個成功的告警診斷流程。
+
+    驗證：
+    - `query_incidents` 被正確呼叫。
+    - `loki_tool.execute` 被呼叫以獲取相關日誌。
+    - 最終結果包含來自所有工具的綜合發現。
+    """
+    from sre_assistant.contracts import AlertAnalysisRequest
+    from datetime import datetime, timezone
+
+    redis_client, redis_store = mock_redis_client
+    session_id = uuid.uuid4()
+    alert_id = "alert-123"
+    request = AlertAnalysisRequest(alert_ids=[alert_id])
+
+    initial_status = DiagnosticStatus(session_id=session_id, status="processing", progress=10, current_step="start")
+    redis_store[str(session_id)] = initial_status.model_dump_json()
+
+    # --- 模擬工具的回傳值 ---
+    mock_incident_data = {
+        "incidents": [{
+            "id": alert_id,
+            "title": "CPU High",
+            "service_name": "billing-service",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "details": {"prometheus_query": "cpu_usage > 90"}
+        }]
+    }
+    workflow.control_plane_tool.query_incidents = AsyncMock(
+        return_value=ToolResult(success=True, data=mock_incident_data)
+    )
+    workflow.loki_tool.execute = AsyncMock(
+        return_value=ToolResult(success=True, data={"logs": [{"line": "error connecting to db"}]})
+    )
+    workflow.prometheus_tool.execute = AsyncMock(
+        return_value=ToolResult(success=True, data={"value": [162, "99.5"]})
+    )
+
+    # --- 執行工作流程 ---
+    await workflow.execute(session_id, request, "alert_analysis")
+
+    # --- 驗證結果 ---
+    final_status = DiagnosticStatus.model_validate_json(await redis_client.get(str(session_id)))
+
+    assert final_status.status == "completed"
+    assert final_status.result is not None
+
+    # 驗證所有工具都被呼叫
+    workflow.control_plane_tool.query_incidents.assert_called_once_with(params={'search': alert_id, 'limit': 1})
+    workflow.loki_tool.execute.assert_called_once()
+    workflow.prometheus_tool.execute.assert_called_once()
+
+    # 驗證調查發現 (Findings)
+    findings = final_status.result.findings
+    assert len(findings) == 3 # 1 from CP, 1 from Loki, 1 from Prometheus
+    assert any("正在調查告警" in f.message for f in findings)
+    assert any("發現 1 條日誌" in f.message for f in findings)
+    assert any("執行告警相關的 Prometheus 查詢成功" in f.message for f in findings)
+
+    # 驗證使用的工具列表
+    assert "ControlPlaneTool (Incidents)" in final_status.result.tools_used
+    assert "LokiLogQueryTool" in final_status.result.tools_used
+    assert "PrometheusQueryTool" in final_status.result.tools_used
+
+
+@pytest.mark.asyncio
+async def test_diagnose_alerts_cp_failure(workflow, mock_redis_client):
+    """
+    測試當 Control Plane 工具無法獲取告警詳情時的場景。
+    """
+    from sre_assistant.contracts import AlertAnalysisRequest
+
+    redis_client, redis_store = mock_redis_client
+    session_id = uuid.uuid4()
+    alert_id = "alert-456"
+    request = AlertAnalysisRequest(alert_ids=[alert_id])
+
+    initial_status = DiagnosticStatus(session_id=session_id, status="processing", progress=10, current_step="start")
+    redis_store[str(session_id)] = initial_status.model_dump_json()
+
+    # --- 模擬工具的回傳值 ---
+    # Control Plane 查詢失敗
+    workflow.control_plane_tool.query_incidents = AsyncMock(
+        return_value=ToolResult(success=False, error=ToolError(code="API_ERROR", message="Not Found"))
+    )
+    workflow.loki_tool.execute = AsyncMock()
+    workflow.prometheus_tool.execute = AsyncMock()
+
+    # --- 執行工作流程 ---
+    await workflow.execute(session_id, request, "alert_analysis")
+
+    # --- 驗證結果 ---
+    final_status = DiagnosticStatus.model_validate_json(await redis_client.get(str(session_id)))
+
+    assert final_status.status == "completed"
+    assert final_status.result is not None
+
+    # Loki 和 Prometheus 不應該被呼叫
+    workflow.loki_tool.execute.assert_not_called()
+    workflow.prometheus_tool.execute.assert_not_called()
+
+    # 應該有一條警告性質的 Finding
+    findings = final_status.result.findings
+    assert len(findings) == 1
+    assert findings[0].severity == "warning"
+    assert f"無法獲取 ID 為 {alert_id} 的告警詳情" in findings[0].message

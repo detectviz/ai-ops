@@ -8,7 +8,7 @@
 
 ---
 
-## Phase 1: 核心整合 (Core Integration) [✅] 完成
+## Phase 1: 核心整合 (Core Integration)
 
 - **主題**: 專注於完成 `sre-assistant` 與 `control-plane` 之間的所有技術對接工作，確保兩者能夠安全、可靠地協同工作。
 - **關鍵目標**: 實現一個可由 `control-plane` 觸發並完成端到端診斷流程的最小可行產品 (MVP)。
@@ -68,13 +68,13 @@
         - [第三方工具整合 | ADK 文件](./references/adk-docs/tools-third-party-tools.md)
         - [GitHub Toolset 範例（工具集結構與錯誤處理）](./references/adk-agent-samples/github-agent/github_toolset.py)
 
-- **[✅] 1.4. 端到端流程實作與測試**:
+- **[🚧] 1.4. 端到端流程實作與測試**:
     - **任務**: 在 `SREWorkflow` 中整合所有核心工具，並建立一個完整的整合測試，以驗證 `/diagnostics/deployment` 的端到端流程。
     - **對應 API**: `/diagnostics/deployment`。
     - **相關子任務**:
         - [x] **修復工作流程錯誤處理**: `asyncio.gather` 中已添加異常處理、容錯、超時和重試機制。
         - [x] **API 整合測試**: 端到端診斷流程測試, 非同步任務狀態追蹤測試, 錯誤情境測試。 (註：`test_diagnose_deployment_success_e2e` 和 `test_async_task_status_polling` 等測試已新增並通過。)
-        - [x] **外部服務整合測試**: Prometheus, Loki, Keycloak 整合測試。 (已修復 `TypeError` 並使所有整合測試穩定通過)
+        - [ ] **外部服務整合測試**: Prometheus, Loki, Keycloak 整合測試。
     - **參考**: `docs/reference-adk-examples.md` (parallel_functions, workflow_agent_seq)
     - 補充參考（ADK 最佳實踐）:
         - [平行工作流代理 | ADK 文件](./references/adk-docs/agents-workflow-agents-parallel-agents.md)
@@ -101,9 +101,15 @@
 
 ### 主要交付物 (Key Deliverables):
 
-- **[ ] 2.1. 實現診斷後端邏輯**:
+- **[🚧] 2.1. 實現診斷後端邏輯**:
     - **任務**: 完整實現 `SREWorkflow` 中的 `_diagnose_alerts`, `_analyze_capacity`, `_execute_query` 方法。
     - **對應 API**: `/diagnostics/alerts`, `/diagnostics/capacity`, `/execute`
+    - **相關子任務**:
+        - [x] **實現告警診斷工作流程 (`_diagnose_alerts`)**: 已實現核心邏輯並添加單元測試。
+        - [ ] **實現容量分析工作流程 (`_analyze_capacity`)**
+        - [ ] **實現自然語言查詢工作流程 (`_execute_query`)**
+    - **注意事項**:
+        - `test_integration.py` 中有兩個測試 (`test_access_protected_endpoint_with_bad_token`, `test_loki_query_integration`) 因環境問題暫時跳過，待後續修復。
     - **參考**:
         - **基本工作流**: [`docs/references/adk-examples/workflow_triage/agent.py`](./references/adk-examples/workflow_triage/agent.py)
         - **高級模式 (帶自我校驗)**: [`docs/references/adk-agent-samples/google-adk-workflows/self_critic/`](./references/adk-agent-samples/google-adk-workflows/self_critic/)

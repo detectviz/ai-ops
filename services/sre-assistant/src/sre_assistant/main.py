@@ -168,10 +168,12 @@ async def verify_token(creds: HTTPAuthorizationCredentials = Depends(security)) 
     7. 如果驗證成功，返回解碼後的 Token payload；否則，拋出 HTTPException。
     """
     config = config_manager.get_config()
+    logger.info(f"[DEBUG] In verify_token, auth provider is: '{config.auth.provider}'")
     if config.auth.provider != "keycloak":
         logger.warning("Auth provider 不是 keycloak，跳過 JWT 驗證")
         return {"sub": "service-account-control-plane"}
 
+    logger.info("✅ Keycloak 認證服務已初始化 (Python)")
     token = creds.credentials
     try:
         keycloak_url = config.auth.keycloak.url

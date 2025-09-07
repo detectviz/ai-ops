@@ -91,7 +91,7 @@ test-go:
 # 執行 SRE Assistant 測試
 test-py:
 	@echo "🧪 執行 SRE Assistant 測試..."
-	cd services/sre-assistant && poetry run pytest -v
+	cd services/sre-assistant && poetry run pytest -v -s
 
 # 安裝 Python 依賴
 install-py-deps:

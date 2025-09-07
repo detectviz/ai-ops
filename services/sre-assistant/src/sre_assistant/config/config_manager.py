@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 
+
 class DotDict(dict):
     """
     支援點號訪問的字典
@@ -69,23 +70,19 @@ class ConfigManager:
     
     def __init__(self, environment: Optional[str] = None):
         """
-        初始化配置管理器
+        初始化配置管理器。
         
         Args:
-            environment: 環境名稱 (development/production/test)
+            environment (Optional[str]): 環境名稱 (例如 "development", "production", "test")。
+                                         如果未提供，則從 "ENVIRONMENT" 環境變數讀取。
         """
         load_dotenv()  # 在初始化時才載入 .env，確保測試環境變數優先
         self.environment = environment or os.getenv("ENVIRONMENT", "development")
-        # The config directory is at the root of the service, not inside the src folder.
-        # Path(__file__).parent -> .../config
-        # .parent -> .../sre_assistant
-        # .parent -> .../src
-        # .parent -> services/sre-assistant/
         self.config_dir = Path(__file__).parent.parent.parent.parent / "config" / "environments"
         self.config = self._load_config()
         
-        logger.info(f"✅ 配置管理器初始化: environment={self.environment}")
-    
+        logger.info(f"✅ 配置管理器初始化完成，環境: {self.environment}")
+
     def _deep_merge(self, source: Dict, destination: Dict) -> Dict:
         """
         遞歸地將 `source` 字典合併到 `destination` 字典中。
