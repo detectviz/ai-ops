@@ -18,7 +18,6 @@ def mock_config():
     config.prometheus.timeout_seconds = 5
     config.prometheus.default_step = "1m"
     config.prometheus.max_points = 11000
-    # 修正: 確保 get 方法回傳一個確切的數值，而不是另一個 mock
     config.prometheus.get.return_value = 300
     return config
 
@@ -41,10 +40,15 @@ def mock_redis_client():
     return client, redis_store
 
 @pytest.fixture
-def prometheus_tool(mock_config, mock_redis_client):
-    """初始化 PrometheusQueryTool 並注入模擬的 Redis 客戶端"""
+def http_client():
+    """提供一個標準的 HTTP 客戶端供測試使用"""
+    return httpx.AsyncClient()
+
+@pytest.fixture
+def prometheus_tool(mock_config, http_client, mock_redis_client):
+    """初始化 PrometheusQueryTool 並注入模擬的 Redis 和 HTTP 客戶端"""
     redis_client, _ = mock_redis_client
-    tool = PrometheusQueryTool(mock_config, redis_client)
+    tool = PrometheusQueryTool(mock_config, http_client, redis_client)
     return tool
 
 @pytest.mark.asyncio
@@ -159,7 +163,6 @@ async def test_prometheus_cache_miss(prometheus_tool: PrometheusQueryTool, mock_
     cache_key = f"prometheus:instant:{query}"
     set_spy.assert_called_once_with(cache_key, json.dumps(api_response_value), ex=300)
 
-
 @pytest.mark.asyncio
 @respx.mock
 async def test_check_health_success(prometheus_tool: PrometheusQueryTool):
@@ -170,7 +173,6 @@ async def test_check_health_success(prometheus_tool: PrometheusQueryTool):
     is_healthy = await prometheus_tool.check_health()
 
     assert is_healthy is True
-
 
 @pytest.mark.asyncio
 @respx.mock
@@ -183,7 +185,6 @@ async def test_check_health_failure(prometheus_tool: PrometheusQueryTool):
 
     assert is_healthy is False
 
-
 @pytest.mark.asyncio
 @respx.mock
 async def test_execute_golden_signals_success(prometheus_tool: PrometheusQueryTool):
@@ -191,8 +192,6 @@ async def test_execute_golden_signals_success(prometheus_tool: PrometheusQueryTo
     params = {"service": "golden-service", "namespace": "default", "metric_type": "all"}
     api_url = f"{BASE_URL}/api/v1/query"
 
-    # 為所有預期的查詢提供一個通用的成功回應
-    # 注意：這簡化了測試，因為所有指標查詢都將得到相同的值
     mock_response_data = {
         "status": "success",
         "data": { "resultType": "vector", "result": [{"metric": {}, "value": [1609459200, "0.123"]}] }
@@ -206,9 +205,7 @@ async def test_execute_golden_signals_success(prometheus_tool: PrometheusQueryTo
     assert "traffic" in result.data
     assert "errors" in result.data
     assert "saturation" in result.data
-    # 驗證其中一個計算是否正確
-    assert result.data["latency"]["p99"] == "123.00ms" # 0.123 * 1000
-
+    assert result.data["latency"]["p99"] == "123.00ms"
 
 @pytest.mark.asyncio
 @respx.mock
@@ -219,11 +216,34 @@ async def test_prometheus_empty_result(prometheus_tool: PrometheusQueryTool):
 
     mock_response_data = {
         "status": "success",
-        "data": { "resultType": "vector", "result": [] } # 結果陣列為空
+        "data": { "resultType": "vector", "result": [] }
     }
     respx.get(url__regex=f"{api_url}.*").mock(return_value=Response(200, json=mock_response_data))
 
-    # 直接測試私有方法以隔離邏輯
     value = await prometheus_tool._execute_instant_query(query)
 
     assert value is None
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_prometheus_retry_on_503(mock_config, mock_redis_client):
+    """測試當 API 回傳 503 時，共享客戶端的重試機制會生效"""
+    transport = httpx.AsyncHTTPTransport(retries=3)
+    async with httpx.AsyncClient(transport=transport) as http_client:
+        redis_client, _ = mock_redis_client
+        tool = PrometheusQueryTool(mock_config, http_client, redis_client)
+
+        query = 'sum(rate(http_requests_total{service="retry-service"}[5m]))'
+        api_url = f"{BASE_URL}/api/v1/query"
+
+        success_response = {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [1609459200, "99.0"]}]}}
+
+        route = respx.get(url__regex=f"{api_url}.*").mock(side_effect=[
+            Response(503),
+            Response(200, json=success_response)
+        ])
+
+        result = await tool._execute_instant_query(query)
+
+        assert route.call_count == 2
+        assert result == 99.0

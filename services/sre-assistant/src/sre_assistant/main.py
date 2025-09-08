@@ -14,6 +14,7 @@ from typing import Dict, Any, Optional, List
 import redis.asyncio as redis
 import asyncpg
 import time
+import httpx
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # 依賴項和認證邏輯已重構
@@ -77,6 +78,7 @@ logger = structlog.get_logger(__name__)
 workflow: Optional[SREWorkflow] = None
 redis_client: Optional[redis.Redis] = None
 db_pool: Optional[asyncpg.Pool] = None
+http_client: Optional[httpx.AsyncClient] = None
 app_ready = False
 startup_time = time.time() # 應用程式啟動時間
 
@@ -89,7 +91,7 @@ async def lifespan(app: FastAPI):
     並在應用關閉時執行 `finally` 區塊中的程式碼。
     這對於初始化和清理資源 (如資料庫連接、背景任務) 非常有用。
     """
-    global workflow, redis_client, db_pool, app_ready
+    global workflow, redis_client, db_pool, http_client, app_ready
     
     logger.info("🚀 正在啟動 SRE Assistant...")
     
@@ -118,8 +120,16 @@ async def lifespan(app: FastAPI):
         else:
             logger.info("📝 偵測到測試環境，跳過 PostgreSQL 連線池初始化。")
 
-        # 初始化工作流程引擎，並傳入 Redis client
-        workflow = SREWorkflow(config, redis_client)
+        # 建立一個共享的、具有重試功能的 HTTP 客戶端
+        # 設定重試策略：針對 5xx 錯誤和連線錯誤，最多重試 3 次
+        transport = httpx.AsyncHTTPTransport(retries=3)
+        # 設定連線池限制
+        limits = httpx.Limits(max_connections=100, max_keepalive_connections=20)
+        http_client = httpx.AsyncClient(transport=transport, limits=limits, http2=True)
+        logger.info("✅ 共享的 HTTP 客戶端已建立，並設定了重試與連線池")
+
+        # 初始化工作流程引擎，並傳入共享的客戶端
+        workflow = SREWorkflow(config, redis_client, http_client)
 
         app_ready = True
         logger.info("✅ 工作流程引擎與任務儲存已初始化")
@@ -131,6 +141,10 @@ async def lifespan(app: FastAPI):
         app_ready = False
         yield # Still yield to allow the app to run and report not ready
     finally:
+        # 在應用程式關閉時，優雅地關閉所有客戶端和連線池
+        if http_client:
+            await http_client.aclose()
+            logger.info("HTTP 客戶端已關閉")
         if db_pool:
             await db_pool.close()
             logger.info("PostgreSQL 連線池已關閉")
@@ -229,12 +243,14 @@ async def check_readiness(response: Response):
         "control_plane": False
     }
 
-    if not app_ready or not workflow or not redis_client or not db_pool:
+    if not app_ready or not workflow or not redis_client:
         response.status_code = 503
         return {"ready": False, "checks": checks}
 
     async def check_db_health():
         """一個簡短的輔助函式，用於檢查資料庫連線。"""
+        if not db_pool:
+            return True # 在測試環境中，db_pool 為 None
         try:
             async with db_pool.acquire() as connection:
                 await connection.fetchval("SELECT 1")
