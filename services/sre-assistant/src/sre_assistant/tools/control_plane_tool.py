@@ -31,11 +31,20 @@ class ControlPlaneTool:
     - 獲取自動化執行紀錄
     """
     
-    def __init__(self, config):
-        """初始化 Control Plane 工具"""
+    def __init__(self, config, http_client: httpx.AsyncClient):
+        """
+        初始化 Control Plane 工具
+
+        Args:
+            config: 應用程式設定物件。
+            http_client: 共享的 httpx.AsyncClient 實例。
+        """
         self.base_url = config.control_plane.base_url
         self.timeout = config.control_plane.timeout_seconds
         
+        # 注入共享的 http_client
+        self.http_client = http_client
+
         # M2M 認證設定
         self.client_id = config.control_plane.client_id
         self.client_secret = config.control_plane.client_secret
@@ -257,29 +266,28 @@ class ControlPlaneTool:
         logger.info("🔑 Token 過期或不存在，正在從 Keycloak 獲取新 Token...")
         
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                data = {
-                    "client_id": self.client_id,
-                    "client_secret": self.client_secret,
-                    "grant_type": "client_credentials"
-                }
-                
-                response = await client.post(self.token_url, data=data)
-                
-                if response.status_code != 200:
-                    logger.error(f"❌ 從 Keycloak 獲取 Token 失敗: {response.status_code} - {response.text}")
-                    return None
-                
-                token_data = response.json()
-                self.token = token_data["access_token"]
-                
-                # 解碼 Token 以獲取過期時間
-                decoded_token = jwt.decode(self.token, options={"verify_signature": False})
-                self.token_expires_at = decoded_token.get("exp", 0)
-                
-                logger.info("✅ 成功獲取並快取了新的 Token")
-                return self.token
-                
+            data = {
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "grant_type": "client_credentials"
+            }
+
+            response = await self.http_client.post(self.token_url, data=data)
+
+            if response.status_code != 200:
+                logger.error(f"❌ 從 Keycloak 獲取 Token 失敗: {response.status_code} - {response.text}")
+                return None
+
+            token_data = response.json()
+            self.token = token_data["access_token"]
+
+            # 解碼 Token 以獲取過期時間
+            decoded_token = jwt.decode(self.token, options={"verify_signature": False})
+            self.token_expires_at = decoded_token.get("exp", 0)
+
+            logger.info("✅ 成功獲取並快取了新的 Token")
+            return self.token
+
         except Exception as e:
             logger.error(f"❌ 獲取 Token 時發生嚴重錯誤: {e}")
             return None
@@ -304,17 +312,16 @@ class ControlPlaneTool:
         
         url = f"{self.base_url}{endpoint}"
         
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.request(
-                method,
-                url,
-                headers=headers,
-                params=params,
-                json=json_data
-            )
-            
-            if response.status_code >= 400:
-                logger.error(f"❌ Control Plane API 請求失敗: {response.status_code} - {response.text}")
-                response.raise_for_status() # 拋出 HTTP 錯誤
-            
-            return response.json()
+        response = await self.http_client.request(
+            method,
+            url,
+            headers=headers,
+            params=params,
+            json=json_data
+        )
+
+        if response.status_code >= 400:
+            logger.error(f"❌ Control Plane API 請求失敗: {response.status_code} - {response.text}")
+            response.raise_for_status() # 拋出 HTTP 錯誤
+
+        return response.json()

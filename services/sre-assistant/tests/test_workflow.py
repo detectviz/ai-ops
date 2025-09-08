@@ -4,6 +4,7 @@ SRE 工作流程測試 (已重構以匹配目前的實作)
 
 import pytest
 import uuid
+import httpx
 from unittest.mock import Mock, AsyncMock, patch
 
 from sre_assistant.workflow import SREWorkflow
@@ -50,10 +51,17 @@ def mock_redis_client():
     return client, redis_store
 
 @pytest.fixture
-def workflow(mock_config, mock_redis_client):
+def http_client():
+    """提供一個 httpx.AsyncClient 實例"""
+    # 根據交接建議，直接回傳實例，而不是使用 async generator
+    return httpx.AsyncClient()
+
+@pytest.fixture
+def workflow(mock_config, mock_redis_client, http_client):
     """建立一個帶有模擬依賴的工作流程實例"""
     redis_client, _ = mock_redis_client
-    return SREWorkflow(mock_config, redis_client)
+    # 將共享的 http_client 注入
+    return SREWorkflow(mock_config, redis_client, http_client)
 
 
 @pytest.mark.asyncio

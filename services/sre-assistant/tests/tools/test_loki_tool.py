@@ -19,9 +19,14 @@ def mock_config():
     return config
 
 @pytest.fixture
-def loki_tool(mock_config):
+def http_client():
+    """提供一個 httpx.AsyncClient 實例"""
+    return httpx.AsyncClient(base_url=BASE_URL)
+
+@pytest.fixture
+def loki_tool(mock_config, http_client):
     """初始化 LokiLogQueryTool"""
-    return LokiLogQueryTool(mock_config)
+    return LokiLogQueryTool(mock_config, http_client)
 
 @pytest.mark.asyncio
 @respx.mock

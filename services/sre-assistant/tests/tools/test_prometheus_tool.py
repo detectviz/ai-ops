@@ -41,10 +41,16 @@ def mock_redis_client():
     return client, redis_store
 
 @pytest.fixture
-def prometheus_tool(mock_config, mock_redis_client):
+def http_client():
+    """提供一個 httpx.AsyncClient 實例"""
+    return httpx.AsyncClient(base_url=BASE_URL)
+
+@pytest.fixture
+def prometheus_tool(mock_config, http_client, mock_redis_client):
     """初始化 PrometheusQueryTool 並注入模擬的 Redis 客戶端"""
     redis_client, _ = mock_redis_client
-    tool = PrometheusQueryTool(mock_config, redis_client)
+    # 注入共享的 http_client
+    tool = PrometheusQueryTool(mock_config, http_client, redis_client)
     return tool
 
 @pytest.mark.asyncio

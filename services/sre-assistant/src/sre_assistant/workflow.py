@@ -45,19 +45,29 @@ class SREWorkflow:
     4. 更新共享的任務狀態字典
     """
     
-    def __init__(self, config, redis_client):
-        """初始化工作流程"""
+    def __init__(self, config, redis_client, http_client):
+        """
+        初始化工作流程
+
+        Args:
+            config: 應用程式設定物件。
+            redis_client: 非同步 Redis 客戶端。
+            http_client: 共享的 httpx.AsyncClient 實例。
+        """
         self.config = config
         self.redis_client = redis_client
-        # 將 redis_client 傳遞給 Prometheus 工具以啟用快取
-        self.prometheus_tool = PrometheusQueryTool(config, self.redis_client)
-        self.loki_tool = LokiLogQueryTool(config)
-        self.control_plane_tool = ControlPlaneTool(config)
+        self.http_client = http_client # 儲存共享客戶端
+
+        # 將共享的 http_client 和其他依賴注入到所有工具中
+        self.prometheus_tool = PrometheusQueryTool(config, http_client, self.redis_client)
+        self.loki_tool = LokiLogQueryTool(config, http_client)
+        self.control_plane_tool = ControlPlaneTool(config, http_client)
+
         self.parallel_diagnosis = config.workflow.get("parallel_diagnosis", True)
         self.diagnosis_timeout = config.workflow.get("diagnosis_timeout_seconds", 120)
-        self.max_retries = config.workflow.get("max_retries", 2)  # 2 retries = 3 total attempts
+        self.max_retries = config.workflow.get("max_retries", 2)
         self.retry_delay = config.workflow.get("retry_delay_seconds", 1)
-        logger.info("✅ SRE 工作流程初始化完成")
+        logger.info("✅ SRE 工作流程初始化完成 (使用共享 HTTP 客戶端)")
     
     async def _get_task_status(self, session_id: uuid.UUID) -> Optional[DiagnosticStatus]:
         """Helper to get task status from Redis."""

@@ -27,13 +27,22 @@ class LokiLogQueryTool:
     - 提取關鍵錯誤訊息
     """
     
-    def __init__(self, config):
-        """初始化 Loki 工具"""
+    def __init__(self, config, http_client: httpx.AsyncClient):
+        """
+        初始化 Loki 工具
+
+        Args:
+            config: 應用程式設定物件。
+            http_client: 共享的 httpx.AsyncClient 實例。
+        """
         self.base_url = config.loki.base_url
         self.timeout = config.loki.timeout_seconds
         self.default_limit = config.loki.default_limit
         self.max_time_range = config.loki.max_time_range
         
+        # 注入共享的 http_client
+        self.http_client = http_client
+
         logger.info(f"✅ Loki 工具初始化: {self.base_url}")
 
     async def check_health(self) -> bool:
@@ -44,16 +53,15 @@ class LokiLogQueryTool:
             如果 Loki 可達且就緒，則返回 True，否則返回 False。
         """
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                # Loki 的標準健康檢查端點
-                response = await client.get(f"{self.base_url}/ready")
-                response.raise_for_status()
-                # Loki 成功時會回傳 "ready"
-                if response.text.strip() == "ready":
-                    logger.debug(f"Loki health check successful: {response.status_code}")
-                    return True
-                logger.warning(f"Loki health check response is not 'ready': {response.text}")
-                return False
+            # 使用共享的 http_client
+            response = await self.http_client.get(f"{self.base_url}/ready")
+            response.raise_for_status()
+            # Loki 成功時會回傳 "ready"
+            if response.text.strip() == "ready":
+                logger.debug(f"Loki health check successful: {response.status_code}")
+                return True
+            logger.warning(f"Loki health check response is not 'ready': {response.text}")
+            return False
         except (httpx.HTTPStatusError, httpx.RequestError) as e:
             logger.warning(f"Loki health check failed: {e}")
             return False
@@ -236,34 +244,33 @@ class LokiLogQueryTool:
         end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(minutes=time_range)
         
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            params = {
-                "query": query,
-                "start": str(int(start_time.timestamp() * 1e9)),  # 奈秒
-                "end": str(int(end_time.timestamp() * 1e9)),
-                "limit": limit,
-                "direction": "backward"  # 最新的日誌優先
-            }
-            
-            response = await client.get(
-                f"{self.base_url}/loki/api/v1/query_range",
-                params=params
-            )
-            
-            # 讓上層的 execute 方法來處理 HTTP 錯誤
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            if data.get("status") != "success":
-                # Loki 查詢本身可能失敗 (例如語法錯誤)
-                error_msg = data.get('error', 'Unknown Loki query error')
-                logger.warning(f"Loki 查詢成功但語法或執行失敗: {error_msg}")
-                # 這種情況下也返回空列表，因為它是一個有效的“無結果”場景
-                return []
-            
-            # 解析日誌
-            return self._parse_log_results(data.get("data", {}).get("result", []))
+        params = {
+            "query": query,
+            "start": str(int(start_time.timestamp() * 1e9)),  # 奈秒
+            "end": str(int(end_time.timestamp() * 1e9)),
+            "limit": limit,
+            "direction": "backward"  # 最新的日誌優先
+        }
+
+        response = await self.http_client.get(
+            f"{self.base_url}/loki/api/v1/query_range",
+            params=params
+        )
+
+        # 讓上層的 execute 方法來處理 HTTP 錯誤
+        response.raise_for_status()
+
+        data = response.json()
+
+        if data.get("status") != "success":
+            # Loki 查詢本身可能失敗 (例如語法錯誤)
+            error_msg = data.get('error', 'Unknown Loki query error')
+            logger.warning(f"Loki 查詢成功但語法或執行失敗: {error_msg}")
+            # 這種情況下也返回空列表，因為它是一個有效的“無結果”場景
+            return []
+
+        # 解析日誌
+        return self._parse_log_results(data.get("data", {}).get("result", []))
     
     def _build_logql_query(self, service: str, namespace: str, log_level: str, pattern: str) -> str:
         """
@@ -537,25 +544,24 @@ class LokiLogQueryTool:
         start_time = end_time - timedelta(minutes=time_range)
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                params = {
-                    "query": query,
-                    "start": str(int(start_time.timestamp() * 1e9)),
-                    "end": str(int(end_time.timestamp() * 1e9)),
-                    "step": f"{time_range}m" # 使用整個範圍作為單一步長
-                }
-                response = await client.get(f"{self.base_url}/loki/api/v1/query", params=params)
-                response.raise_for_status()
-                data = response.json()
+            params = {
+                "query": query,
+                "start": str(int(start_time.timestamp() * 1e9)),
+                "end": str(int(end_time.timestamp() * 1e9)),
+                "step": f"{time_range}m" # 使用整個範圍作為單一步長
+            }
+            response = await self.http_client.get(f"{self.base_url}/loki/api/v1/query", params=params)
+            response.raise_for_status()
+            data = response.json()
 
-                if data.get("status") != "success":
-                    logger.warning(f"Loki 聚合查詢失敗: {data.get('error', 'Unknown error')}")
-                    return 0
-
-                result = data.get("data", {}).get("result", [])
-                if result and result[0] and len(result[0].get("value", [])) > 1:
-                    return int(result[0]["value"][1])
+            if data.get("status") != "success":
+                logger.warning(f"Loki 聚合查詢失敗: {data.get('error', 'Unknown error')}")
                 return 0
+
+            result = data.get("data", {}).get("result", [])
+            if result and result[0] and len(result[0].get("value", [])) > 1:
+                return int(result[0]["value"][1])
+            return 0
         except httpx.HTTPStatusError as e:
             logger.error(f"執行聚合查詢時發生 HTTP 錯誤: {e.response.status_code}")
             return 0

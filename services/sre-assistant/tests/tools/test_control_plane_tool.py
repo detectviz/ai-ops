@@ -5,6 +5,7 @@ ControlPlaneTool 的單元測試
 
 import pytest
 import respx
+import httpx
 from httpx import Response, TimeoutException, ConnectError
 from unittest.mock import MagicMock
 from datetime import datetime, timezone
@@ -27,13 +28,21 @@ def mock_config():
     return config
 
 @pytest.fixture
-def control_plane_tool(mock_config, mocker):
+def http_client():
+    """提供一個 httpx.AsyncClient 實例"""
+    return httpx.AsyncClient(base_url=BASE_URL)
+
+@pytest.fixture
+def control_plane_tool(mock_config, http_client, mocker):
     """初始化 ControlPlaneTool 並模擬其認證流程"""
+    # 注意：這裡我們仍然模擬 _get_auth_token，因為這些測試的重點不是認證流程本身，
+    # 而是工具在獲得 token 後的 API 呼叫行為。
+    # 這樣可以避免讓每個測試都去模擬 Keycloak 的 token 端點。
     mocker.patch(
         'sre_assistant.tools.control_plane_tool.ControlPlaneTool._get_auth_token',
         return_value="dummy-jwt-token"
     )
-    tool = ControlPlaneTool(mock_config)
+    tool = ControlPlaneTool(mock_config, http_client)
     return tool
 
 # --- 通用錯誤測試 ---
@@ -224,9 +233,9 @@ class TestControlPlaneAuth:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_get_token_success_and_cache(self, mock_config):
+    async def test_get_token_success_and_cache(self, mock_config, http_client):
         """測試成功獲取 token，且第二次呼叫會使用快取"""
-        tool = ControlPlaneTool(mock_config) # 不使用 mock `_get_auth_token` 的 fixture
+        tool = ControlPlaneTool(mock_config, http_client) # 注入 http_client
         token_url = mock_config.auth.keycloak.token_url
 
         # 建立一個假的 JWT token
@@ -248,9 +257,9 @@ class TestControlPlaneAuth:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_get_token_failure(self, mock_config):
+    async def test_get_token_failure(self, mock_config, http_client):
         """測試從 Keycloak 獲取 token 失敗"""
-        tool = ControlPlaneTool(mock_config)
+        tool = ControlPlaneTool(mock_config, http_client) # 注入 http_client
         token_url = mock_config.auth.keycloak.token_url
         respx.post(token_url).mock(return_value=Response(401, json={"error": "unauthorized"}))
 
@@ -260,9 +269,9 @@ class TestControlPlaneAuth:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_token_refresh_on_expiry(self, mock_config):
+    async def test_token_refresh_on_expiry(self, mock_config, http_client):
         """測試當 token 過期時會自動刷新"""
-        tool = ControlPlaneTool(mock_config)
+        tool = ControlPlaneTool(mock_config, http_client) # 注入 http_client
         token_url = mock_config.auth.keycloak.token_url
 
         # 第一次的 token
