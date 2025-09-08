@@ -41,25 +41,67 @@
   - Go：RequestID middleware + otelzap JSON 欄位一致
 - [x] HTTP 逾時/重試/連線池策略統一（httpx / net/http）
 - [x] ControlPlaneTool 唯讀能力覆蓋（resources/resource-groups/audit-logs/incidents/alert-rules/automation/executions）並以 Pydantic 驗證
-- [ ] 測試覆蓋 ≥ 60%（第一階段）與 E2E：部署診斷 202→輪詢→完成
-
-### 3) 低優先度（4–6 週）
 - [ ] 修復 Control Plane Tracer 依賴並恢復 OTel Trace；與 SRE Assistant 串接 trace-id
-- [ ] 限流與安全加固（IP/使用者限流；SCA/SAST 納入 CI）
-- [ ] 由 OpenAPI 生成內部 SDK（避免 client 漂移）
+- [ ] 測試覆蓋 ≥ 60%（第一階段）與 E2E：部署診斷 202→輪詢→完成
 
 ### 驗收標準（Definition of Done）
 - 路徑/方法/狀態碼/Content-Type/基本鍵值 與 pkg/api/*.yaml 一致
 - 新增/調整端點皆有對應測試：單元（成功/錯誤/超時）、契約（狀態碼/型別）、必要時 E2E
 - 服務提供 GET /api/v1/metrics 可被 Prometheus 抓取
 - 日誌具備 request_id/trace_id，為 JSON 結構化
-- CI 綠燈（含契約測試）
 
 ### 參考（本地文件）
 - OpenAPI 與測試：docs/references/adk-docs/tools-openapi-tools.md、docs/references/adk-docs/get-started-testing.md
 - 認證與安全：docs/references/adk-docs/tools-authentication.md、docs/references/adk-agent-samples/headless_agent_auth/
 - 工作流：docs/references/adk-docs/agents-workflow-agents-parallel-agents.md、docs/references/adk-agent-samples/google-adk-workflows/
 - 觀測性：docs/references/adk-docs/observability-logging.md、docs/references/adk-docs/observability-cloud-trace.md
+
+## 償還現有技術債
+
+- **主題**: 根據 ADK 官方最佳實踐，對現有程式碼庫進行重構。
+- **關鍵目標**: 償還現有技術債，並將架構升級到符合 Google SRE 和 ADK 團隊推薦的標準模式。
+
+### 主要交付物 (Key Deliverables):
+
+- **[ ] 1. 性能優化與安全增強**:
+    - **任務**: 實現連線池、API 限流和審計日誌。
+    - **相關子任務 (性能)**:
+        - [ ] **實作連線池**: HTTP 客戶端, 資料庫, Redis。
+        - [ ] **實作快取策略**: 查詢結果, 元資料, 會話。
+    - **相關子任務 (安全)**:
+        - [ ] **實作 API 限流**: 基於 IP 和用戶。
+        - [ ] **實作審計日誌**: 記錄所有 API 調用和敏感操作。
+    - 補充參考（ADK 最佳實踐）:
+        - [AgentOps 可觀測性 | ADK 文件](./references/adk-docs/observability-agentops.md)
+        - [Observability - 結構化日誌 | ADK 文件](./references/adk-docs/observability-logging.md)
+        - [工具認證與安全 | ADK 文件](./references/adk-docs/tools-authentication.md)
+
+- **[🚧] 2. 清理技術債 (Clean Up Technical Debt)**:
+    - **任務**: 解決程式碼庫中的小問題：1) 刪除重複的 `tools/workflow.py` 檔案。2) 完整實現 `main.py` 中的健康檢查 (`check_database`, `check_redis`)。3) 將 `main.py` 中的認證邏輯重構到獨立的模組中。
+    - **相關子任務**:
+        - [ ] 刪除重複的 `tools/workflow.py`
+        - [x] **健康檢查 (`/readyz`)**:
+            - [x] 實現對 Redis 的即時連線檢查
+            - [x] 實現對 Database 的連線檢查
+        - [x] 將認證邏輯重構到獨立模組
+    - **參考**:
+        - **專案結構**: [`docs/references/agent-starter-pack/`](./references/agent-starter-pack/)
+        - **SRE 理論 - 消除瑣事**: [`docs/references/google-sre-book/Chapter-05-Eliminating-Toil.md`](./references/google-sre-book/Chapter-05-Eliminating-Toil.md)
+    - 補充參考（ADK 最佳實踐）:
+        - [Headless Agent 認證中介層（OAuth2 Middleware）](./references/adk-agent-samples/headless_agent_auth/oauth2_middleware.py)
+        - [FastAPI + ADK Runner 實作（包含健康檢查與壽命）](./references/adk-agent-samples/personal-expense-assistant-adk/backend.py)
+        - [ADK 入門與專案結構 | ADK 文件](./references/adk-docs/get-started-about.md)
+
+- **[ ] 3. 增強 ControlPlaneTool (Enhance ControlPlaneTool)**:
+    - **任務**: 將 `ControlPlaneTool` 重構為一個功能完整的工具集。1) 為所有輸入和輸出定義 Pydantic 模型。2) 返回結構化的成功/錯誤回應。3) 增加寫入/修改操作，例如 `restart_deployment`, `acknowledge_alert` 等，使其不僅僅是唯讀的。
+    - **參考**:
+        - **工具集結構**: [`docs/references/adk-agent-samples/github-agent/github_toolset.py`](./references/adk-agent-samples/github-agent/github_toolset.py)
+        - **工具設計指南**: [`docs/references/adk-docs/tools-overview.md`](./references/adk-docs/tools-overview.md)
+    - 補充參考（ADK 最佳實踐）:
+        - [工具總覽與設計 | ADK 文件](./references/adk-docs/tools-overview.md)
+        - [Function Tools 設計 | ADK 文件](./references/adk-docs/tools-function-tools.md)
+
+---
 
 ## Phase 1: 核心整合 (Core Integration)
 
@@ -68,11 +110,11 @@
 
 ### 主要交付物 (Key Deliverables):
 
-- **[✅] 1.1. API 契約符合性 (API Contract Compliance)**:
+- **[x] 1.1. API 契約符合性 (API Contract Compliance)**:
     - **任務**: 確保所有服務嚴格遵守其 OpenAPI 規範。
     - **當前狀態**:
-        - ✅ **SRE Assistant: 100% 完成** (所有端點路徑、參數、格式均符合 `sre-assistant-openapi.yaml`)
-        - ✅ **Control Plane: 100% 健康檢查符合性** (3/3 個健康檢查端點的路徑與格式已修正)
+        - [x] **SRE Assistant: 100% 完成** (所有端點路徑、參數、格式均符合 `sre-assistant-openapi.yaml`)
+        - [x] **Control Plane: 100% 健康檢查符合性** (3/3 個健康檢查端點的路徑與格式已修正)
     - **相關子任務**:
         - [x] **Control Plane**: 修正 `/healthz`, `/readyz` 的路徑與響應格式。
         - [x] **Control Plane**: 新增缺失的 `/api/v1/metrics` 端點。
@@ -82,7 +124,7 @@
         - [契約測試與測試入門 | ADK 文件](./references/adk-docs/get-started-testing.md)
         - [OpenAPI 工具範例（程式碼片段）](./references/snippets/tools/openapi_tool.py)
 
-- **[✅] 1.2. 服務對服務認證 (M2M Authentication)**:
+- **[x] 1.2. 服務對服務認證 (M2M Authentication)**:
     - **任務**: 完整實現基於 Keycloak 和 Client Credentials Flow 的認證機制。
     - **相關子任務**:
         - [x] 實作 `verify_token` 函數的實際 JWT 驗證
@@ -134,7 +176,7 @@
         - [平行工作流範例（程式碼）](./references/adk-agent-samples/google-adk-workflows/parallel/agent.py)
         - [自我校驗工作流範例（Self-Critic）](./references/adk-agent-samples/google-adk-workflows/self_critic/agent.py)
 
-- **[✅] 1.5. 核心服務本地化與持久化**:
+- **[x] 1.5. 核心服務本地化與持久化**:
     - **任務**: 確保開發環境使用 PostgreSQL 作為會話後端，ChromaDB 作為記憶體後端，並能穩定啟動與互動。
     - **相關子任務**:
         - [x] **實作任務狀態持久化**: 使用 Redis 替代記憶體存儲任務狀態。
@@ -272,62 +314,6 @@
 
 ---
 
-## Phase 4: 架構重構與最佳實踐 (Architectural Refactoring & Best Practices)
-
-- **主題**: 根據 ADK 官方最佳實踐，對現有程式碼庫進行重構。
-- **關鍵目標**: 償還現有技術債，並將架構升級到符合 Google SRE 和 ADK 團隊推薦的標準模式。
-
-### 主要交付物 (Key Deliverables):
-
-- **[ ] 4.1. 性能優化與安全增強**:
-    - **任務**: 實現連線池、API 限流和審計日誌。
-    - **相關子任務 (性能)**:
-        - [ ] **實作連線池**: HTTP 客戶端, 資料庫, Redis。
-        - [ ] **實作快取策略**: 查詢結果, 元資料, 會話。
-    - **相關子任務 (安全)**:
-        - [ ] **實作 API 限流**: 基於 IP 和用戶。
-        - [ ] **實作審計日誌**: 記錄所有 API 調用和敏感操作。
-    - 補充參考（ADK 最佳實踐）:
-        - [AgentOps 可觀測性 | ADK 文件](./references/adk-docs/observability-agentops.md)
-        - [Observability - 結構化日誌 | ADK 文件](./references/adk-docs/observability-logging.md)
-        - [工具認證與安全 | ADK 文件](./references/adk-docs/tools-authentication.md)
-
-- **[ ] 4.2. 從 OpenAPI 自動生成客戶端**:
-    - **任務**: 從 `pkg/api/control-plane-openapi.yaml` 自動生成 Go 客戶端程式碼。
-    - **參考**:
-        - **ADK OpenAPI 工具**: [`docs/references/adk-docs/tools-openapi.md`](./references/adk-docs/tools-openapi.md)
-        - **Go Code Gen (外部參考)**: `https://github.com/deepmap/oapi-codegen`
-    - 補充參考（ADK 最佳實踐）:
-        - [OpenAPI 工具指南 | ADK 文件](./references/adk-docs/tools-openapi-tools.md)
-        - [OpenAPI 工具範例（程式碼片段）](./references/snippets/tools/openapi_tool.py)
-
-- **[🚧] 4.3. 清理技術債 (Clean Up Technical Debt)**:
-    - **任務**: 解決程式碼庫中的小問題：1) 刪除重複的 `tools/workflow.py` 檔案。2) 完整實現 `main.py` 中的健康檢查 (`check_database`, `check_redis`)。3) 將 `main.py` 中的認證邏輯重構到獨立的模組中。
-    - **相關子任務**:
-        - [ ] 刪除重複的 `tools/workflow.py`
-        - [x] **健康檢查 (`/readyz`)**:
-            - [x] 實現對 Redis 的即時連線檢查
-            - [x] 實現對 Database 的連線檢查
-        - [x] 將認證邏輯重構到獨立模組
-    - **參考**:
-        - **專案結構**: [`docs/references/agent-starter-pack/`](./references/agent-starter-pack/)
-        - **SRE 理論 - 消除瑣事**: [`docs/references/google-sre-book/Chapter-05-Eliminating-Toil.md`](./references/google-sre-book/Chapter-05-Eliminating-Toil.md)
-    - 補充參考（ADK 最佳實踐）:
-        - [Headless Agent 認證中介層（OAuth2 Middleware）](./references/adk-agent-samples/headless_agent_auth/oauth2_middleware.py)
-        - [FastAPI + ADK Runner 實作（包含健康檢查與壽命）](./references/adk-agent-samples/personal-expense-assistant-adk/backend.py)
-        - [ADK 入門與專案結構 | ADK 文件](./references/adk-docs/get-started-about.md)
-
-- **[ ] 4.4. 增強 ControlPlaneTool (Enhance ControlPlaneTool)**:
-    - **任務**: 將 `ControlPlaneTool` 重構為一個功能完整的工具集。1) 為所有輸入和輸出定義 Pydantic 模型。2) 返回結構化的成功/錯誤回應。3) 增加寫入/修改操作，例如 `restart_deployment`, `acknowledge_alert` 等，使其不僅僅是唯讀的。
-    - **參考**:
-        - **工具集結構**: [`docs/references/adk-agent-samples/github-agent/github_toolset.py`](./references/adk-agent-samples/github-agent/github_toolset.py)
-        - **工具設計指南**: [`docs/references/adk-docs/tools-overview.md`](./references/adk-docs/tools-overview.md)
-    - 補充參考（ADK 最佳實踐）:
-        - [工具總覽與設計 | ADK 文件](./references/adk-docs/tools-overview.md)
-        - [Function Tools 設計 | ADK 文件](./references/adk-docs/tools-function-tools.md)
-
----
-
 ## 📈 KPI 追蹤
 
 | 指標 | 當前狀態 | 目標 | 測量方式 |
@@ -354,20 +340,6 @@
   - 安全檢查通過
   - 壓力測試通過
   - 文檔完整
-
----
-
-## ⚠️ 風險管控
-
-### 高風險項目監控
-- [ ] **技術複雜度管控**
-  - 每週技術債務評估
-  - 代碼複雜度監控
-  - 依賴關係管理
-- [ ] **外部依賴風險**
-  - 外部服務 SLA 監控
-  - 備用方案準備
-  - 降級策略測試
 
 ---
 
