@@ -250,13 +250,64 @@ class SREWorkflow:
 
     async def _analyze_capacity(self, session_id: uuid.UUID, request: CapacityAnalysisRequest, status: DiagnosticStatus) -> CapacityAnalysisResponse:
         """
-        分析容量問題
+        分析指定資源的容量使用情況和趨勢。
         """
         logger.info(f"📈 [Session: {session_id}] 開始分析容量: {request.resource_ids}")
+
+        if not request.resource_ids:
+            # 雖然 API 契約要求至少一個 ID，但還是做個防禦性檢查
+            raise ValueError("CapacityAnalysisRequest 中必須至少提供一個 resource_id。")
+
+        # 暫時只處理第一個 resource_id
+        resource_id = request.resource_ids[0]
+
+        # 1. 從 Control Plane 獲取資源詳情，以得到服務名稱
+        resource_details_result = await self.control_plane_tool.get_resource_details(resource_id)
+        if not resource_details_result.success:
+            logger.error(f"無法獲取資源詳情 {resource_id}: {resource_details_result.error.message}")
+            # 這裡可以根據錯誤類型決定是否要拋出異常或回傳一個錯誤的回應
+            # 為了簡單起見，我們直接拋出異常，讓外層的 try-except 捕捉
+            raise Exception(f"獲取資源 {resource_id} 詳情失敗。")
+
+        service_name = resource_details_result.data.get("name")
+        if not service_name:
+            raise ValueError(f"資源 {resource_id} 的詳細資料中缺少 'name' 欄位。")
+
+        # 2. 使用服務名稱從 Prometheus 查詢飽和度指標
+        prometheus_params = {"service": service_name, "metric_type": "saturation"}
+        saturation_result = await self.prometheus_tool.execute(prometheus_params)
+        if not saturation_result.success:
+            logger.error(f"無法獲取服務 {service_name} 的飽和度指標: {saturation_result.error.message}")
+            raise Exception(f"獲取服務 {service_name} 的飽和度指標失敗。")
+
+        metrics = saturation_result.data
+
+        # 3. 進行簡單的分析和預測
+        # 注意：這是一個非常簡化的模型，真實世界中會使用更複雜的時間序列預測演算法
+        cpu_usage = float(metrics.get("cpu_usage", "0%").strip('%'))
+        mem_usage = float(metrics.get("memory_usage", "0%").strip('%'))
+
+        recommendations = []
+        if cpu_usage > 85.0:
+            recommendations.append({
+                "type": "scale_up",
+                "resource": resource_id,
+                "priority": "high",
+                "reasoning": f"當前 CPU 使用率 ({cpu_usage:.1f}%) 已超過 85% 的閾值。"
+            })
+        if mem_usage > 85.0:
+            recommendations.append({
+                "type": "scale_up",
+                "resource": resource_id,
+                "priority": "high",
+                "reasoning": f"當前記憶體使用率 ({mem_usage:.1f}%) 已超過 85% 的閾值。"
+            })
+
+        # 4. 建立並回傳回應
         return CapacityAnalysisResponse(
-            current_usage={"average": 55.5, "peak": 80.2},
-            forecast={"trend": "increasing", "days_to_capacity": 45},
-            recommendations=[{"type": "scale_up", "resource": request.resource_ids[0], "priority": "high", "reasoning": "預測使用量將在 45 天後達到瓶頸"}]
+            current_usage={"peak": cpu_usage, "average": mem_usage},
+            forecast={"trend": "stable", "days_to_capacity": 90}, # 預測部分暫時使用假資料
+            recommendations=recommendations
         )
 
     async def _diagnose_alerts(self, session_id: uuid.UUID, request: AlertAnalysisRequest, status: DiagnosticStatus) -> DiagnosticResult:
