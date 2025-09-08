@@ -63,14 +63,14 @@
 
 ### 主要交付物 (Key Deliverables):
 
-- **[ ] 1. 性能優化與安全增強**:
+- **[x] 1. 性能優化與安全增強**:
     - **任務**: 實現連線池、API 限流和審計日誌。
     - **相關子任務 (性能)**:
-        - [ ] **實作連線池**: HTTP 客戶端, 資料庫, Redis。
+        - [x] **實作連線池**: HTTP 客戶端, 資料庫, Redis。
         - [ ] **實作快取策略**: 查詢結果, 元資料, 會話。
     - **相關子任務 (安全)**:
-        - [ ] **實作 API 限流**: 基於 IP 和用戶。
-        - [ ] **實作審計日誌**: 記錄所有 API 調用和敏感操作。
+        - [x] **實作 API 限流**: 基於 IP 和用戶。
+        - [x] **實作審計日誌**: 記錄所有 API 調用和敏感操作。
     - 補充參考（ADK 最佳實踐）:
         - [AgentOps 可觀測性 | ADK 文件](./references/adk-docs/observability-agentops.md)
         - [Observability - 結構化日誌 | ADK 文件](./references/adk-docs/observability-logging.md)

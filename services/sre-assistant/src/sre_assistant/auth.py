@@ -61,70 +61,65 @@ async def fetch_jwks(jwks_url: str) -> List[Dict[str, Any]]:
             raise HTTPException(status_code=500, detail="認證服務內部錯誤")
 
 
-async def verify_token(creds: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+async def decode_token(token: str) -> Dict[str, Any]:
     """
-    驗證來自 Control Plane 的 M2M JWT Token。
-
-    這是一個 FastAPI 的依賴項 (Dependency)，會被注入到需要保護的 API 端點中。
-    它會執行以下步驟：
-    1. 檢查設定檔，如果 auth provider 不是 keycloak，則跳過驗證。
-    2. 從 HTTP Authorization 標頭中提取 Bearer Token。
-    3. 獲取 Keycloak 的 JWKS 公鑰集。
-    4. 從 Token 的標頭中解析出 `kid` (Key ID)。
-    5. 在 JWKS 中尋找與 `kid` 匹配的公鑰。
-    6. 使用公鑰驗證 Token 的簽名、發行者 (issuer)、受眾 (audience) 和過期時間。
-    7. 如果驗證成功，返回解碼後的 Token payload；否則，拋出 HTTPException。
+    解碼並驗證 JWT token，但不處理 FastAPI 依賴。
+    這使得此函式可以在中介層等非端點的程式碼中被重複使用。
     """
     config = config_manager.get_config()
-    logger.info(f"[DEBUG] In verify_token, auth provider is: '{config.auth.provider}'")
     if config.auth.provider != "keycloak":
-        logger.warning("Auth provider 不是 keycloak，跳過 JWT 驗證")
-        return {"sub": "service-account-control-plane"}
+        # 在非 keycloak 模式下，返回一個模擬的 payload
+        return {"sub": "service-account-control-plane", "preferred_username": "dev_user"}
 
-    logger.info("✅ Keycloak 認證服務已初始化 (Python)")
-    token = creds.credentials
     try:
         keycloak_url = config.auth.keycloak.url
         realm = config.auth.keycloak.realm
         audience = config.auth.keycloak.audience
 
         jwks_url = f"{keycloak_url}/realms/{realm}/protocol/openid-connect/certs"
-
         jwks_keys = await fetch_jwks(jwks_url)
         if not jwks_keys:
-            raise HTTPException(status_code=503, detail="無法加載認證服務公鑰")
+            raise JOSEError("無法加載認證服務公鑰")
 
         unverified_header = jwt.get_unverified_header(token)
         kid = unverified_header.get("kid")
         if not kid:
-            raise HTTPException(status_code=401, detail="Token 標頭中缺少 'kid'")
+            raise JOSEError("Token 標頭中缺少 'kid'")
 
         rsa_key = {}
         for key in jwks_keys:
             if key["kid"] == kid:
                 rsa_key = {
-                    "kty": key["kty"],
-                    "kid": key["kid"],
-                    "use": key["use"],
-                    "n": key["n"],
-                    "e": key.get("e"), # 'e' is optional for some key types
+                    "kty": key["kty"], "kid": key["kid"], "use": key["use"],
+                    "n": key["n"], "e": key.get("e"),
                 }
                 break
 
         if not rsa_key:
-            raise HTTPException(status_code=401, detail="找不到對應的公鑰")
+            raise JOSEError("找不到對應的公鑰")
 
         public_key = jwk.construct(rsa_key)
-
         payload = jwt.decode(
-            token,
-            public_key,
-            algorithms=["RS256"],
-            audience=audience,
-            issuer=f"{keycloak_url}/realms/{realm}"
+            token, public_key, algorithms=["RS256"],
+            audience=audience, issuer=f"{keycloak_url}/realms/{realm}"
         )
         return payload
 
+    except (JOSEError, Exception) as e:
+        # 將底層錯誤重新拋出，讓呼叫者決定如何處理 (例如，返回 HTTP 錯誤或僅記錄)
+        logger.debug(f"Token 解碼失敗: {e}")
+        raise e
+
+
+async def verify_token(creds: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+    """
+    驗證來自 Control Plane 的 M2M JWT Token。
+    這是一個 FastAPI 的依賴項 (Dependency)，會被注入到需要保護的 API 端點中。
+    """
+    token = creds.credentials
+    try:
+        payload = await decode_token(token)
+        return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token 已過期")
     except jwt.JWTClaimsError as e:
