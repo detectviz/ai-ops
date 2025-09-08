@@ -56,7 +56,7 @@ class SREWorkflow:
         # 將共享的客戶端和 redis_client 傳遞給工具
         self.prometheus_tool = PrometheusQueryTool(config, self.http_client, self.redis_client)
         self.loki_tool = LokiLogQueryTool(config, self.http_client)
-        self.control_plane_tool = ControlPlaneTool(config, self.http_client)
+        self.control_plane_tool = ControlPlaneTool(config, self.http_client, self.redis_client)
         self.parallel_diagnosis = config.workflow.get("parallel_diagnosis", True)
         self.diagnosis_timeout = config.workflow.get("diagnosis_timeout_seconds", 120)
         self.max_retries = config.workflow.get("max_retries", 2)  # 2 retries = 3 total attempts
