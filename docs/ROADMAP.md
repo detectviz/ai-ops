@@ -91,7 +91,7 @@
         - [FastAPI + ADK Runner 實作（包含健康檢查與壽命）](./references/adk-agent-samples/personal-expense-assistant-adk/backend.py)
         - [ADK 入門與專案結構 | ADK 文件](./references/adk-docs/get-started-about.md)
 
-- **[ ] 3. 增強 ControlPlaneTool (Enhance ControlPlaneTool)**:
+- **[x] 3. 增強 ControlPlaneTool (Enhance ControlPlaneTool)**:
     - **任務**: 將 `ControlPlaneTool` 重構為一個功能完整的工具集。1) 為所有輸入和輸出定義 Pydantic 模型。2) 返回結構化的成功/錯誤回應。3) 增加寫入/修改操作，例如 `restart_deployment`, `acknowledge_alert` 等，使其不僅僅是唯讀的。
     - **參考**:
         - **工具集結構**: [`docs/references/adk-agent-samples/github-agent/github_toolset.py`](./references/adk-agent-samples/github-agent/github_toolset.py)
