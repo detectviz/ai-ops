@@ -247,3 +247,84 @@ async def test_prometheus_retry_on_503(mock_config, mock_redis_client):
 
         assert route.call_count == 2
         assert result == 99.0
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_execute_specific_metric_latency(prometheus_tool: PrometheusQueryTool):
+    """測試 'latency' 指標查詢的成功路徑"""
+    params = {"service": "test-service", "metric_type": "latency"}
+    api_url = f"{BASE_URL}/api/v1/query"
+    # 模擬 p99 查詢的回應
+    mock_response_data = {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [0, "0.123"]}]}}
+    respx.get(url__regex=f"{api_url}.*").mock(return_value=Response(200, json=mock_response_data))
+
+    result = await prometheus_tool.execute(params)
+
+    assert result.success is True
+    assert "p50" in result.data
+    assert "p95" in result.data
+    assert "p99" in result.data
+    assert result.data["p99"] == "123.00ms"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_execute_specific_metric_traffic(prometheus_tool: PrometheusQueryTool):
+    """測試 'traffic' 指標查詢的成功路徑"""
+    params = {"service": "test-service", "metric_type": "traffic"}
+    api_url = f"{BASE_URL}/api/v1/query"
+    mock_response_data = {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [0, "10.5"]}]}}
+    respx.get(url__regex=f"{api_url}.*").mock(return_value=Response(200, json=mock_response_data))
+
+    result = await prometheus_tool.execute(params)
+
+    assert result.success is True
+    assert result.data["requests_per_second"] == 10.5
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_execute_specific_metric_errors(prometheus_tool: PrometheusQueryTool):
+    """測試 'errors' 指標查詢的成功路徑"""
+    params = {"service": "test-service", "metric_type": "errors"}
+    api_url = f"{BASE_URL}/api/v1/query"
+    # 模擬錯誤率查詢的回應，第一個是錯誤數，第二個是總數
+    mock_responses = [
+        Response(200, json={"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [0, "1"]}]}}),
+        Response(200, json={"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [0, "100"]}]}}),
+    ]
+    respx.get(url__regex=f"{api_url}.*").mock(side_effect=mock_responses)
+
+    result = await prometheus_tool.execute(params)
+
+    assert result.success is True
+    assert result.data["error_rate"] == "1.00%"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_execute_specific_metric_saturation(prometheus_tool: PrometheusQueryTool):
+    """測試 'saturation' 指標查詢的成功路徑"""
+    params = {"service": "test-service", "metric_type": "saturation"}
+    api_url = f"{BASE_URL}/api/v1/query"
+    mock_response_data = {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [0, "85.5"]}]}}
+    respx.get(url__regex=f"{api_url}.*").mock(return_value=Response(200, json=mock_response_data))
+
+    result = await prometheus_tool.execute(params)
+
+    assert result.success is True
+    assert "cpu_usage" in result.data
+    assert result.data["cpu_usage"] == "85.50%"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_execute_custom_query(prometheus_tool: PrometheusQueryTool):
+    """測試自定義查詢的成功路徑"""
+    custom_query_string = "my_custom_query"
+    params = {"query": custom_query_string}
+    api_url = f"{BASE_URL}/api/v1/query"
+    mock_response_data = {"status": "success", "data": {"resultType": "vector", "result": [{"metric": {}, "value": [0, "987.654"]}]}}
+    respx.get(url__regex=f"{api_url}.*").mock(return_value=Response(200, json=mock_response_data))
+
+    result = await prometheus_tool.execute(params)
+
+    assert result.success is True
+    assert result.data["value"] == 987.654
+    assert result.data["query"] == custom_query_string
