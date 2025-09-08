@@ -50,6 +50,9 @@ opentelemetry-exporter-otlp-proto-grpc = "1.27.0"
 # 非同步任務
 celery = "^5.3.6"
 
+# API 速率限制
+slowapi = "^0.1.9"
+
 # 工具與實用程式
 pyyaml = "^6.0.1"
 python-dotenv = "^1.0.0"

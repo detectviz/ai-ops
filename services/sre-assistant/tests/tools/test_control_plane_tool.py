@@ -7,13 +7,14 @@ import pytest
 import respx
 import httpx
 from httpx import Response, TimeoutException, ConnectError
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 from datetime import datetime, timezone
 import time
 from jose import jwt
 
 from sre_assistant.tools.control_plane_tool import ControlPlaneTool
 from sre_assistant.contracts import ToolResult
+import types
 
 # 測試用的基本 URL 和通用時間戳
 BASE_URL = "http://mock-control-plane"
@@ -21,14 +22,38 @@ NOW_ISO = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
 
 @pytest.fixture
 def mock_config():
-    """提供一個模擬的設定物件"""
+    """提供一個模擬的設定物件，並為 control_plane 新增 get 方法"""
+    def control_plane_get(key, default=None):
+        if key == "cache_ttl_seconds":
+            return 300
+        return default
+
     config = MagicMock()
     config.control_plane.base_url = BASE_URL
     config.control_plane.timeout_seconds = 5
     config.control_plane.client_id = "test-client"
     config.control_plane.client_secret = "test-secret"
+    config.control_plane.get = control_plane_get
     config.auth.keycloak.token_url = f"{BASE_URL}/auth/token"
     return config
+
+@pytest.fixture
+def mock_redis_client():
+    """建立一個模擬的 Redis 客戶端，並提供一個可操作的後端儲存"""
+    redis_store = {}
+
+    async def get(key):
+        return redis_store.get(key)
+
+    async def set(key, value, ex=None):
+        redis_store[key] = value
+        return True
+
+    client = AsyncMock()
+    client.get.side_effect = get
+    client.set.side_effect = set
+
+    return client, redis_store
 
 @pytest.fixture
 def http_client():
@@ -36,13 +61,14 @@ def http_client():
     return httpx.AsyncClient()
 
 @pytest.fixture
-def control_plane_tool(mock_config, http_client, mocker):
-    """初始化 ControlPlaneTool 並注入 HTTP 客戶端，同時模擬其認證流程"""
+def control_plane_tool(mock_config, http_client, mock_redis_client, mocker):
+    """初始化 ControlPlaneTool 並注入模擬的客戶端，同時模擬其認證流程"""
     mocker.patch(
         'sre_assistant.tools.control_plane_tool.ControlPlaneTool._get_auth_token',
         return_value="dummy-jwt-token"
     )
-    tool = ControlPlaneTool(mock_config, http_client)
+    redis_client, _ = mock_redis_client
+    tool = ControlPlaneTool(mock_config, http_client, redis_client)
     return tool
 
 # --- 通用錯誤測試 ---
@@ -314,3 +340,75 @@ async def test_execute_script_validation_error(control_plane_tool: ControlPlaneT
 
     assert result.success is False
     assert result.error.code == "VALIDATION_ERROR"
+
+# --- 測試快取邏輯 ---
+
+class TestControlPlaneCaching:
+    """專門測試 ControlPlaneTool 的快取邏輯"""
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_query_resources_caching(self, control_plane_tool: ControlPlaneTool, mock_redis_client):
+        """測試 query_resources 的快取：第一次 API call，第二次 cache hit"""
+        redis_client, redis_store = mock_redis_client
+        params = {"status": "healthy"}
+        api_url = f"{BASE_URL}/api/v1/resources"
+
+        mock_response = {"items": [{"id": "res1", "name": "R1", "status": "healthy", "type": "db", "createdAt": NOW_ISO, "updatedAt": NOW_ISO}], "pagination": {"page": 1, "pageSize": 10, "total": 1, "totalPages": 1}}
+
+        route = respx.get(api_url, params=params).mock(return_value=Response(200, json=mock_response))
+
+        # 第一次呼叫 (cache miss)
+        result1 = await control_plane_tool.query_resources(params)
+        assert route.call_count == 1
+        assert result1.success is True
+        assert "R1" in str(result1.data)
+        assert len(redis_store) == 1
+
+        # 第二次呼叫 (cache hit)
+        result2 = await control_plane_tool.query_resources(params)
+        assert route.call_count == 1 # API 不應再被呼叫
+        assert result2.success is True
+        # 在比較之前，重新驗證從快取中取出的資料，以確保 datetime 等類型被正確解析
+        from sre_assistant.tools.control_plane_contracts import ResourceList
+        validated_result2_data = ResourceList.model_validate(result2.data).model_dump()
+        assert result1.data == validated_result2_data
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_resource_details_caching(self, control_plane_tool: ControlPlaneTool, mock_redis_client):
+        """測試 get_resource_details 的快取"""
+        _, redis_store = mock_redis_client
+        resource_id = "res-detailed"
+        api_url = f"{BASE_URL}/api/v1/resources/{resource_id}"
+
+        mock_response = {"id": resource_id, "name": "Detailed-R", "status": "healthy", "type": "db", "createdAt": NOW_ISO, "updatedAt": NOW_ISO}
+        route = respx.get(api_url).mock(return_value=Response(200, json=mock_response))
+
+        # 第一次呼叫 (cache miss)
+        await control_plane_tool.get_resource_details(resource_id)
+        assert route.call_count == 1
+        assert len(redis_store) == 1
+
+        # 第二次呼叫 (cache hit)
+        await control_plane_tool.get_resource_details(resource_id)
+        assert route.call_count == 1
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_cache_failure_graceful_degradation(self, control_plane_tool: ControlPlaneTool, mock_redis_client, mocker):
+        """測試當 Redis 讀寫失敗時，工具應能優雅降級，直接呼叫 API"""
+        redis_client, _ = mock_redis_client
+        mocker.patch.object(redis_client, 'get', side_effect=Exception("Redis GET failed"))
+        mocker.patch.object(redis_client, 'set', side_effect=Exception("Redis SET failed"))
+
+        resource_id = "res-no-cache"
+        api_url = f"{BASE_URL}/api/v1/resources/{resource_id}"
+        mock_response = {"id": resource_id, "name": "No-Cache-R", "status": "healthy", "type": "db", "createdAt": NOW_ISO, "updatedAt": NOW_ISO}
+        route = respx.get(api_url).mock(return_value=Response(200, json=mock_response))
+
+        result = await control_plane_tool.get_resource_details(resource_id)
+
+        assert route.call_count == 1
+        assert result.success is True
+        assert result.data["name"] == "No-Cache-R"
