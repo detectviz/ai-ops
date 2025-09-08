@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.uber.org/zap"
 )
@@ -35,13 +37,45 @@ type SreAssistantClientImpl struct {
 	logger        *otelzap.Logger
 }
 
+var (
+	// sharedHTTPClient 是一個強固且共享的客戶端，用於所有與 SRE Assistant 的通訊。
+	// 它設定了合理的連線池、多層次的逾時和自動重試機制。
+	sharedHTTPClient *http.Client
+)
+
+func init() {
+	// 1. 設定 Transport 以實現連線池和精細的逾時控制
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   5 * time.Second,  // 連線逾時
+			KeepAlive: 30 * time.Second, // 連線保持啟用
+		}).DialContext,
+		MaxIdleConns:          100,              // 最大閒置連線數
+		MaxIdleConnsPerHost:   10,               // 對單一主機的最大閒置連線數
+		IdleConnTimeout:       90 * time.Second, // 閒置連線逾時
+		TLSHandshakeTimeout:   10 * time.Second, // TLS 交握逾時
+		ResponseHeaderTimeout: 15 * time.Second, // 等待回應標頭的逾時
+	}
+
+	// 2. 建立一個可重試的 HTTP 客戶端
+	retryClient := retryablehttp.NewClient()
+	retryClient.HTTPClient = &http.Client{
+		Transport: transport,
+		Timeout:   60 * time.Second, // 設定涵蓋整個請求（包括重試）的總逾時
+	}
+	retryClient.RetryMax = 3   // 最多重試 3 次
+	retryClient.Logger = nil   // 禁用函式庫的預設日誌，避免干擾我們的結構化日誌
+
+	// 3. 將可重試客戶端轉換為標準的 http.Client，並將其賦值給共享變數
+	sharedHTTPClient = retryClient.StandardClient()
+}
+
 // NewSreAssistantClient 建立一個新的 SRE Assistant 客戶端實例
 func NewSreAssistantClient(baseURL string, tokenProvider SreAssistantTokenProvider, logger *otelzap.Logger) SreAssistantClient {
 	return &SreAssistantClientImpl{
-		baseURL:    baseURL,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		baseURL:       baseURL,
+		httpClient:    sharedHTTPClient, // 使用全域共享的客戶端
 		tokenProvider: tokenProvider,
 		logger:        logger,
 	}
