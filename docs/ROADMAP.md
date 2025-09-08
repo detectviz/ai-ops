@@ -76,7 +76,7 @@
         - [Observability - 結構化日誌 | ADK 文件](./references/adk-docs/observability-logging.md)
         - [工具認證與安全 | ADK 文件](./references/adk-docs/tools-authentication.md)
 
-- **[🚧] 2. 清理技術債 (Clean Up Technical Debt)**:
+- **[x] 2. 清理技術債 (Clean Up Technical Debt)**:
     - **任務**: 解決程式碼庫中的小問題：1) 完整實現 `main.py` 中的健康檢查 (`check_database`, `check_redis`)。2) 將 `main.py` 中的認證邏輯重構到獨立的模組中。
     - **相關子任務**:
         - [x] **健康檢查 (`/readyz`)**:
