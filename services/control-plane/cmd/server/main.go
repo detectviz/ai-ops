@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/detectviz/control-plane/internal/api"
 	"github.com/detectviz/control-plane/internal/auth"
 	"github.com/detectviz/control-plane/internal/config"
 	"github.com/detectviz/control-plane/internal/database"
@@ -21,10 +20,19 @@ import (
 	"github.com/detectviz/control-plane/internal/middleware"
 	"github.com/detectviz/control-plane/internal/services"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"github.com/rs/cors"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -35,6 +43,17 @@ func main() {
 	if err != nil {
 		logger.Fatal("載入配置失敗", zap.Error(err))
 	}
+
+	// 初始化 Tracer Provider
+	tpShutdown, err := initTracerProvider(context.Background(), cfg)
+	if err != nil {
+		logger.Fatal("初始化 Tracer Provider 失敗", zap.Error(err))
+	}
+	defer func() {
+		if err := tpShutdown(context.Background()); err != nil {
+			logger.Error("關閉 Tracer Provider 失敗", zap.Error(err))
+		}
+	}()
 
 	db, err := database.New(cfg.Database.URL)
 	if err != nil {
@@ -106,6 +125,40 @@ func main() {
 	logger.Info("伺服器已關閉")
 }
 
+// initTracerProvider 初始化 OpenTelemetry Tracer Provider
+func initTracerProvider(ctx context.Context, cfg *config.Config) (func(context.Context) error, error) {
+	res, err := resource.New(ctx,
+		resource.WithAttributes(
+			semconv.ServiceNameKey.String(cfg.Otel.ServiceName),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create resource: %w", err)
+	}
+
+	// 使用 OTLP gRPC exporter
+	conn, err := grpc.NewClient(cfg.Otel.ExporterEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
+	}
+
+	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
+	}
+
+	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(traceExporter),
+		sdktrace.WithResource(res),
+		sdktrace.WithSpanProcessor(bsp),
+	)
+	otel.SetTracerProvider(tracerProvider)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+
+	return tracerProvider.Shutdown, nil
+}
+
 func initLogger() *otelzap.Logger {
 	config := zap.NewProductionConfig()
 	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -149,6 +202,8 @@ func loadTemplates(dir string) (*template.Template, error) {
 func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelzap.Logger, cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
 
+	// otelmux middleware should be first to wrap all other handlers
+	r.Use(otelmux.Middleware(cfg.Otel.ServiceName))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Logging(logger))
 	r.Use(middleware.Recovery(logger))
@@ -168,31 +223,31 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 
 	apiRouter := r.PathPrefix("/api/v1").Subrouter()
 	apiRouter.Use(middleware.RequireAuth(auth))
-	apiRouter.HandleFunc("/dashboard/summary", api.GetDashboardSummary(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/dashboard/trends", api.GetDashboardTrends(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/dashboard/resource-distribution", api.GetResourceDistribution(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/resources", api.ListResources(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/resources", api.CreateResource(h.Services)).Methods("POST")
-	apiRouter.HandleFunc("/resources/{resourceId}", api.GetResource(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/resources/{resourceId}", api.UpdateResource(h.Services)).Methods("PUT")
-	apiRouter.HandleFunc("/resources/{resourceId}", api.DeleteResource(h.Services)).Methods("DELETE")
-	apiRouter.HandleFunc("/resources/batch", api.BatchOperateResources(h.Services)).Methods("POST")
-	apiRouter.HandleFunc("/resources/scan", api.ScanNetwork(h.Services)).Methods("POST")
-	apiRouter.HandleFunc("/resources/scan/{taskId}", api.GetScanResult(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/audit-logs", api.GetAuditLogs(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/incidents", api.ListIncidents(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/incidents", api.CreateIncident(h.Services)).Methods("POST")
-	apiRouter.HandleFunc("/incidents/{incidentId}", api.GetIncident(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/incidents/{incidentId}", api.UpdateIncident(h.Services)).Methods("PUT")
-	apiRouter.HandleFunc("/incidents/{incidentId}/acknowledge", api.AcknowledgeIncident(h.Services)).Methods("POST")
-	apiRouter.HandleFunc("/incidents/{incidentId}/resolve", api.ResolveIncident(h.Services)).Methods("POST")
-	apiRouter.HandleFunc("/incidents/{incidentId}/assign", api.AssignIncident(h.Services)).Methods("POST")
-	apiRouter.HandleFunc("/incidents/{incidentId}/comments", api.AddIncidentComment(h.Services)).Methods("POST")
-	apiRouter.HandleFunc("/incidents/generate-report", api.GenerateIncidentReport(h.Services)).Methods("POST")
-	apiRouter.HandleFunc("/alerts", api.ListAlerts(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/executions", api.GetExecutions(h.Services)).Methods("GET")
-	apiRouter.HandleFunc("/executions", api.CreateExecution(h.Services)).Methods("POST")
-	apiRouter.HandleFunc("/executions/{id}", api.UpdateExecution(h.Services)).Methods("PATCH")
+	apiRouter.HandleFunc("/dashboard/summary", h.GetDashboardSummary).Methods("GET")
+	apiRouter.HandleFunc("/dashboard/trends", h.GetDashboardTrends).Methods("GET")
+	apiRouter.HandleFunc("/dashboard/resource-distribution", h.GetResourceDistribution).Methods("GET")
+	apiRouter.HandleFunc("/resources", h.ListResources).Methods("GET")
+	apiRouter.HandleFunc("/resources", h.CreateResourceAPI).Methods("POST")
+	apiRouter.HandleFunc("/resources/{resourceId}", h.GetResource).Methods("GET")
+	apiRouter.HandleFunc("/resources/{resourceId}", h.UpdateResource).Methods("PUT")
+	apiRouter.HandleFunc("/resources/{resourceId}", h.DeleteResource).Methods("DELETE")
+	apiRouter.HandleFunc("/resources/batch", h.BatchOperateResources).Methods("POST")
+	apiRouter.HandleFunc("/resources/scan", h.ScanNetwork).Methods("POST")
+	apiRouter.HandleFunc("/resources/scan/{taskId}", h.GetScanResult).Methods("GET")
+	apiRouter.HandleFunc("/audit-logs", h.GetAuditLogs).Methods("GET")
+	apiRouter.HandleFunc("/incidents", h.ListIncidents).Methods("GET")
+	apiRouter.HandleFunc("/incidents", h.CreateIncident).Methods("POST")
+	apiRouter.HandleFunc("/incidents/{incidentId}", h.GetIncident).Methods("GET")
+	apiRouter.HandleFunc("/incidents/{incidentId}", h.UpdateIncident).Methods("PUT")
+	apiRouter.HandleFunc("/incidents/{incidentId}/acknowledge", h.AcknowledgeIncident).Methods("POST")
+	apiRouter.HandleFunc("/incidents/{incidentId}/resolve", h.ResolveIncident).Methods("POST")
+	apiRouter.HandleFunc("/incidents/{incidentId}/assign", h.AssignIncident).Methods("POST")
+	apiRouter.HandleFunc("/incidents/{incidentId}/comments", h.AddIncidentComment).Methods("POST")
+	apiRouter.HandleFunc("/incidents/generate-report", h.GenerateIncidentReport).Methods("POST")
+	apiRouter.HandleFunc("/alerts", h.ListAlerts).Methods("GET")
+	apiRouter.HandleFunc("/executions", h.GetExecutions).Methods("GET")
+	apiRouter.HandleFunc("/executions", h.CreateExecution).Methods("POST")
+	apiRouter.HandleFunc("/executions/{id}", h.UpdateExecution).Methods("PATCH")
 
 	webRouter := r.PathPrefix("/").Subrouter()
 	webRouter.Use(middleware.RequireSession(auth, cfg))

@@ -11,6 +11,13 @@ type Config struct {
 	Database     DatabaseConfig
 	Auth         AuthConfig
 	SREAssistant SREAssistantConfig
+	Otel         OtelConfig
+}
+
+// OtelConfig 包含了 OpenTelemetry 的配置。
+type OtelConfig struct {
+	ExporterEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT" envDefault:"localhost:4317"`
+	ServiceName      string `env:"OTEL_SERVICE_NAME" envDefault:"control-plane"`
 }
 
 // ServerConfig 包含了伺服器的配置。

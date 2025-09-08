@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	"github.com/detectviz/control-plane/internal/auth"
+	"github.com/detectviz/control-plane/internal/config"
+	"github.com/detectviz/control-plane/internal/models"
 	"github.com/detectviz/control-plane/internal/services"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -20,9 +23,19 @@ import (
 	"go.uber.org/zap"
 )
 
+// ServiceChecker defines the interface for services that handlers depend on.
+// This makes the handlers more testable by allowing mock implementations.
+type ServiceChecker interface {
+	CheckReadiness() bool
+	GetDeploymentByID(ctx context.Context, id string) (*models.Deployment, error)
+	TriggerDeploymentDiagnosis(ctx context.Context, deployment *models.Deployment) (*services.DiagnosticResponse, error)
+	CheckDiagnosisStatus(ctx context.Context, sessionID string) (*services.DiagnosticStatus, error)
+	GetConfig() *config.Config
+}
+
 // Handlers 是一個容器，集中管理所有 HTTP 處理器方法。
 type Handlers struct {
-	Services    *services.Services
+	Services    ServiceChecker // Use the interface instead of the concrete type
 	Templates   *template.Template
 	AuthService *auth.KeycloakService
 	Logger      *otelzap.Logger
@@ -32,11 +45,20 @@ type Handlers struct {
 // NewHandlers 建立並返回一個新的 Handlers 實例。
 func NewHandlers(s *services.Services, t *template.Template, as *auth.KeycloakService, l *otelzap.Logger) *Handlers {
 	return &Handlers{
-		Services:    s,
+		Services:    s, // *services.Services implements ServiceChecker
 		Templates:   t,
 		AuthService: as,
 		Logger:      l,
 	}
+}
+
+// NewHandlersForTest creates a new Handlers instance for testing purposes.
+func NewHandlersForTest(s ServiceChecker, t *template.Template, l *otelzap.Logger) *Handlers {
+    return &Handlers{
+        Services:    s,
+        Templates:   t,
+        Logger:      l,
+    }
 }
 
 // --- Mock Data (Aligned with OpenAPI Spec) ---
@@ -305,21 +327,20 @@ func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 // ReadinessCheck 檢查服務及其依賴是否就緒，並回傳符合 OpenAPI 規範的格式。
 func (h *Handlers) ReadinessCheck(w http.ResponseWriter, r *http.Request) {
-	// 這裡的 DB Ping 是一個簡化的例子。在真實應用中，可能需要更複雜的檢查邏輯。
-	dbReady := true // 假設 DB 正常
-	if h.Services.DB != nil {
-		// dbReady = h.Services.DB.Ping() == nil // 假設有 Ping 方法
-	}
+	ready := h.Services.CheckReadiness()
+
+	// TODO: 擴充 CheckReadiness 以返回詳細的檢查結果
 	response := map[string]interface{}{
-		"ready": dbReady,
+		"ready": ready,
 		"checks": map[string]bool{
-			"database":      dbReady,
+			"database":      ready, // 簡化處理，實際應有更詳細的檢查
 			"redis":         true, // 假設 Redis 正常
 			"keycloak":      true, // 假設 Keycloak 正常
 			"sre_assistant": true, // 假設 SRE Assistant 正常
 		},
 	}
-	if !dbReady {
+
+	if !ready {
 		h.writeJSON(w, http.StatusServiceUnavailable, response)
 		return
 	}
@@ -342,7 +363,7 @@ func (h *Handlers) LoginPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	if h.Services.Config.Auth.Mode == "dev" {
+	if h.Services.GetConfig().Auth.Mode == "dev" {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "無法解析表單", http.StatusBadRequest)
 			return
@@ -998,4 +1019,218 @@ func (h *Handlers) GetDiagnosisStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.writeJSON(w, http.StatusOK, status)
+}
+
+// GetAuditLogs 處理獲取審計日誌的請求 (存根)。
+func (h *Handlers) GetAuditLogs(w http.ResponseWriter, r *http.Request) {
+	mockLogs := []map[string]interface{}{
+		{
+			"timestamp":   time.Now().Add(-1 * time.Hour).Format(time.RFC3339),
+			"event_type":  "DEPLOYMENT",
+			"author":      "jules@example.com",
+			"summary":     "Deployed version v1.2.3 of payment-api",
+		},
+	}
+	h.writeJSON(w, http.StatusOK, mockLogs)
+}
+
+// GetIncidents 處理獲取告警紀錄的請求 (存根)。
+func (h *Handlers) GetIncidents(w http.ResponseWriter, r *http.Request) {
+	// 修正：雖然這是 map[string]interface{}，但仍應盡力與 spec 保持一致
+	mockIncidents := []map[string]interface{}{
+		{
+			"id":          "INC-1001",
+			"severity":    "error",
+			"created_at":  time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
+			"title":       "High CPU Usage",
+			"description": "The payment-api service is experiencing high CPU usage.",
+			"status":      "new",
+		},
+	}
+	h.writeJSON(w, http.StatusOK, mockIncidents)
+}
+
+// GetExecutions 處理獲取自動化執行日誌的請求 (存根)。
+func (h *Handlers) GetExecutions(w http.ResponseWriter, r *http.Request) {
+	mockExecutions := []map[string]interface{}{}
+	h.writeJSON(w, http.StatusOK, mockExecutions)
+}
+
+// CreateExecution 處理建立新執行紀錄的請求 (存根)。
+func (h *Handlers) CreateExecution(w http.ResponseWriter, r *http.Request) {
+	mockExecution := map[string]interface{}{
+		"id":            123,
+		"executionTime": time.Now().Format(time.RFC3339),
+		"scriptName":    "Deployment Diagnosis",
+		"status":        "running",
+	}
+	h.writeJSON(w, http.StatusCreated, mockExecution)
+}
+
+// UpdateExecution 處理更新執行紀錄狀態的請求 (存根)。
+func (h *Handlers) UpdateExecution(w http.ResponseWriter, r *http.Request) {
+	mockExecution := map[string]interface{}{
+		"id":            123,
+		"executionTime": time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
+		"scriptName":    "Deployment Diagnosis",
+		"status":        "completed",
+		"duration":      "35s",
+		"output":        "Diagnosis complete. No critical issues found.",
+	}
+	h.writeJSON(w, http.StatusOK, mockExecution)
+}
+
+// GetDashboardSummary 處理儀表板摘要數據的請求 (骨架)。
+func (h *Handlers) GetDashboardSummary(w http.ResponseWriter, r *http.Request) {
+	mockSummary := models.DashboardSummary{
+		Alerts: &models.DashboardSummaryAlerts{ New: 5, Processing: 2, ResolvedToday: 15 },
+		Resources: &models.DashboardSummaryResources{ Total: 150, Healthy: 145, Warning: 3, Critical: 2 },
+		KPIs:      &models.DashboardSummaryKPIs{ Availability: 99.98, MTTR: 15.5, IncidentRate: 0.5 },
+	}
+	h.writeJSON(w, http.StatusOK, mockSummary)
+}
+
+// GetDashboardTrends 處理儀表板趨勢數據的請求 (骨架)。
+func (h *Handlers) GetDashboardTrends(w http.ResponseWriter, r *http.Request) {
+    period := r.URL.Query().Get("period")
+    if period == "" {
+        period = "24h"
+    }
+    mockTrends := map[string]interface{}{
+        "period": period,
+        "data_points": []map[string]interface{}{
+            {"timestamp": time.Now().Add(-2 * time.Hour).Format(time.RFC3339), "incidents": 5, "cpu_usage": 60.5},
+            {"timestamp": time.Now().Add(-1 * time.Hour).Format(time.RFC3339), "incidents": 3, "cpu_usage": 65.2},
+            {"timestamp": time.Now().Format(time.RFC3339), "incidents": 2, "cpu_usage": 63.1},
+        },
+    }
+    h.writeJSON(w, http.StatusOK, mockTrends)
+}
+
+// GetResourceDistribution 處理資源分佈數據的請求 (骨架)。
+func (h *Handlers) GetResourceDistribution(w http.ResponseWriter, r *http.Request) {
+    mockDistribution := map[string]interface{}{
+        "by_status": map[string]int{
+            "healthy":  145,
+            "warning":  3,
+            "critical": 2,
+        },
+        "by_type": map[string]int{
+            "server":      100,
+            "database":    20,
+            "application": 30,
+        },
+        "by_group": []map[string]interface{}{
+            {"group_name": "Core Services", "count": 50},
+            {"group_name": "Data Platform", "count": 40},
+            {"group_name": "Web Services", "count": 60},
+        },
+    }
+    h.writeJSON(w, http.StatusOK, mockDistribution)
+}
+
+// --- Resources Handlers (Skeletons) ---
+
+func (h *Handlers) ListResources(w http.ResponseWriter, r *http.Request) {
+	mockResources := models.ResourceList{
+		Items:      []models.Resource{},
+		Pagination: models.Pagination{Page: 1, PageSize: 20, Total: 0, TotalPages: 1},
+	}
+	h.writeJSON(w, http.StatusOK, mockResources)
+}
+
+func (h *Handlers) CreateResourceAPI(w http.ResponseWriter, r *http.Request) {
+	var req models.ResourceCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeJSON(w, http.StatusBadRequest, nil)
+		return
+	}
+	mockResource := models.Resource{ID: uuid.NewString(), Name: req.Name, Type: req.Type, IPAddress: req.IPAddress, Status: "unknown"}
+	h.writeJSON(w, http.StatusCreated, mockResource)
+}
+
+func (h *Handlers) GetResource(w http.ResponseWriter, r *http.Request) {
+	mockResource := models.Resource{ID: uuid.NewString(), Name: "mock-server-01", Type: "server", Status: "healthy"}
+	h.writeJSON(w, http.StatusOK, mockResource)
+}
+
+func (h *Handlers) UpdateResource(w http.ResponseWriter, r *http.Request) {
+	mockResource := models.Resource{ID: uuid.NewString(), Name: "updated-mock-server-01", Type: "server", Status: "healthy"}
+	h.writeJSON(w, http.StatusOK, mockResource)
+}
+
+func (h *Handlers) DeleteResource(w http.ResponseWriter, r *http.Request) {
+	h.writeJSON(w, http.StatusNoContent, nil)
+}
+
+func (h *Handlers) BatchOperateResources(w http.ResponseWriter, r *http.Request) {
+	mockResult := models.BatchOperationResult{SuccessCount: 1, FailureCount: 0}
+	h.writeJSON(w, http.StatusOK, mockResult)
+}
+
+func (h *Handlers) ScanNetwork(w http.ResponseWriter, r *http.Request) {
+	mockResponse := models.ScanTaskResponse{TaskID: "scan-123", Status: "pending"}
+	h.writeJSON(w, http.StatusAccepted, mockResponse)
+}
+
+func (h *Handlers) GetScanResult(w http.ResponseWriter, r *http.Request) {
+	mockResult := models.ScanResult{TaskID: "scan-123", Status: "completed"}
+	h.writeJSON(w, http.StatusOK, mockResult)
+}
+
+// --- Incidents Handlers (Skeletons) ---
+
+func (h *Handlers) ListIncidents(w http.ResponseWriter, r *http.Request) {
+	mockIncidents := models.IncidentList{
+		Items:      []models.Incident{},
+		Pagination: models.Pagination{Page: 1, PageSize: 20, Total: 0, TotalPages: 1},
+	}
+	h.writeJSON(w, http.StatusOK, mockIncidents)
+}
+
+func (h *Handlers) CreateIncident(w http.ResponseWriter, r *http.Request) {
+	var req models.IncidentCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeJSON(w, http.StatusBadRequest, nil)
+		return
+	}
+	mockIncident := models.Incident{ID: uuid.NewString(), Title: req.Title, Severity: req.Severity, Status: "new"}
+	h.writeJSON(w, http.StatusCreated, mockIncident)
+}
+
+func (h *Handlers) GetIncident(w http.ResponseWriter, r *http.Request) {
+	mockIncident := models.Incident{ID: uuid.NewString(), Title: "High CPU Usage", Severity: "critical", Status: "new"}
+	h.writeJSON(w, http.StatusOK, mockIncident)
+}
+
+func (h *Handlers) UpdateIncident(w http.ResponseWriter, r *http.Request) {
+	mockIncident := models.Incident{ID: uuid.NewString(), Title: "Updated Incident Title"}
+	h.writeJSON(w, http.StatusOK, mockIncident)
+}
+
+func (h *Handlers) AcknowledgeIncident(w http.ResponseWriter, r *http.Request) {
+	mockIncident := models.Incident{ID: uuid.NewString(), Status: "acknowledged"}
+	h.writeJSON(w, http.StatusOK, mockIncident)
+}
+
+func (h *Handlers) ResolveIncident(w http.ResponseWriter, r *http.Request) {
+	mockIncident := models.Incident{ID: uuid.NewString(), Status: "resolved"}
+	h.writeJSON(w, http.StatusOK, mockIncident)
+}
+
+func (h *Handlers) AssignIncident(w http.ResponseWriter, r *http.Request) {
+	h.writeJSON(w, http.StatusOK, map[string]string{"message": "Incident assigned"})
+}
+
+func (h *Handlers) AddIncidentComment(w http.ResponseWriter, r *http.Request) {
+	h.writeJSON(w, http.StatusCreated, map[string]string{"message": "Comment added"})
+}
+
+func (h *Handlers) GenerateIncidentReport(w http.ResponseWriter, r *http.Request) {
+	mockReport := models.AIGeneratedReport{ReportType: "summary", Content: "This is an AI generated report."}
+	h.writeJSON(w, http.StatusOK, mockReport)
+}
+
+func (h *Handlers) ListAlerts(w http.ResponseWriter, r *http.Request) {
+	h.writeJSON(w, http.StatusOK, map[string]interface{}{"alerts": []string{}, "total": 0})
 }
