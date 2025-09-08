@@ -130,3 +130,49 @@ class ExecutionList(BaseModel):
     """
     items: List[Execution]
     pagination: Pagination
+
+class AuditLog(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 AuditLog schema。
+    """
+    id: str
+    user_id: Optional[str] = Field(None, alias='userId')
+    action: str
+    target_resource_id: Optional[str] = Field(None, alias='targetResourceId')
+    target_resource_type: Optional[str] = Field(None, alias='targetResourceType')
+    status: str
+    details: Optional[Dict[str, Any]] = None
+    timestamp: datetime
+
+    class Config:
+        populate_by_name = True
+
+class AuditLogList(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 AuditLogList schema。
+    """
+    items: List[AuditLog]
+    pagination: Pagination
+
+class Incident(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 Incident schema。
+    """
+    id: str
+    title: str
+    status: str
+    severity: str
+    reporter: Optional[str] = None
+    assignee: Optional[str] = None
+    created_at: datetime = Field(..., alias='createdAt')
+    updated_at: datetime = Field(..., alias='updatedAt')
+
+    class Config:
+        populate_by_name = True
+
+class IncidentList(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 IncidentList schema。
+    """
+    items: List[Incident]
+    pagination: Pagination
