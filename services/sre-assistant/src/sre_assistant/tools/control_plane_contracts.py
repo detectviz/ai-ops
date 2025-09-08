@@ -176,3 +176,40 @@ class IncidentList(BaseModel):
     """
     items: List[Incident]
     pagination: Pagination
+
+# ============================================
+# Schemas for Write/Modify Operations
+# ============================================
+
+class AcknowledgeIncidentRequest(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 AcknowledgeIncident request body。
+    用於確認一個事件。
+    """
+    acknowledged_by: Optional[str] = Field(None, description="確認人")
+    comment: Optional[str] = Field(None, description="確認備註")
+
+class ScriptExecuteRequest(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 ScriptExecuteRequest schema。
+    用於執行自動化腳本。
+    """
+    script_id: str = Field(..., description="要執行的腳本 ID")
+    parameters: Optional[Dict[str, Any]] = Field(None, description="腳本需要的參數")
+    target_resources: Optional[List[str]] = Field(None, description="執行目標資源的 ID 列表")
+    dry_run: bool = Field(False, description="是否為模擬執行")
+
+    class Config:
+        populate_by_name = True
+
+class ExecutionTaskResponse(BaseModel):
+    """
+    對應 control-plane-openapi.yaml 中的 ExecutionTaskResponse schema。
+    執行自動化腳本後的回應。
+    """
+    execution_id: str = Field(..., alias='executionId')
+    status: str
+    message: Optional[str] = None
+
+    class Config:
+        populate_by_name = True

@@ -36,31 +36,37 @@ from .contracts import (
 )
 from .workflow import SREWorkflow, SREWorkflowRequest
 
-# --- 結構化日誌設定 ---
+# --- 結構化日誌 & OpenTelemetry 設定 ---
 import structlog
 import contextvars
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+from opentelemetry.instrumentation.fastapi import OpenTelemetryMiddleware
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 
-# 1. 為請求 ID 建立 ContextVar
+# 1. 為請求 ID 和 Trace ID 建立 ContextVar
 request_id_var = contextvars.ContextVar("request_id", default=None)
+trace_id_var = contextvars.ContextVar("trace_id", default=None)
+
+def get_trace_id(span):
+    """從當前的 Span 中提取 Trace ID"""
+    if span and span.get_span_context().is_valid:
+        return format(span.get_span_context().trace_id, '032x')
+    return None
 
 def configure_logging():
-    """設定 structlog 以輸出 JSON 格式的日誌"""
-
-    # structlog 處理器鏈
+    """設定 structlog 以輸出 JSON 格式的日誌，並包含 trace_id"""
     processors = [
-        # 將 contextvars (如 request_id) 合併到日誌記錄中
         structlog.contextvars.merge_contextvars,
-        # 新增日誌級別和名稱等標準屬性
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
-        # 新增時間戳
         structlog.processors.TimeStamper(fmt="iso"),
-        # 如果有異常，格式化它
         structlog.processors.format_exc_info,
-        # 渲染為 JSON
         structlog.processors.JSONRenderer(),
     ]
-
     structlog.configure(
         processors=processors,
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -68,10 +74,45 @@ def configure_logging():
         cache_logger_on_first_use=True,
     )
 
+def init_tracer(config, logger):
+    """初始化 OpenTelemetry Tracer Provider，使其更具彈性"""
+    try:
+        service_name = config.get("otel.service_name", "sre-assistant")
+        endpoint = config.get("otel.exporter_endpoint", "localhost:4317")
+
+        if not endpoint:
+            logger.info("OTEL_EXPORTER_OTLP_ENDPOINT 未設定，將禁用 tracing。")
+            return False
+
+        logger.info(f"正在初始化 OTel Tracer... Service: {service_name}, Endpoint: {endpoint}")
+
+        resource = Resource(attributes={
+            SERVICE_NAME: service_name
+        })
+
+        # 建立一個非阻塞的 OTLP gRPC exporter
+        # 注意：這裡我們不使用 with-block 的 gRPC 連線，以避免在無法連線時阻塞啟動
+        otlp_exporter = OTLPSpanExporter(endpoint=endpoint, insecure=True)
+
+        provider = TracerProvider(resource=resource)
+        provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+
+        trace.set_tracer_provider(provider)
+
+        # 自動儀器化 httpx 客戶端，使其自動傳播追蹤上下文
+        HTTPXClientInstrumentor().instrument()
+
+        logger.info("✅ OTel Tracer Provider 初始化成功")
+        return True
+
+    except Exception as e:
+        logger.warning(f"初始化 OTel Tracer Provider 失敗，將禁用 tracing: {e}", exc_info=True)
+        return False
+
 # 在應用啟動時設定日誌
 configure_logging()
 logger = structlog.get_logger(__name__)
-# --- 結構化日誌設定結束 ---
+# --- 結構化日誌 & OTel 設定結束 ---
 
 # 全域變數
 workflow: Optional[SREWorkflow] = None
@@ -129,11 +170,14 @@ async def lifespan(app: FastAPI):
 
         # 初始化工作流程引擎，並傳入共享的客戶端
         workflow = SREWorkflow(config, redis_client, http_client)
-
-        app_ready = True
         logger.info("✅ 工作流程引擎與任務儲存已初始化")
 
+        # 初始化 OTel Tracer
+        init_tracer(config, logger)
+
+        app_ready = True
         logger.info("✅ SRE Assistant 啟動完成")
+
         yield
     except Exception as e:
         logger.error(f"💀 SRE Assistant 啟動失敗: {e}", exc_info=True)
@@ -161,6 +205,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# 僅在 tracer 初始化成功時才加入 OTel 中介層
+# 檢查 provider 是否存在且不是 NoOpTracerProvider
+if trace.get_tracer_provider() and not isinstance(trace.get_tracer_provider(), trace.NoOpTracerProvider):
+    app.add_middleware(
+        OpenTelemetryMiddleware,
+        tracer_provider=trace.get_tracer_provider()
+    )
+    logger.info("✅ OTel FastAPI Middleware 已啟用")
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -169,16 +223,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Request ID 中介層 ---
+# --- Request ID 與 Trace ID 中介層 ---
 @app.middleware("http")
-async def request_id_middleware(request: Request, call_next):
+async def request_context_middleware(request: Request, call_next):
     """
-    攔截請求，生成唯一的 request_id，並將其放入 context var。
+    攔截請求，處理 request_id 和 trace_id，並將它們放入 context var。
+    這個中介層應該在 OTel Middleware 之後，以便能訪問由 OTel 創建的 span。
     """
+    # 處理 Request ID
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
     request_id_var.set(request_id)
+
+    # 在 OTel Middleware 之後執行，從 OTel context 提取 trace_id
+    span = trace.get_current_span()
+    current_trace_id = get_trace_id(span)
+    trace_id_var.set(current_trace_id)
+
+    # 確保 response header 包含 request_id
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
+    if current_trace_id:
+         # 也可以選擇性地在回應中加入 trace_id
+         response.headers["X-Trace-ID"] = current_trace_id
+
     return response
 
 # 認證邏輯已重構至 auth.py

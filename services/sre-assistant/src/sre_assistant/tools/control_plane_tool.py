@@ -6,7 +6,7 @@ Control Plane 整合工具
 
 import structlog
 import httpx
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import jwt
 import time
 
@@ -15,7 +15,8 @@ from pydantic import ValidationError
 from ..contracts import ToolResult, ToolError
 from .control_plane_contracts import (
     Resource, ResourceList, ResourceGroupList, AlertRuleList, ExecutionList,
-    AuditLogList, IncidentList
+    AuditLogList, IncidentList, Incident,
+    AcknowledgeIncidentRequest, ScriptExecuteRequest, ExecutionTaskResponse
 )
 
 logger = structlog.get_logger(__name__)
@@ -139,6 +140,51 @@ class ControlPlaneTool:
         try:
             response_data = await self._make_request(method="GET", endpoint="/api/v1/automation/executions", params=params)
             return ToolResult(success=True, data=ExecutionList.model_validate(response_data).model_dump())
+        except ValidationError as e:
+            return self._handle_validation_error(e, params)
+        except Exception as e:
+            return self._handle_error(e, params)
+
+    async def acknowledge_incident(self, incident_id: str, acknowledged_by: Optional[str] = None, comment: Optional[str] = None) -> ToolResult:
+        """
+        確認一個事件 (POST /api/v1/incidents/{incidentId}/acknowledge)
+        """
+        params = {"incident_id": incident_id}
+        try:
+            request_body = AcknowledgeIncidentRequest(acknowledged_by=acknowledged_by, comment=comment)
+            json_data = request_body.model_dump(exclude_none=True)
+
+            response_data = await self._make_request(
+                method="POST",
+                endpoint=f"/api/v1/incidents/{incident_id}/acknowledge",
+                json_data=json_data
+            )
+            return ToolResult(success=True, data=Incident.model_validate(response_data).model_dump())
+        except ValidationError as e:
+            return self._handle_validation_error(e, params)
+        except Exception as e:
+            return self._handle_error(e, params)
+
+    async def execute_script(self, script_id: str, parameters: Optional[Dict[str, Any]] = None, target_resources: Optional[List[str]] = None, dry_run: bool = False) -> ToolResult:
+        """
+        執行自動化腳本 (POST /api/v1/automation/execute)
+        """
+        params = {"script_id": script_id, "dry_run": dry_run}
+        try:
+            request_body = ScriptExecuteRequest(
+                script_id=script_id,
+                parameters=parameters,
+                target_resources=target_resources,
+                dry_run=dry_run
+            )
+            json_data = request_body.model_dump(exclude_none=True)
+
+            response_data = await self._make_request(
+                method="POST",
+                endpoint="/api/v1/automation/execute",
+                json_data=json_data
+            )
+            return ToolResult(success=True, data=ExecutionTaskResponse.model_validate(response_data).model_dump())
         except ValidationError as e:
             return self._handle_validation_error(e, params)
         except Exception as e:

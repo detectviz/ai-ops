@@ -234,3 +234,83 @@ class TestControlPlaneAuth:
         token2 = await tool._get_auth_token()
         assert token2 == fake_token2
         assert route.call_count == 2
+
+# --- 測試 acknowledge_incident ---
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_acknowledge_incident_success(control_plane_tool: ControlPlaneTool):
+    """測試成功確認事件"""
+    incident_id = "inc-123"
+    mock_response = {
+        "id": incident_id,
+        "title": "Test Incident",
+        "status": "acknowledged",
+        "severity": "P1",
+        "createdAt": NOW_ISO,
+        "updatedAt": NOW_ISO
+    }
+    respx.post(f"{BASE_URL}/api/v1/incidents/{incident_id}/acknowledge").mock(return_value=Response(200, json=mock_response))
+
+    result = await control_plane_tool.acknowledge_incident(incident_id, acknowledged_by="test-user")
+
+    assert result.success is True
+    assert result.data["id"] == incident_id
+    assert result.data["status"] == "acknowledged"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_acknowledge_incident_not_found(control_plane_tool: ControlPlaneTool):
+    """測試確認一個不存在的事件"""
+    incident_id = "inc-404"
+    respx.post(f"{BASE_URL}/api/v1/incidents/{incident_id}/acknowledge").mock(return_value=Response(404))
+
+    result = await control_plane_tool.acknowledge_incident(incident_id)
+
+    assert result.success is False
+    assert result.error.code == "HTTP_STATUS_ERROR"
+    assert result.error.details["status_code"] == 404
+
+# --- 測試 execute_script ---
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_execute_script_success(control_plane_tool: ControlPlaneTool):
+    """測試成功執行腳本"""
+    mock_response = {
+        "executionId": "exec-abc",
+        "status": "pending",
+        "message": "Execution started"
+    }
+    respx.post(f"{BASE_URL}/api/v1/automation/execute").mock(return_value=Response(202, json=mock_response))
+
+    result = await control_plane_tool.execute_script(script_id="script-1", target_resources=["res-1"])
+
+    assert result.success is True
+    assert result.data["execution_id"] == "exec-abc"
+    assert result.data["status"] == "pending"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_execute_script_bad_request(control_plane_tool: ControlPlaneTool):
+    """測試執行腳本時參數錯誤"""
+    respx.post(f"{BASE_URL}/api/v1/automation/execute").mock(return_value=Response(400, json={"error": "Invalid script ID"}))
+
+    result = await control_plane_tool.execute_script(script_id="invalid-script")
+
+    assert result.success is False
+    assert result.error.code == "HTTP_STATUS_ERROR"
+    assert result.error.details["status_code"] == 400
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_execute_script_validation_error(control_plane_tool: ControlPlaneTool):
+    """測試執行腳本後的回應格式不正確"""
+    # 回應缺少必要的 'executionId' 欄位
+    mock_response = {"status": "pending"}
+    respx.post(f"{BASE_URL}/api/v1/automation/execute").mock(return_value=Response(202, json=mock_response))
+
+    result = await control_plane_tool.execute_script(script_id="script-1")
+
+    assert result.success is False
+    assert result.error.code == "VALIDATION_ERROR"
