@@ -5,6 +5,7 @@ SRE 工作流程協調器 (已重構以支援非同步任務)
 
 import asyncio
 import functools
+import re
 import structlog
 import uuid
 import httpx
@@ -250,13 +251,64 @@ class SREWorkflow:
 
     async def _analyze_capacity(self, session_id: uuid.UUID, request: CapacityAnalysisRequest, status: DiagnosticStatus) -> CapacityAnalysisResponse:
         """
-        分析容量問題
+        分析指定資源的容量使用情況和趨勢。
         """
         logger.info(f"📈 [Session: {session_id}] 開始分析容量: {request.resource_ids}")
+
+        if not request.resource_ids:
+            # 雖然 API 契約要求至少一個 ID，但還是做個防禦性檢查
+            raise ValueError("CapacityAnalysisRequest 中必須至少提供一個 resource_id。")
+
+        # 暫時只處理第一個 resource_id
+        resource_id = request.resource_ids[0]
+
+        # 1. 從 Control Plane 獲取資源詳情，以得到服務名稱
+        resource_details_result = await self.control_plane_tool.get_resource_details(resource_id)
+        if not resource_details_result.success:
+            logger.error(f"無法獲取資源詳情 {resource_id}: {resource_details_result.error.message}")
+            # 這裡可以根據錯誤類型決定是否要拋出異常或回傳一個錯誤的回應
+            # 為了簡單起見，我們直接拋出異常，讓外層的 try-except 捕捉
+            raise Exception(f"獲取資源 {resource_id} 詳情失敗。")
+
+        service_name = resource_details_result.data.get("name")
+        if not service_name:
+            raise ValueError(f"資源 {resource_id} 的詳細資料中缺少 'name' 欄位。")
+
+        # 2. 使用服務名稱從 Prometheus 查詢飽和度指標
+        prometheus_params = {"service": service_name, "metric_type": "saturation"}
+        saturation_result = await self.prometheus_tool.execute(prometheus_params)
+        if not saturation_result.success:
+            logger.error(f"無法獲取服務 {service_name} 的飽和度指標: {saturation_result.error.message}")
+            raise Exception(f"獲取服務 {service_name} 的飽和度指標失敗。")
+
+        metrics = saturation_result.data
+
+        # 3. 進行簡單的分析和預測
+        # 注意：這是一個非常簡化的模型，真實世界中會使用更複雜的時間序列預測演算法
+        cpu_usage = float(metrics.get("cpu_usage", "0%").strip('%'))
+        mem_usage = float(metrics.get("memory_usage", "0%").strip('%'))
+
+        recommendations = []
+        if cpu_usage > 85.0:
+            recommendations.append({
+                "type": "scale_up",
+                "resource": resource_id,
+                "priority": "high",
+                "reasoning": f"當前 CPU 使用率 ({cpu_usage:.1f}%) 已超過 85% 的閾值。"
+            })
+        if mem_usage > 85.0:
+            recommendations.append({
+                "type": "scale_up",
+                "resource": resource_id,
+                "priority": "high",
+                "reasoning": f"當前記憶體使用率 ({mem_usage:.1f}%) 已超過 85% 的閾值。"
+            })
+
+        # 4. 建立並回傳回應
         return CapacityAnalysisResponse(
-            current_usage={"average": 55.5, "peak": 80.2},
-            forecast={"trend": "increasing", "days_to_capacity": 45},
-            recommendations=[{"type": "scale_up", "resource": request.resource_ids[0], "priority": "high", "reasoning": "預測使用量將在 45 天後達到瓶頸"}]
+            current_usage={"peak": cpu_usage, "average": mem_usage},
+            forecast={"trend": "stable", "days_to_capacity": 90}, # 預測部分暫時使用假資料
+            recommendations=recommendations
         )
 
     async def _diagnose_alerts(self, session_id: uuid.UUID, request: AlertAnalysisRequest, status: DiagnosticStatus) -> DiagnosticResult:
@@ -266,9 +318,73 @@ class SREWorkflow:
         logger.info(f"🔍 [Session: {session_id}] 開始診斷告警: {request.alert_ids}")
         return DiagnosticResult(summary="告警分析功能尚未完全實作。", findings=[], recommended_actions=[])
 
+    def _parse_natural_language_query(self, query: str) -> tuple[Optional[str], Optional[str], Optional[dict]]:
+        """
+        一個簡單的自然語言查詢解析器。
+        使用關鍵字和正則表達式來提取意圖和實體。
+        """
+        query = query.lower()
+
+        # 提取服務名稱 (例如 "for billing-api", "of auth-service")
+        service_match = re.search(r"\b(for|of|in)\s+([a-zA-Z0-9_-]+)", query)
+        service_name = service_match.group(2) if service_match else None
+
+        # 關鍵字路由
+        prometheus_keywords = ["cpu", "memory", "saturation", "latency", "traffic", "errors", "metrics"]
+        loki_keywords = ["logs", "log", "error", "exception", "trace"]
+        control_plane_keywords = ["deployment", "audit", "resource", "incident"]
+
+        for keyword in prometheus_keywords:
+            if keyword in query:
+                # 'saturation' 是一個特殊的 metric_type，它會查詢所有飽和度指標
+                metric_type = "saturation" if keyword in ["cpu", "memory", "saturation"] else keyword
+                return "prometheus", service_name, {"service": service_name, "metric_type": metric_type}
+
+        for keyword in loki_keywords:
+            if keyword in query:
+                return "loki", service_name, {"service": service_name, "query": "error"} # 簡化查詢
+
+        for keyword in control_plane_keywords:
+            if keyword in query:
+                return "control_plane", service_name, {"resource_type": "deployment", "search": service_name}
+
+        return None, None, None
+
     async def _execute_query(self, session_id: uuid.UUID, request: ExecuteRequest, status: DiagnosticStatus) -> DiagnosticResult:
         """
-        執行自然語言查詢 (骨架)
+        執行自然語言查詢。
         """
         logger.info(f"🤖 [Session: {session_id}] 執行查詢: {request.query}")
-        return DiagnosticResult(summary=f"已執行查詢: '{request.query}'", findings=[], recommended_actions=["無"])
+
+        tool_name, service_name, params = self._parse_natural_language_query(request.query)
+
+        if not tool_name or not service_name:
+            return DiagnosticResult(summary=f"無法理解查詢 '{request.query}'。請指定一個工具關鍵字 (如 'cpu', 'logs') 和一個服務名稱 (如 'for my-service')。", findings=[], recommended_actions=["重寫查詢"])
+
+        status.current_step = f"將查詢路由到 {tool_name} 工具"
+        status.progress = 30
+        await self._update_task_status(session_id, status)
+
+        tool_result: Optional[ToolResult] = None
+        if tool_name == "prometheus":
+            tool_result = await self.prometheus_tool.execute(params)
+        elif tool_name == "loki":
+            tool_result = await self.loki_tool.execute(params)
+        elif tool_name == "control_plane":
+            tool_result = await self.control_plane_tool.query_audit_logs(params)
+
+        status.current_step = "格式化工具回應"
+        status.progress = 90
+        await self._update_task_status(session_id, status)
+
+        if tool_result and tool_result.success:
+            summary = f"成功從 {tool_name} 獲取關於 '{service_name}' 的資訊。"
+            findings = [Finding(source=tool_name, severity="info", message=f"查詢 '{request.query}' 的結果。", evidence=tool_result.data)]
+            return DiagnosticResult(summary=summary, findings=findings)
+        elif tool_result:
+            summary = f"從 {tool_name} 查詢 '{service_name}' 時發生錯誤。"
+            findings = [Finding(source=tool_name, severity="critical", message=tool_result.error.message, evidence=tool_result.error.details)]
+            return DiagnosticResult(summary=summary, findings=findings)
+        else:
+            # 這是 _parse_natural_language_query 的後備防線
+            return DiagnosticResult(summary="無法執行查詢，因為沒有選擇任何工具。", findings=[])

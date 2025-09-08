@@ -9,10 +9,27 @@ import httpx
 import json
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception, RetryError
 
 from ..contracts import ToolResult, ToolError
 
 logger = structlog.get_logger(__name__)
+
+
+def should_retry_prometheus_exception(exception: BaseException) -> bool:
+    """
+    決定是否應重試 Prometheus 請求的自訂邏輯。
+
+    - 對於連線錯誤和超時，總是重試。
+    - 對於 HTTP 狀態錯誤，僅對 5xx 系列的伺服器錯誤重試。
+    - 對於其他錯誤（如 4xx 客戶端錯誤），不重試。
+    """
+    if isinstance(exception, (httpx.TimeoutException, httpx.ConnectError)):
+        return True
+    if isinstance(exception, httpx.HTTPStatusError):
+        # 僅對 5xx (伺服器錯誤) 或 429 (請求過多) 重試
+        return exception.response.status_code >= 500 or exception.response.status_code == 429
+    return False
 
 
 class PrometheusQueryTool:
@@ -45,7 +62,15 @@ class PrometheusQueryTool:
         self.redis_client = redis_client
         self.cache_ttl_seconds = config.prometheus.get("cache_ttl_seconds", 300) # 預設 5 分鐘
 
-        logger.info(f"✅ Prometheus 工具初始化 (使用共享 HTTP 客戶端): {self.base_url}")
+        # 重試設定
+        self.max_retries = config.workflow.get("max_retries", 2)
+        self.retry_wait_multiplier = config.workflow.get("retry_delay_seconds", 1)
+
+        logger.info(
+            f"✅ Prometheus 工具初始化 (使用共享 HTTP 客戶端): {self.base_url}",
+            max_retries=self.max_retries,
+            retry_wait_multiplier=self.retry_wait_multiplier
+        )
     
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         """
@@ -98,8 +123,44 @@ class PrometheusQueryTool:
                 }
             )
             
+        except RetryError as e:
+            logger.error(f"❌ Prometheus API 查詢在重試後仍然失敗: {e}", exc_info=True)
+            original_exception = e.last_attempt.exception()
+
+            error_code = "RETRY_ERROR"
+            error_message = "Request failed after multiple retries."
+            details = {"last_exception": str(original_exception)}
+
+            if isinstance(original_exception, httpx.HTTPStatusError):
+                error_code = "HTTP_STATUS_ERROR"
+                error_message = f"Prometheus API returned HTTP {original_exception.response.status_code}: {original_exception.response.reason_phrase}"
+                details = {
+                    "status_code": original_exception.response.status_code,
+                    "response_body": original_exception.response.text[:500],
+                    "request_url": str(original_exception.request.url),
+                }
+            elif isinstance(original_exception, httpx.TimeoutException):
+                error_code = "TIMEOUT_ERROR"
+                error_message = f"Prometheus API request timed out after {self.timeout}s"
+                details = {
+                    "timeout_seconds": self.timeout,
+                    "request_url": str(original_exception.request.url) if hasattr(original_exception, 'request') else None,
+                }
+            elif isinstance(original_exception, httpx.ConnectError):
+                error_code = "CONNECTION_ERROR"
+                error_message = f"Failed to connect to Prometheus: {str(original_exception)}"
+                details = {"base_url": self.base_url}
+
+            details["params"] = params
+            details["retries"] = self.max_retries
+
+            return ToolResult(
+                success=False,
+                error=ToolError(code=error_code, message=error_message, details=details)
+            )
         except httpx.HTTPStatusError as e:
-            logger.error(f"❌ Prometheus API 查詢失敗: {e.response.status_code} - {e.response.text}", exc_info=True)
+            # 只有在 tenacity 不重試時 (例如 4xx 錯誤) 才會直接觸發這裡
+            logger.error(f"❌ Prometheus API 查詢失敗 (非重試): {e.response.status_code} - {e.response.text}", exc_info=True)
             return ToolResult(
                 success=False,
                 error=ToolError(
@@ -107,7 +168,7 @@ class PrometheusQueryTool:
                     message=f"Prometheus API returned HTTP {e.response.status_code}: {e.response.reason_phrase}",
                     details={
                         "status_code": e.response.status_code,
-                        "response_body": e.response.text[:500],  # 限制回應內容長度
+                        "response_body": e.response.text[:500],
                         "request_url": str(e.request.url),
                         "params": params
                     }
@@ -273,6 +334,19 @@ class PrometheusQueryTool:
             logger.warning(f"Prometheus health check failed: {e}")
             return False
 
+    async def _execute_with_retry(self, request_func, **kwargs):
+        """
+        一個通用的包裝函式，以程式化的方式執行具有 tenacity 重試邏輯的請求。
+        這允許我們使用來自 'self' 的配置 (例如 self.max_retries)。
+        """
+        retry_decorator = retry(
+            stop=stop_after_attempt(self.max_retries + 1),
+            wait=wait_exponential(multiplier=self.retry_wait_multiplier, min=2, max=10),
+            retry=retry_if_exception(should_retry_prometheus_exception),
+            reraise=True
+        )
+        return await retry_decorator(request_func)(**kwargs)
+
     async def _execute_instant_query(self, query: str) -> Optional[float]:
         """
         執行即時查詢，並增加 Redis 快取機制。
@@ -289,15 +363,17 @@ class PrometheusQueryTool:
             except Exception as e:
                 logger.error(f"Redis 快取讀取失敗: {e}")
 
-        params = {"query": query, "time": datetime.now(timezone.utc).isoformat()}
-        response = await self.http_client.get(
-            f"{self.base_url}/api/v1/query",
-            params=params,
-            timeout=self.timeout
-        )
-        response.raise_for_status()
+        async def do_request():
+            params = {"query": query, "time": datetime.now(timezone.utc).isoformat()}
+            response = await self.http_client.get(
+                f"{self.base_url}/api/v1/query",
+                params=params,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            return response.json()
 
-        data = response.json()
+        data = await self._execute_with_retry(do_request)
 
         if data["status"] != "success":
             logger.warning(f"Prometheus 查詢 '{query}' 成功執行但未返回 'success' 狀態: {data.get('error', 'Unknown error')}")
@@ -340,20 +416,22 @@ class PrometheusQueryTool:
             except Exception as e:
                 logger.error(f"Redis 快取讀取失敗: {e}")
 
-        params = {
-            "query": query,
-            "start": start.isoformat(),
-            "end": end.isoformat(),
-            "step": step
-        }
-        response = await self.http_client.get(
-            f"{self.base_url}/api/v1/query_range",
-            params=params,
-            timeout=self.timeout
-        )
-        response.raise_for_status()
+        async def do_request():
+            params = {
+                "query": query,
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "step": step
+            }
+            response = await self.http_client.get(
+                f"{self.base_url}/api/v1/query_range",
+                params=params,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            return response.json()
 
-        data = response.json()
+        data = await self._execute_with_retry(do_request)
 
         if data["status"] != "success":
             logger.warning(f"Prometheus 查詢 '{query}' 成功執行但未返回 'success' 狀態: {data.get('error', 'Unknown error')}")

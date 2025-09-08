@@ -12,7 +12,7 @@ python = "^3.11"
 # Web 框架
 fastapi = "^0.109.0"
 uvicorn = {extras = ["standard"], version = "^0.27.0"}
-httpx = "^0.26.0"
+httpx = {version = "^0.26.0", extras = ["http2"]}
 
 # Google ADK 相關
 google-generativeai = "^0.3.2"

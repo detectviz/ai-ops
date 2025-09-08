@@ -14,7 +14,8 @@ from pydantic import ValidationError
 
 from ..contracts import ToolResult, ToolError
 from .control_plane_contracts import (
-    Resource, ResourceList, ResourceGroupList, AlertRuleList, ExecutionList
+    Resource, ResourceList, ResourceGroupList, AlertRuleList, ExecutionList,
+    AuditLogList, IncidentList
 )
 
 logger = structlog.get_logger(__name__)
@@ -102,16 +103,20 @@ class ControlPlaneTool:
     async def query_audit_logs(self, params: Optional[Dict] = None) -> ToolResult:
         """查詢部署相關的審計日誌 (GET /api/v1/audit-logs)"""
         try:
-            response = await self._make_request(method="GET", endpoint="/api/v1/audit-logs", params=params)
-            return ToolResult(success=True, data={"logs": response.get("data", [])})
+            response_data = await self._make_request(method="GET", endpoint="/api/v1/audit-logs", params=params)
+            return ToolResult(success=True, data=AuditLogList.model_validate(response_data).model_dump())
+        except ValidationError as e:
+            return self._handle_validation_error(e, params)
         except Exception as e:
             return self._handle_error(e, params)
 
     async def query_incidents(self, params: Optional[Dict] = None) -> ToolResult:
         """查詢相關事件 (GET /api/v1/incidents)"""
         try:
-            response = await self._make_request(method="GET", endpoint="/api/v1/incidents", params=params)
-            return ToolResult(success=True, data={"incidents": response.get("data", [])})
+            response_data = await self._make_request(method="GET", endpoint="/api/v1/incidents", params=params)
+            return ToolResult(success=True, data=IncidentList.model_validate(response_data).model_dump())
+        except ValidationError as e:
+            return self._handle_validation_error(e, params)
         except Exception as e:
             return self._handle_error(e, params)
 

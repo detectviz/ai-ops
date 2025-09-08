@@ -21,6 +21,7 @@
   - Control Plane：Cookie/Session 金鑰改為環境變數（CONTROL_PLANE_SESSION_KEY）
 - 待辦
   - 工具層單元測試與錯誤分類補齊（Prometheus/Loki/ControlPlaneTool）
+    - [x] **PrometheusQueryTool**: 已重構，加入基於 Tenacity 的指數退避重試與更詳細的錯誤分類。
   - 契約回歸測試與 CI 整合（make test 聚合兩服務的契約測試）
 
 ### 1) 高優先度（本週內）
@@ -39,7 +40,7 @@
   - [x] Python：structlog/python-json-logger + Request/Trace ID 中介層
   - Go：RequestID middleware + otelzap JSON 欄位一致
 - [x] HTTP 逾時/重試/連線池策略統一（httpx / net/http）
-- [ ] ControlPlaneTool 唯讀能力覆蓋（resources/resource-groups/audit-logs/incidents/alert-rules/automation/executions）並以 Pydantic 驗證
+- [x] ControlPlaneTool 唯讀能力覆蓋（resources/resource-groups/audit-logs/incidents/alert-rules/automation/executions）並以 Pydantic 驗證
 - [ ] 測試覆蓋 ≥ 60%（第一階段）與 E2E：部署診斷 202→輪詢→完成
 
 ### 3) 低優先度（4–6 週）
@@ -158,8 +159,8 @@
     - **對應 API**: `/diagnostics/alerts`, `/diagnostics/capacity`, `/execute`
     - **相關子任務**:
         - [x] **實現告警診斷工作流程 (`_diagnose_alerts`)**: 已實現核心邏輯並添加單元測試。
-        - [ ] **實現容量分析工作流程 (`_analyze_capacity`)**
-        - [ ] **實現自然語言查詢工作流程 (`_execute_query`)**
+        - [x] **實現容量分析工作流程 (`_analyze_capacity`)**: 已實現真實邏輯，取代模擬資料。
+        - [x] **實現自然語言查詢工作流程 (`_execute_query`)**: 已實現基於關鍵字的路由邏輯。
     - **注意事項**:
         - `test_integration.py` 中有兩個測試 (`test_access_protected_endpoint_with_bad_token`, `test_loki_query_integration`) 因環境問題暫時跳過，待後續修復。
     - **參考**:

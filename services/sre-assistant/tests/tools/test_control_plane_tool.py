@@ -115,11 +115,23 @@ async def test_get_audit_logs_http_error(control_plane_tool: ControlPlaneTool):
 @pytest.mark.asyncio
 @respx.mock
 async def test_query_audit_logs_success(control_plane_tool: ControlPlaneTool):
-    mock_response = {"data": [{"id": "log2", "message": "Deployment updated"}]}
+    mock_response = {
+        "items": [{
+            "id": "log2",
+            "userId": "user-123",
+            "action": "update_deployment",
+            "targetResourceId": "dep-abc",
+            "targetResourceType": "deployment",
+            "status": "success",
+            "timestamp": NOW_ISO
+        }],
+        "pagination": {"page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
+    }
     respx.get(f"{BASE_URL}/api/v1/audit-logs").mock(return_value=Response(200, json=mock_response))
     result = await control_plane_tool.query_audit_logs()
     assert result.success is True
-    assert len(result.data["logs"]) == 1
+    assert len(result.data["items"]) == 1
+    assert result.data["items"][0]["action"] == "update_deployment"
 
 @pytest.mark.asyncio
 @respx.mock
@@ -128,6 +140,36 @@ async def test_query_audit_logs_http_error(control_plane_tool: ControlPlaneTool)
     result = await control_plane_tool.query_audit_logs()
     assert result.success is False
     assert result.error.code == "HTTP_STATUS_ERROR"
+
+# --- 測試 query_incidents ---
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_query_incidents_success(control_plane_tool: ControlPlaneTool):
+    mock_response = {
+        "items": [{
+            "id": "inc-1",
+            "title": "Database is slow",
+            "status": "acknowledged",
+            "severity": "P2",
+            "createdAt": NOW_ISO,
+            "updatedAt": NOW_ISO
+        }],
+        "pagination": {"page": 1, "pageSize": 10, "total": 1, "totalPages": 1}
+    }
+    respx.get(f"{BASE_URL}/api/v1/incidents").mock(return_value=Response(200, json=mock_response))
+    result = await control_plane_tool.query_incidents()
+    assert result.success is True
+    assert len(result.data["items"]) == 1
+    assert result.data["items"][0]["title"] == "Database is slow"
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_query_incidents_validation_error(control_plane_tool: ControlPlaneTool):
+    respx.get(f"{BASE_URL}/api/v1/incidents").mock(return_value=Response(200, json={"items": [{"id": "invalid"}]}))
+    result = await control_plane_tool.query_incidents()
+    assert result.success is False
+    assert result.error.code == "VALIDATION_ERROR"
 
 class TestControlPlaneAuth:
     """專門測試 ControlPlaneTool 的認證流程"""

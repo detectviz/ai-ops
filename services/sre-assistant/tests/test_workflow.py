@@ -14,6 +14,8 @@ from sre_assistant.contracts import (
     ToolError,
     DiagnosticStatus,
     AlertAnalysisRequest,
+    CapacityAnalysisRequest,
+    ExecuteRequest,
 )
 
 
@@ -168,3 +170,90 @@ async def test_diagnose_alerts_stub(workflow, mock_redis_client):
     assert final_status.status == "completed"
     assert final_status.result is not None
     assert "尚未完全實作" in final_status.result.summary
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "query, expected_tool, expected_service",
+    [
+        ("show me the cpu for auth-service", "prometheus", "auth-service"),
+        ("get logs for billing-api", "loki", "billing-api"),
+        ("any new deployments in payment-gateway?", "control_plane", "payment-gateway"),
+        ("what is the meaning of life", None, None),
+    ]
+)
+async def test_execute_query_routing(workflow, query, expected_tool, expected_service):
+    """
+    測試 _execute_query 方法是否能根據查詢關鍵字正確路由到對應的工具。
+    """
+    session_id = uuid.uuid4()
+    request = ExecuteRequest(query=query)
+    status = DiagnosticStatus(session_id=session_id, status="processing")
+
+    # 模擬所有工具
+    workflow.prometheus_tool.execute = AsyncMock(return_value=ToolResult(success=True, data={}))
+    workflow.loki_tool.execute = AsyncMock(return_value=ToolResult(success=True, data={}))
+    workflow.control_plane_tool.query_audit_logs = AsyncMock(return_value=ToolResult(success=True, data={}))
+
+    result = await workflow._execute_query(session_id, request, status)
+
+    if expected_tool == "prometheus":
+        workflow.prometheus_tool.execute.assert_called_once()
+        assert workflow.prometheus_tool.execute.call_args[0][0]["service"] == expected_service
+        workflow.loki_tool.execute.assert_not_called()
+        workflow.control_plane_tool.query_audit_logs.assert_not_called()
+    elif expected_tool == "loki":
+        workflow.loki_tool.execute.assert_called_once()
+        assert workflow.loki_tool.execute.call_args[0][0]["service"] == expected_service
+        workflow.prometheus_tool.execute.assert_not_called()
+        workflow.control_plane_tool.query_audit_logs.assert_not_called()
+    elif expected_tool == "control_plane":
+        workflow.control_plane_tool.query_audit_logs.assert_called_once()
+        assert workflow.control_plane_tool.query_audit_logs.call_args[0][0]["search"] == expected_service
+        workflow.prometheus_tool.execute.assert_not_called()
+        workflow.loki_tool.execute.assert_not_called()
+    else: # 無法理解的查詢
+        assert "無法理解查詢" in result.summary
+        workflow.prometheus_tool.execute.assert_not_called()
+        workflow.loki_tool.execute.assert_not_called()
+        workflow.control_plane_tool.query_audit_logs.assert_not_called()
+
+@pytest.mark.asyncio
+async def test_analyze_capacity_workflow(workflow):
+    """
+    測試容量分析工作流程的成功路徑。
+    """
+    session_id = uuid.uuid4()
+    resource_id = "res-123"
+    service_name = "billing-service"
+    request = CapacityAnalysisRequest(resource_ids=[resource_id], metric_type="cpu", forecast_days=30)
+    status = DiagnosticStatus(session_id=session_id, status="processing")
+
+    # 模擬 ControlPlaneTool 的回傳值
+    mock_resource_data = {"id": resource_id, "name": service_name, "type": "deployment", "status": "running", "createdAt": "2023-01-01T00:00:00Z", "updatedAt": "2023-01-01T00:00:00Z"}
+    workflow.control_plane_tool.get_resource_details = AsyncMock(
+        return_value=ToolResult(success=True, data=mock_resource_data)
+    )
+
+    # 模擬 PrometheusTool 的回傳值
+    mock_metrics_data = {"cpu_usage": "91.5%", "memory_usage": "75.2%"}
+    workflow.prometheus_tool.execute = AsyncMock(
+        return_value=ToolResult(success=True, data=mock_metrics_data)
+    )
+
+    # 執行分析
+    response = await workflow._analyze_capacity(session_id, request, status)
+
+    # 驗證回傳結果
+    assert response.current_usage.peak == 91.5
+    assert response.current_usage.average == 75.2
+    assert len(response.recommendations) == 1
+    recommendation = response.recommendations[0]
+    assert recommendation.type == "scale_up"
+    assert recommendation.resource == resource_id
+    assert "CPU 使用率" in recommendation.reasoning
+
+    # 驗證工具是否被正確呼叫
+    workflow.control_plane_tool.get_resource_details.assert_called_once_with(resource_id)
+    workflow.prometheus_tool.execute.assert_called_once_with(
+        {"service": service_name, "metric_type": "saturation"}
+    )

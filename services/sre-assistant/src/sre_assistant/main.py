@@ -17,8 +17,7 @@ import time
 import httpx
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
-# 依賴項和認證邏輯已重構
-from .dependencies import config_manager
+from .dependencies import config_manager, security
 from .auth import verify_token
 
 from .contracts import (
@@ -108,7 +107,7 @@ async def lifespan(app: FastAPI):
         logger.info("✅ 已成功連接到 Redis")
 
         # 僅在非測試環境中初始化 PostgreSQL 連線池
-        if config.get("environment") != "test":
+        if config_manager.environment != "test":
             db_pool = await asyncpg.create_pool(
                 dsn=config.database.url,
                 min_size=5,
