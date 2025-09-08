@@ -38,7 +38,7 @@
 - [x] 結構化日誌一致性：
   - [x] Python：structlog/python-json-logger + Request/Trace ID 中介層
   - Go：RequestID middleware + otelzap JSON 欄位一致
-- [ ] HTTP 逾時/重試/連線池策略統一（httpx / net/http）
+- [x] HTTP 逾時/重試/連線池策略統一（httpx / net/http）
 - [ ] ControlPlaneTool 唯讀能力覆蓋（resources/resource-groups/audit-logs/incidents/alert-rules/automation/executions）並以 Pydantic 驗證
 - [ ] 測試覆蓋 ≥ 60%（第一階段）與 E2E：部署診斷 202→輪詢→完成
 

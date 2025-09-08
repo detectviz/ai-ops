@@ -19,10 +19,9 @@ def mock_config():
     return config
 
 @pytest.fixture
-async def http_client():
+def http_client():
     """提供一個標準的 HTTP 客戶端供測試使用"""
-    async with httpx.AsyncClient() as client:
-        yield client
+    return httpx.AsyncClient()
 
 @pytest.fixture
 def loki_tool(mock_config, http_client):
