@@ -45,10 +45,9 @@ func main() {
 	}
 
 	// 初始化 Tracer Provider
-	tpShutdown, err := initTracerProvider(context.Background(), cfg)
-	if err != nil {
-		logger.Fatal("初始化 Tracer Provider 失敗", zap.Error(err))
-	}
+	// 在本地開發環境中，如果 OTLP exporter 無法連線，我們不希望服務啟動失敗。
+	// 因此，initTracerProvider 會處理錯誤並返回一個 no-op shutdown 函式。
+	tpShutdown := initTracerProvider(context.Background(), cfg, logger)
 	defer func() {
 		if err := tpShutdown(context.Background()); err != nil {
 			logger.Error("關閉 Tracer Provider 失敗", zap.Error(err))
@@ -125,26 +124,39 @@ func main() {
 	logger.Info("伺服器已關閉")
 }
 
-// initTracerProvider 初始化 OpenTelemetry Tracer Provider
-func initTracerProvider(ctx context.Context, cfg *config.Config) (func(context.Context) error, error) {
+// initTracerProvider 初始化 OpenTelemetry Tracer Provider。
+// 如果初始化失敗（例如，無法連接到 OTLP exporter），它會記錄一個警告並返回一個無操作的 shutdown 函式，
+// 這樣應用程式就可以在沒有分散式追蹤的情況下繼續運行。
+func initTracerProvider(ctx context.Context, cfg *config.Config, logger *otelzap.Logger) func(context.Context) error {
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(cfg.Otel.ServiceName),
 		),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create resource: %w", err)
+		logger.Warn("建立 OTel resource 失敗，將禁用 tracing", zap.Error(err))
+		return func(context.Context) error { return nil }
 	}
 
 	// 使用 OTLP gRPC exporter
-	conn, err := grpc.NewClient(cfg.Otel.ExporterEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// 增加一個短暫的超時，以避免在 collector 無法立即連線時長時間阻塞
+	dialCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// 使用 grpc.DialContext 替代已棄用的 grpc.NewClient
+	conn, err := grpc.DialContext(dialCtx, cfg.Otel.ExporterEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
-		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
+		logger.Warn("無法連接到 OTLP gRPC exporter，將禁用 tracing",
+			zap.String("endpoint", cfg.Otel.ExporterEndpoint),
+			zap.Error(err),
+		)
+		return func(context.Context) error { return nil }
 	}
 
 	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
+		logger.Warn("建立 OTLP trace exporter 失敗，將禁用 tracing", zap.Error(err))
+		return func(context.Context) error { return nil }
 	}
 
 	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
@@ -156,7 +168,9 @@ func initTracerProvider(ctx context.Context, cfg *config.Config) (func(context.C
 	otel.SetTracerProvider(tracerProvider)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 
-	return tracerProvider.Shutdown, nil
+	logger.Info("✅ OTel Tracer Provider 初始化成功", zap.String("service_name", cfg.Otel.ServiceName), zap.String("endpoint", cfg.Otel.ExporterEndpoint))
+
+	return tracerProvider.Shutdown
 }
 
 func initLogger() *otelzap.Logger {

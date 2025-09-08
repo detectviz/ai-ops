@@ -41,7 +41,7 @@
   - Go：RequestID middleware + otelzap JSON 欄位一致
 - [x] HTTP 逾時/重試/連線池策略統一（httpx / net/http）
 - [x] ControlPlaneTool 唯讀能力覆蓋（resources/resource-groups/audit-logs/incidents/alert-rules/automation/executions）並以 Pydantic 驗證
-- [ ] 修復 Control Plane Tracer 依賴並恢復 OTel Trace；與 SRE Assistant 串接 trace-id
+- [x] 修復 Control Plane Tracer 依賴並恢復 OTel Trace；與 SRE Assistant 串接 trace-id
 - [ ] 測試覆蓋 ≥ 60%（第一階段）與 E2E：部署診斷 202→輪詢→完成
 
 ### 驗收標準（Definition of Done）

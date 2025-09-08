@@ -43,6 +43,9 @@ python-multipart = "^0.0.9" # 用於 FastAPI 表單處理
 
 # 監控工具客戶端
 prometheus-client = "^0.19.0"
+opentelemetry-instrumentation-fastapi = "0.48b0"
+opentelemetry-instrumentation-httpx = "0.48b0"
+opentelemetry-exporter-otlp-proto-grpc = "1.27.0"
 
 # 非同步任務
 celery = "^5.3.6"
