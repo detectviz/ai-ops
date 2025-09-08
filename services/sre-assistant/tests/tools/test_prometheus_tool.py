@@ -3,6 +3,7 @@ import respx
 import httpx
 from httpx import Response
 from unittest.mock import MagicMock, AsyncMock
+import types
 import json
 
 from sre_assistant.tools.prometheus_tool import PrometheusQueryTool
@@ -12,13 +13,30 @@ BASE_URL = "http://mock-prometheus"
 
 @pytest.fixture
 def mock_config():
-    """提供一個模擬的 Prometheus 設定物件"""
-    config = MagicMock()
-    config.prometheus.base_url = BASE_URL
-    config.prometheus.timeout_seconds = 5
-    config.prometheus.default_step = "1m"
-    config.prometheus.max_points = 11000
-    config.prometheus.get.return_value = 300
+    """A mock config object using SimpleNamespace for clarity and type safety."""
+
+    def workflow_get(key, default=None):
+        """Mocks the .get() method for the workflow config section."""
+        return {"max_retries": 2, "retry_delay_seconds": 1}.get(key, default)
+
+    def prometheus_get(key, default=None):
+        """Mocks the .get() method for the prometheus config section."""
+        if key == "cache_ttl_seconds":
+            return 300
+        return default
+
+    config = types.SimpleNamespace(
+        prometheus=types.SimpleNamespace(
+            base_url=BASE_URL,
+            timeout_seconds=10,
+            default_step="1m",
+            max_points=11000,
+            get=prometheus_get
+        ),
+        workflow=types.SimpleNamespace(
+            get=workflow_get
+        )
+    )
     return config
 
 @pytest.fixture
