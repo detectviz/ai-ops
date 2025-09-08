@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/zap"
 )
 
@@ -44,8 +45,8 @@ var (
 )
 
 func init() {
-	// 1. 設定 Transport 以實現連線池和精細的逾時控制
-	transport := &http.Transport{
+	// 1. 設定 Transport 並使用 OTel 中間件進行包裝
+	baseTransport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
 			Timeout:   5 * time.Second,  // 連線逾時
@@ -57,11 +58,12 @@ func init() {
 		TLSHandshakeTimeout:   10 * time.Second, // TLS 交握逾時
 		ResponseHeaderTimeout: 15 * time.Second, // 等待回應標頭的逾時
 	}
+	otelTransport := otelhttp.NewTransport(baseTransport)
 
 	// 2. 建立一個可重試的 HTTP 客戶端
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient = &http.Client{
-		Transport: transport,
+		Transport: otelTransport, // 使用 OTel 包裝後的 transport
 		Timeout:   60 * time.Second, // 設定涵蓋整個請求（包括重試）的總逾時
 	}
 	retryClient.RetryMax = 3   // 最多重試 3 次
