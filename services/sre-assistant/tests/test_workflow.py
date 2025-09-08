@@ -15,6 +15,7 @@ from sre_assistant.contracts import (
     DiagnosticStatus,
     AlertAnalysisRequest,
     CapacityAnalysisRequest,
+    ExecuteRequest,
 )
 
 
@@ -169,6 +170,52 @@ async def test_diagnose_alerts_stub(workflow, mock_redis_client):
     assert final_status.status == "completed"
     assert final_status.result is not None
     assert "尚未完全實作" in final_status.result.summary
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "query, expected_tool, expected_service",
+    [
+        ("show me the cpu for auth-service", "prometheus", "auth-service"),
+        ("get logs for billing-api", "loki", "billing-api"),
+        ("any new deployments in payment-gateway?", "control_plane", "payment-gateway"),
+        ("what is the meaning of life", None, None),
+    ]
+)
+async def test_execute_query_routing(workflow, query, expected_tool, expected_service):
+    """
+    測試 _execute_query 方法是否能根據查詢關鍵字正確路由到對應的工具。
+    """
+    session_id = uuid.uuid4()
+    request = ExecuteRequest(query=query)
+    status = DiagnosticStatus(session_id=session_id, status="processing")
+
+    # 模擬所有工具
+    workflow.prometheus_tool.execute = AsyncMock(return_value=ToolResult(success=True, data={}))
+    workflow.loki_tool.execute = AsyncMock(return_value=ToolResult(success=True, data={}))
+    workflow.control_plane_tool.query_audit_logs = AsyncMock(return_value=ToolResult(success=True, data={}))
+
+    result = await workflow._execute_query(session_id, request, status)
+
+    if expected_tool == "prometheus":
+        workflow.prometheus_tool.execute.assert_called_once()
+        assert workflow.prometheus_tool.execute.call_args[0][0]["service"] == expected_service
+        workflow.loki_tool.execute.assert_not_called()
+        workflow.control_plane_tool.query_audit_logs.assert_not_called()
+    elif expected_tool == "loki":
+        workflow.loki_tool.execute.assert_called_once()
+        assert workflow.loki_tool.execute.call_args[0][0]["service"] == expected_service
+        workflow.prometheus_tool.execute.assert_not_called()
+        workflow.control_plane_tool.query_audit_logs.assert_not_called()
+    elif expected_tool == "control_plane":
+        workflow.control_plane_tool.query_audit_logs.assert_called_once()
+        assert workflow.control_plane_tool.query_audit_logs.call_args[0][0]["search"] == expected_service
+        workflow.prometheus_tool.execute.assert_not_called()
+        workflow.loki_tool.execute.assert_not_called()
+    else: # 無法理解的查詢
+        assert "無法理解查詢" in result.summary
+        workflow.prometheus_tool.execute.assert_not_called()
+        workflow.loki_tool.execute.assert_not_called()
+        workflow.control_plane_tool.query_audit_logs.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_analyze_capacity_workflow(workflow):
