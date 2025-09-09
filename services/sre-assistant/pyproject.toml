@@ -10,9 +10,9 @@ packages = [{include = "sre_assistant", from = "src"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 # Web 框架
-fastapi = "^0.109.0"
-uvicorn = {extras = ["standard"], version = "^0.27.0"}
-httpx = {version = "^0.26.0", extras = ["http2"]}
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.34.0"}
+httpx = {version = "^0.28.1", extras = ["http2"]}
 
 # Google ADK 相關
 google-generativeai = "^0.3.2"
@@ -43,15 +43,12 @@ python-multipart = "^0.0.9" # 用於 FastAPI 表單處理
 
 # 監控工具客戶端
 prometheus-client = "^0.19.0"
-opentelemetry-instrumentation-fastapi = "0.48b0"
-opentelemetry-instrumentation-httpx = "0.48b0"
-opentelemetry-exporter-otlp-proto-grpc = "1.27.0"
+opentelemetry-instrumentation-fastapi = "*"
+opentelemetry-instrumentation-httpx = "*"
+opentelemetry-exporter-otlp-proto-grpc = "*"
 
 # 非同步任務
 celery = "^5.3.6"
-
-# API 速率限制
-slowapi = "^0.1.9"
 
 # 工具與實用程式
 pyyaml = "^6.0.1"
@@ -63,6 +60,7 @@ python-json-logger = "^2.0.7"
 # 日期時間處理
 python-dateutil = "^2.8.2"
 pytz = "^2024.1"
+google-adk = "^1.13.0"
 
 [tool.poetry.group.dev.dependencies]
 # 測試工具
