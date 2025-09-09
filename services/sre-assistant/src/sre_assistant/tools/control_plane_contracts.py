@@ -81,6 +81,15 @@ class AlertRuleCondition(BaseModel):
     threshold: float
     duration: int
 
+class AlertRuleAutomation(BaseModel):
+    """對應 AlertRule 中的 automation object"""
+    enabled: bool = False
+    script_id: Optional[str] = Field(None, alias='scriptId')
+    parameters: Optional[Dict[str, Any]] = None
+
+    class Config:
+        populate_by_name = True
+
 class AlertRule(BaseModel):
     """
     對應 control-plane-openapi.yaml 中的 AlertRule schema。
@@ -92,6 +101,7 @@ class AlertRule(BaseModel):
     severity: str
     enabled: bool
     notification_channels: Optional[List[str]] = Field(None, alias='notificationChannels')
+    automation: Optional[AlertRuleAutomation] = None
     created_at: datetime = Field(..., alias='createdAt')
     updated_at: datetime = Field(..., alias='updatedAt')
 
@@ -154,6 +164,12 @@ class AuditLogList(BaseModel):
     items: List[AuditLog]
     pagination: Pagination
 
+class Comment(BaseModel):
+    id: str
+    user: str
+    comment: str
+    created_at: datetime = Field(..., alias='createdAt')
+
 class Incident(BaseModel):
     """
     對應 control-plane-openapi.yaml 中的 Incident schema。
@@ -166,6 +182,14 @@ class Incident(BaseModel):
     assignee: Optional[str] = None
     created_at: datetime = Field(..., alias='createdAt')
     updated_at: datetime = Field(..., alias='updatedAt')
+    acknowledged_by: Optional[str] = Field(None, alias='acknowledgedBy')
+    acknowledged_at: Optional[datetime] = Field(None, alias='acknowledgedAt')
+    resolved_by: Optional[str] = Field(None, alias='resolvedBy')
+    resolved_at: Optional[datetime] = Field(None, alias='resolvedAt')
+    resolution: Optional[str] = None
+    root_cause: Optional[str] = Field(None, alias='rootCause')
+    comments: Optional[List[Comment]] = []
+    automation_execution_ids: Optional[List[str]] = Field([], alias='automationExecutionIds')
 
     class Config:
         populate_by_name = True

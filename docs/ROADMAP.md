@@ -1,7 +1,7 @@
 # SRE Platform - 開發路線圖與任務清單
 
 > **基於**: SRE Platform 專案全面審查報告 (2025-09-05)
-> **當前專案成熟度**: 80/100
+> **當前專案成熟度**: 90/100
 > **目標**: 在10週內達到生產就緒狀態
 >
 > **總覽**: 本文件是 SRE Platform 專案的**唯一真實來源 (Single Source of Truth)**，用於追蹤所有開發任務。它根據架構設計的階段進行組織，並整合了所有新功能、重構計畫和已知的技術債。
@@ -46,6 +46,13 @@
 ---
 
 ## ✅ 已完成項目歸檔 (Archive of Completed Items)
+- [x] **架構重構：Headless API**
+    - **任務**: 將 `control-plane` 重構為純 API 服務，移除所有前端相關程式碼。
+    - **理由**: 為了支援新的獨立前端 (`sre-platform-frontend`)，後端必須解耦。
+    - **已完成**:
+        - [x] 刪除 `services/control-plane/web` 目錄。
+        - [x] 移除 `cmd/server/main.go` 中的 Web 伺服器路由與模板渲染邏輯。
+        - [x] 更新 `sre-assistant` 的 `control_plane_contracts.py` 以符合新的 `openapi.yaml`。
 
 ### 綜合審查修正建議（Audit Fixes）
 - [x] **PrometheusQueryTool**: 已重構，加入基於 Tenacity 的指數退避重試與更詳細的錯誤分類。

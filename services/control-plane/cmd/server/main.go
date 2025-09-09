@@ -3,13 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -44,9 +41,6 @@ func main() {
 		logger.Fatal("載入配置失敗", zap.Error(err))
 	}
 
-	// 初始化 Tracer Provider
-	// 在本地開發環境中，如果 OTLP exporter 無法連線，我們不希望服務啟動失敗。
-	// 因此，initTracerProvider 會處理錯誤並返回一個 no-op shutdown 函式。
 	tpShutdown := initTracerProvider(context.Background(), cfg, logger)
 	defer func() {
 		if err := tpShutdown(context.Background()); err != nil {
@@ -71,19 +65,12 @@ func main() {
 		}
 		logger.Info("✅ Keycloak 認證服務已初始化")
 	} else {
-		// 在 DEV 模式下創建一個空的 KeycloakService 以避免 nil 指針
 		authService = &auth.KeycloakService{}
 		logger.Info("🔍 在 DEV 模式下運行，使用空的認證服務")
 	}
 
 	services := services.NewServices(db, cfg, logger, authService)
-
-	templates, err := loadTemplates("web/templates")
-	if err != nil {
-		logger.Fatal("載入模板失敗", zap.Error(err))
-	}
-
-	h := handlers.NewHandlers(services, templates, authService, logger)
+	h := handlers.NewHandlers(services, nil, authService, logger)
 	router := setupRoutes(h, authService, logger, cfg)
 
 	corsHandler := cors.New(cors.Options{
@@ -124,9 +111,6 @@ func main() {
 	logger.Info("伺服器已關閉")
 }
 
-// initTracerProvider 初始化 OpenTelemetry Tracer Provider。
-// 如果初始化失敗（例如，無法連接到 OTLP exporter），它會記錄一個警告並返回一個無操作的 shutdown 函式，
-// 這樣應用程式就可以在沒有分散式追蹤的情況下繼續運行。
 func initTracerProvider(ctx context.Context, cfg *config.Config, logger *otelzap.Logger) func(context.Context) error {
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -138,12 +122,9 @@ func initTracerProvider(ctx context.Context, cfg *config.Config, logger *otelzap
 		return func(context.Context) error { return nil }
 	}
 
-	// 使用 OTLP gRPC exporter
-	// 增加一個短暫的超時，以避免在 collector 無法立即連線時長時間阻塞
 	dialCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// 使用 grpc.DialContext 替代已棄用的 grpc.NewClient
 	conn, err := grpc.DialContext(dialCtx, cfg.Otel.ExporterEndpoint, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		logger.Warn("無法連接到 OTLP gRPC exporter，將禁用 tracing",
@@ -183,60 +164,27 @@ func initLogger() *otelzap.Logger {
 	return otelzap.New(zapLogger)
 }
 
-func loadTemplates(dir string) (*template.Template, error) {
-	tmpl := template.New("")
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.HasSuffix(path, ".html") {
-			relPath, err := filepath.Rel(dir, path)
-			if err != nil {
-				return err
-			}
-			templateName := filepath.ToSlash(relPath)
-			// 讀取檔案內容並解析
-			content, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			_, err = tmpl.New(templateName).Parse(string(content))
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("遍歷模板目錄時出錯: %w", err)
-	}
-	return tmpl, nil
-}
-
 func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelzap.Logger, cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
 
-	// otelmux middleware should be first to wrap all other handlers
 	r.Use(otelmux.Middleware(cfg.Otel.ServiceName))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Logging(logger))
 	r.Use(middleware.Recovery(logger))
 
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./web/static/"))))
-
-	// 健康檢查路由移到 /api/v1 下，與其他 API 一致
 	r.HandleFunc("/api/v1/healthz", h.HealthCheck).Methods("GET")
 	r.HandleFunc("/api/v1/readyz", h.ReadinessCheck).Methods("GET")
 	r.HandleFunc("/api/v1/metrics", h.MetricsCheck).Methods("GET")
 
-	authRouter := r.PathPrefix("/auth").Subrouter()
-	authRouter.HandleFunc("/login", h.LoginPage).Methods("GET")
-	authRouter.HandleFunc("/login", h.HandleLogin).Methods("POST")
-	authRouter.HandleFunc("/logout", h.HandleLogout).Methods("POST")
-	authRouter.HandleFunc("/callback", h.AuthCallback).Methods("GET")
+	authRouter := r.PathPrefix("/api/v1/auth").Subrouter()
+	authRouter.HandleFunc("/login", h.DevLogin).Methods("POST")
+	authRouter.HandleFunc("/refresh", h.DevRefreshToken).Methods("POST")
+	authRouter.HandleFunc("/logout", h.DevLogout).Methods("POST")
 
 	apiRouter := r.PathPrefix("/api/v1").Subrouter()
 	apiRouter.Use(middleware.RequireAuth(auth))
+
+	// Existing API routes
 	apiRouter.HandleFunc("/dashboard/summary", h.GetDashboardSummary).Methods("GET")
 	apiRouter.HandleFunc("/dashboard/trends", h.GetDashboardTrends).Methods("GET")
 	apiRouter.HandleFunc("/dashboard/resource-distribution", h.GetResourceDistribution).Methods("GET")
@@ -262,45 +210,6 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 	apiRouter.HandleFunc("/executions", h.GetExecutions).Methods("GET")
 	apiRouter.HandleFunc("/executions", h.CreateExecution).Methods("POST")
 	apiRouter.HandleFunc("/executions/{id}", h.UpdateExecution).Methods("PATCH")
-
-	webRouter := r.PathPrefix("/").Subrouter()
-	webRouter.Use(middleware.RequireSession(auth, cfg))
-	webRouter.HandleFunc("/", h.Dashboard).Methods("GET")
-	webRouter.HandleFunc("/resources", h.ResourcesPage).Methods("GET")
-	webRouter.HandleFunc("/teams", h.TeamsPage).Methods("GET")
-	webRouter.HandleFunc("/alerts", h.AlertsPage).Methods("GET")
-	webRouter.HandleFunc("/automation", h.AutomationPage).Methods("GET")
-	webRouter.HandleFunc("/capacity", h.CapacityPage).Methods("GET")
-	webRouter.HandleFunc("/incidents", h.IncidentsPage).Methods("GET")
-	webRouter.HandleFunc("/channels", h.ChannelsPage).Methods("GET")
-	webRouter.HandleFunc("/profile", h.ProfilePage).Methods("GET")
-	webRouter.HandleFunc("/settings", h.SettingsPage).Methods("GET")
-
-	htmxRouter := webRouter.PathPrefix("/htmx").Subrouter()
-	htmxRouter.HandleFunc("/dashboard/cards", h.DashboardCards).Methods("GET") // 儀表板指標卡
-	htmxRouter.HandleFunc("/resources/table", h.ResourcesTable).Methods("GET")
-	htmxRouter.HandleFunc("/resources/new", h.AddResourceForm).Methods("GET")
-	htmxRouter.HandleFunc("/resources/create", h.CreateResource).Methods("POST")
-	htmxRouter.HandleFunc("/teams/list", h.TeamList).Methods("GET")                               // 團隊列表
-	htmxRouter.HandleFunc("/teams/new", h.AddTeamForm).Methods("GET")                             // 新增團隊表單
-	htmxRouter.HandleFunc("/teams/create", h.CreateTeam).Methods("POST")                          // 創建團隊
-	htmxRouter.HandleFunc("/teams/{id}/confirm-delete", h.ConfirmDeleteTeam).Methods("GET")       // 顯示刪除確認
-	htmxRouter.HandleFunc("/teams/{id}", h.DeleteTeam).Methods("DELETE")                          // 刪除團隊
-	htmxRouter.HandleFunc("/teams/{id}/edit", h.EditTeamForm).Methods("GET")                      // 顯示編輯表單
-	htmxRouter.HandleFunc("/teams/{id}", h.UpdateTeam).Methods("PUT")                             // 更新團隊
-	htmxRouter.HandleFunc("/alerts/list", h.AlertRuleList).Methods("GET")                         // 告警規則列表
-	htmxRouter.HandleFunc("/alerts/new", h.AddAlertRuleForm).Methods("GET")                       // 新增告警規則表單
-	htmxRouter.HandleFunc("/alerts/create", h.CreateAlertRule).Methods("POST")                    // 創建告警規則
-	htmxRouter.HandleFunc("/alerts/{id}/edit", h.EditAlertRuleForm).Methods("GET")                // 編輯告警規則表單
-	htmxRouter.HandleFunc("/alerts/{id}", h.UpdateAlertRule).Methods("PUT")                       // 更新告警規則
-	htmxRouter.HandleFunc("/alerts/{id}/confirm-delete", h.ConfirmDeleteAlertRule).Methods("GET") // 顯示刪除確認
-	htmxRouter.HandleFunc("/alerts/{id}", h.DeleteAlertRule).Methods("DELETE")                    // 刪除告警規則
-	htmxRouter.HandleFunc("/incidents/list", h.IncidentList).Methods("GET")                       // 事件列表
-	htmxRouter.HandleFunc("/incidents/{id}/details", h.IncidentDetails).Methods("GET")            // 事件詳情模態框
-	htmxRouter.HandleFunc("/diagnose/deployment/{id}", h.DiagnoseDeployment).Methods("POST")
-	htmxRouter.HandleFunc("/close", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(""))
-	}).Methods("GET")
 
 	return r
 }
