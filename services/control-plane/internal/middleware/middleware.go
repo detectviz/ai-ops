@@ -76,8 +76,8 @@ func Recovery(logger *otelzap.Logger) func(http.Handler) http.Handler {
 
 // RequireAuth 是一個保護 API 端點的中介軟體。
 // 它會檢查請求的 Authorization 標頭中是否存在有效的 Bearer JWT。
-// 這主要用於保護供 SRE Assistant 或其他機器客戶端呼叫的 API。
-func RequireAuth(authSvc *auth.KeycloakService) func(http.Handler) http.Handler {
+// 它依賴於通用的 AuthProvider 介面，使其與具體的 SSO 實現解耦。
+func RequireAuth(provider auth.AuthProvider) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -93,13 +93,10 @@ func RequireAuth(authSvc *auth.KeycloakService) func(http.Handler) http.Handler 
 			}
 			rawToken := parts[1]
 
-			// 在 dev 模式下，如果 authSvc 為 nil，則跳過權杖驗證
-			if authSvc != nil {
-				_, err := authSvc.VerifyToken(r.Context(), rawToken)
-				if err != nil {
-					http.Error(w, "無效的權杖: "+err.Error(), http.StatusUnauthorized)
-					return
-				}
+			_, err := provider.VerifyToken(r.Context(), rawToken)
+			if err != nil {
+				http.Error(w, "無效的權杖: "+err.Error(), http.StatusUnauthorized)
+				return
 			}
 
 			// 權杖有效，繼續處理請求
@@ -111,7 +108,7 @@ func RequireAuth(authSvc *auth.KeycloakService) func(http.Handler) http.Handler 
 // RequireSession 是一個保護 Web UI 頁面的中介軟體。
 // 在 dev 模式下，它會檢查一個簡單的 session cookie。
 // 在 keycloak 模式下，它會與 OIDC 整合（TODO）。
-func RequireSession(authSvc *auth.KeycloakService, cfg *config.Config) func(http.Handler) http.Handler {
+func RequireSession(provider auth.AuthProvider, cfg *config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if cfg.Auth.Mode == "dev" {

@@ -19,10 +19,6 @@ from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from .dependencies import config_manager, security
 from .auth import verify_token, decode_token
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
 
 from .contracts import (
     DiagnosticRequest,
@@ -202,28 +198,12 @@ async def lifespan(app: FastAPI):
         app_ready = False
 
 
-# --- 速率限制設定 ---
-# 從設定檔讀取速率限制，如果未設定則使用預設值
-config = config_manager.get_config()
-default_rate_limit = config.get("rate_limit.default", "100/minute")
-
-limiter = Limiter(key_func=get_remote_address, default_limits=[default_rate_limit])
-# --- 速率限制設定結束 ---
-
-
 app = FastAPI(
     title="SRE Platform API",
     version="1.0.0",
     description="SRE Platform 的非同步診斷與分析引擎",
     lifespan=lifespan
 )
-
-# 將速率限制器狀態附加到應用程式，並新增例外處理器
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-# 將 SlowAPI 中介層加入到應用程式
-app.add_middleware(SlowAPIMiddleware)
 
 # 僅在 tracer 初始化成功時才加入 OTel 中介層
 # 檢查 provider 是否存在且不是 NoOpTracerProvider

@@ -32,14 +32,18 @@ tags:
     description: 資源群組管理
   - name: Incidents
     description: 事件管理
-  - name: Alert Rules
-    description: 告警規則
+  - name: Grafana
+    description: Grafana 資源管理 (告警、通知等)
   - name: Automation
     description: 自動化腳本
+  - name: Tags
+    description: 標籤管理
   - name: Users
     description: 使用者管理
   - name: Teams
     description: 團隊管理
+  - name: Roles
+    description: 角色與權限管理
   - name: Notifications
     description: 通知管道
   - name: Settings
@@ -738,184 +742,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/AIGeneratedReport"
 
-  # ============================================
-  # Alert Rules - 告警規則
-  # ============================================
-  /api/v1/alert-rules:
-    get:
-      tags: [Alert Rules]
-      summary: 獲取告警規則列表
-      description: 獲取所有告警規則
-      operationId: listAlertRules
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: enabled
-          in: query
-          schema:
-            type: boolean
-          description: 是否啟用
-      responses:
-        "200":
-          description: 告警規則列表
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AlertRuleList"
-
-    post:
-      tags: [Alert Rules]
-      summary: 創建告警規則
-      description: 創建新的告警規則
-      operationId: createAlertRule
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AlertRuleCreateRequest"
-      responses:
-        "201":
-          description: 規則創建成功
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AlertRule"
-
-  /api/v1/alert-rules/{ruleId}:
-    get:
-      tags: [Alert Rules]
-      summary: 獲取規則詳情
-      description: 獲取特定告警規則的詳情
-      operationId: getAlertRule
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: ruleId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: 規則詳情
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AlertRule"
-
-    put:
-      tags: [Alert Rules]
-      summary: 更新告警規則
-      description: 更新告警規則
-      operationId: updateAlertRule
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: ruleId
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AlertRuleUpdateRequest"
-      responses:
-        "200":
-          description: 規則更新成功
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AlertRule"
-
-    delete:
-      tags: [Alert Rules]
-      summary: 刪除告警規則
-      description: 刪除告警規則
-      operationId: deleteAlertRule
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: ruleId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "204":
-          description: 規則刪除成功
-
-  /api/v1/alert-rules/{ruleId}/test:
-    post:
-      tags: [Alert Rules]
-      summary: 測試告警規則
-      description: 測試告警規則是否正常運作
-      operationId: testAlertRule
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: ruleId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: 測試結果
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  message:
-                    type: string
-                  matched_resources:
-                    type: array
-                    items:
-                      type: string
-
-  /api/v1/alert-rules/{ruleId}/enable:
-    post:
-      tags: [Alert Rules]
-      summary: 啟用規則
-      description: 啟用告警規則
-      operationId: enableAlertRule
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: ruleId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: 規則已啟用
-
-  /api/v1/alert-rules/{ruleId}/disable:
-    post:
-      tags: [Alert Rules]
-      summary: 停用規則
-      description: 停用告警規則
-      operationId: disableAlertRule
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: ruleId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: 規則已停用
 
   /api/v1/alerts:
     get:
@@ -987,6 +813,282 @@ paths:
                     type: integer
                   resolved_count:
                     type: integer
+
+  # ============================================
+  # Grafana Provisioning - Grafana 資源管理
+  # ============================================
+  /api/v1/grafana/alert-rules:
+    get:
+      tags: [Grafana]
+      summary: 獲取 Grafana 告警規則列表
+      description: 獲取所有由 Grafana 管理的告警規則
+      operationId: listGrafanaAlertRules
+      security:
+        - grafanaApiToken: []
+      responses:
+        "200":
+          description: 告警規則列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GrafanaProvisionedAlertRule"
+    post:
+      tags: [Grafana]
+      summary: 創建 Grafana 告警規則
+      description: 創建一個新的 Grafana 告警規則
+      operationId: createGrafanaAlertRule
+      security:
+        - grafanaApiToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrafanaProvisionedAlertRule"
+      responses:
+        "201":
+          description: 規則創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrafanaProvisionedAlertRule"
+
+  /api/v1/grafana/alert-rules/{ruleUID}:
+    get:
+      tags: [Grafana]
+      summary: 獲取 Grafana 告警規則詳情
+      operationId: getGrafanaAlertRule
+      security:
+        - grafanaApiToken: []
+      parameters:
+        - name: ruleUID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 規則詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrafanaProvisionedAlertRule"
+    put:
+      tags: [Grafana]
+      summary: 更新 Grafana 告警規則
+      operationId: updateGrafanaAlertRule
+      security:
+        - grafanaApiToken: []
+      parameters:
+        - name: ruleUID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrafanaProvisionedAlertRule"
+      responses:
+        "200":
+          description: 規則更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrafanaProvisionedAlertRule"
+    delete:
+      tags: [Grafana]
+      summary: 刪除 Grafana 告警規則
+      operationId: deleteGrafanaAlertRule
+      security:
+        - grafanaApiToken: []
+      parameters:
+        - name: ruleUID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 規則刪除成功
+
+  /api/v1/grafana/contact-points:
+    get:
+      tags: [Grafana]
+      summary: 獲取 Grafana 接觸點列表
+      operationId: listGrafanaContactPoints
+      security:
+        - grafanaApiToken: []
+      responses:
+        "200":
+          description: 接觸點列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GrafanaContactPoint"
+    post:
+      tags: [Grafana]
+      summary: 創建 Grafana 接觸點
+      operationId: createGrafanaContactPoint
+      security:
+        - grafanaApiToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrafanaContactPoint"
+      responses:
+        "202":
+          description: 創建請求已接受
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrafanaContactPoint"
+
+  /api/v1/grafana/contact-points/{contactPointUID}:
+    put:
+      tags: [Grafana]
+      summary: 更新 Grafana 接觸點
+      operationId: updateGrafanaContactPoint
+      security:
+        - grafanaApiToken: []
+      parameters:
+        - name: contactPointUID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrafanaContactPoint"
+      responses:
+        "202":
+          description: 更新請求已接受
+    delete:
+      tags: [Grafana]
+      summary: 刪除 Grafana 接觸點
+      operationId: deleteGrafanaContactPoint
+      security:
+        - grafanaApiToken: []
+      parameters:
+        - name: contactPointUID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 刪除成功
+
+  /api/v1/grafana/notification-policies:
+    get:
+      tags: [Grafana]
+      summary: 獲取 Grafana 通知策略樹
+      operationId: getGrafanaNotificationPolicyTree
+      security:
+        - grafanaApiToken: []
+      responses:
+        "200":
+          description: 通知策略樹
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrafanaNotificationPolicy"
+    put:
+      tags: [Grafana]
+      summary: 更新 Grafana 通知策略樹
+      operationId: updateGrafanaNotificationPolicyTree
+      security:
+        - grafanaApiToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrafanaNotificationPolicy"
+      responses:
+        "202":
+          description: 更新請求已接受
+
+  /api/v1/grafana/mute-timings:
+    get:
+      tags: [Grafana]
+      summary: 獲取 Grafana 靜音時段列表
+      operationId: listGrafanaMuteTimings
+      security:
+        - grafanaApiToken: []
+      responses:
+        "200":
+          description: 靜音時段列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GrafanaMuteTiming"
+    post:
+      tags: [Grafana]
+      summary: 創建 Grafana 靜音時段
+      operationId: createGrafanaMuteTiming
+      security:
+        - grafanaApiToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrafanaMuteTiming"
+      responses:
+        "201":
+          description: 創建成功
+
+  /api/v1/grafana/mute-timings/{muteTimingName}:
+    put:
+      tags: [Grafana]
+      summary: 更新 Grafana 靜音時段
+      operationId: updateGrafanaMuteTiming
+      security:
+        - grafanaApiToken: []
+      parameters:
+        - name: muteTimingName
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrafanaMuteTiming"
+      responses:
+        "200":
+          description: 更新成功
+    delete:
+      tags: [Grafana]
+      summary: 刪除 Grafana 靜音時段
+      operationId: deleteGrafanaMuteTiming
+      security:
+        - grafanaApiToken: []
+      parameters:
+        - name: muteTimingName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 刪除成功
 
   # ============================================
   # Automation - 自動化腳本
@@ -1193,6 +1295,109 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Schedule"
+
+  # ============================================
+  # Tags - 標籤管理
+  # ============================================
+  /api/v1/tags:
+    get:
+      tags: [Tags]
+      summary: 獲取標籤列表
+      description: 獲取所有標籤定義
+      operationId: listTags
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 標籤列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagList"
+    post:
+      tags: [Tags]
+      summary: 創建標籤
+      description: 創建新的標籤定義
+      operationId: createTag
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TagCreateRequest"
+      responses:
+        "201":
+          description: 標籤創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+
+  /api/v1/tags/{tagId}:
+    get:
+      tags: [Tags]
+      summary: 獲取標籤詳情
+      description: 獲取特定標籤的詳細資訊
+      operationId: getTag
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tagId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 標籤詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+    put:
+      tags: [Tags]
+      summary: 更新標籤
+      description: 更新標籤定義
+      operationId: updateTag
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tagId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TagUpdateRequest"
+      responses:
+        "200":
+          description: 標籤更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+    delete:
+      tags: [Tags]
+      summary: 刪除標籤
+      description: 刪除標籤定義
+      operationId: deleteTag
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tagId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 標籤刪除成功
 
   # ============================================
   # Users - 使用者管理
@@ -1532,16 +1737,75 @@ paths:
         "204":
           description: 團隊刪除成功
 
-  /api/v1/teams/{teamId}/members:
+  # ============================================
+  # Roles & Permissions
+  # ============================================
+  /api/v1/roles:
+    get:
+      tags: [Roles]
+      summary: 獲取角色列表
+      description: 獲取所有角色
+      operationId: listRoles
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 角色列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleList"
     post:
-      tags: [Teams]
-      summary: 管理團隊成員
-      description: 新增或移除團隊成員
-      operationId: manageTeamMembers
+      tags: [Roles]
+      summary: 創建角色
+      description: 創建新角色
+      operationId: createRole
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleCreateRequest"
+      responses:
+        "201":
+          description: 角色創建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+
+  /api/v1/roles/{roleId}:
+    get:
+      tags: [Roles]
+      summary: 獲取角色詳情
+      description: 獲取特定角色的詳情
+      operationId: getRole
       security:
         - bearerAuth: []
       parameters:
-        - name: teamId
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 角色詳情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+    put:
+      tags: [Roles]
+      summary: 更新角色
+      description: 更新角色資訊
+      operationId: updateRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roleId
           in: path
           required: true
           schema:
@@ -1551,21 +1815,48 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - operation
-                - user_ids
-              properties:
-                operation:
-                  type: string
-                  enum: [add, remove]
-                user_ids:
-                  type: array
-                  items:
-                    type: string
+              $ref: "#/components/schemas/RoleUpdateRequest"
       responses:
         "200":
-          description: 成員管理成功
+          description: 角色更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+    delete:
+      tags: [Roles]
+      summary: 刪除角色
+      description: 刪除角色
+      operationId: deleteRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 角色刪除成功
+
+  /api/v1/permissions:
+    get:
+      tags: [Roles]
+      summary: 獲取權限列表
+      description: 獲取所有可用的權限
+      operationId: listPermissions
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 權限列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Permission"
 
   # ============================================
   # Notifications - 通知管道
@@ -1866,6 +2157,11 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Keycloak JWT Token
+    grafanaApiToken:
+      type: apiKey
+      in: header
+      name: X-Grafana-Authorization
+      description: 用於授權存取 Grafana Provisioning API 的金鑰
 
   parameters:
     PageParam:
@@ -2146,9 +2442,10 @@ components:
         group_name:
           type: string
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 資源的鍵值對標籤
         owner:
           type: string
           description: 負責人
@@ -2210,9 +2507,10 @@ components:
         group_id:
           type: string
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 資源的鍵值對標籤
         owner:
           type: string
         description:
@@ -2230,9 +2528,10 @@ components:
         group_id:
           type: string
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 資源的鍵值對標籤
         owner:
           type: string
         description:
@@ -2259,9 +2558,10 @@ components:
             group_id:
               type: string
             tags:
-              type: array
-              items:
+              type: object
+              additionalProperties:
                 type: string
+              description: 要更新的鍵值對標籤
 
     BatchOperationResult:
       type: object
@@ -2371,9 +2671,10 @@ components:
             critical:
               type: integer
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 資源群組的鍵值對標籤
         created_at:
           type: string
           format: date-time
@@ -2403,9 +2704,10 @@ components:
         parent_group_id:
           type: string
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 資源群組的鍵值對標籤
 
     ResourceGroupUpdateRequest:
       type: object
@@ -2417,9 +2719,10 @@ components:
         parent_group_id:
           type: string
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 資源群組的鍵值對標籤
 
     GroupMemberOperation:
       type: object
@@ -2728,9 +3031,10 @@ components:
                 type: string
                 format: date-time
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 事件的鍵值對標籤
         created_at:
           type: string
           format: date-time
@@ -2766,9 +3070,10 @@ components:
           items:
             type: string
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 事件的鍵值對標籤
 
     IncidentUpdateRequest:
       type: object
@@ -2785,9 +3090,10 @@ components:
           items:
             type: string
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 事件的鍵值對標籤
 
     AIGeneratedReport:
       type: object
@@ -2813,131 +3119,172 @@ components:
           type: string
           format: date-time
 
+
+
     # ============================================
-    # Alert Rule Schemas
+    # Grafana Provisioning Schemas
     # ============================================
-    AlertRule:
+    GrafanaProvisionedAlertRule:
       type: object
       required:
-        - id
-        - name
+        - title
         - condition
-        - enabled
+        - data
+        - folderUID
+        - ruleGroup
       properties:
         id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        condition:
-          type: object
-          properties:
-            metric:
-              type: string
-            operator:
-              type: string
-              enum: [gt, gte, lt, lte, eq, neq]
-            threshold:
-              type: number
-            duration:
-              type: integer
-              description: 持續時間（秒）
-        severity:
-          type: string
-          enum: [critical, error, warning, info]
-        enabled:
-          type: boolean
-        notification_channels:
-          type: array
-          items:
-            type: string
-        resource_filter:
-          type: object
-          properties:
-            groups:
-              type: array
-              items:
-                type: string
-            types:
-              type: array
-              items:
-                type: string
-            tags:
-              type: array
-              items:
-                type: string
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-
-    AlertRuleList:
-      type: object
-      properties:
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/AlertRule"
-        total:
           type: integer
-
-    AlertRuleCreateRequest:
-      type: object
-      required:
-        - name
-        - condition
-        - severity
-      properties:
-        name:
+          format: int64
+          readOnly: true
+        uid:
           type: string
-        description:
+          readOnly: true
+        orgID:
+          type: integer
+          format: int64
+        folderUID:
+          type: string
+        ruleGroup:
+          type: string
+        title:
           type: string
         condition:
-          type: object
-          required:
-            - metric
-            - operator
-            - threshold
-          properties:
-            metric:
-              type: string
-            operator:
-              type: string
-              enum: [gt, gte, lt, lte, eq, neq]
-            threshold:
-              type: number
-            duration:
-              type: integer
-        severity:
           type: string
-          enum: [critical, error, warning, info]
-        notification_channels:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              refId:
+                type: string
+              queryType:
+                type: string
+              relativeTimeRange:
+                type: object
+                properties:
+                  from:
+                    type: integer
+                  to:
+                    type: integer
+              datasourceUid:
+                type: string
+              model:
+                type: object
+                additionalProperties: true
+        updated:
+          type: string
+          format: date-time
+          readOnly: true
+        noDataState:
+          type: string
+          enum: [Alerting, NoData, OK]
+        execErrState:
+          type: string
+          enum: [Alerting, Error]
+        for:
+          type: string
+          format: duration
+          example: 5m
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        isPaused:
+          type: boolean
+
+    GrafanaContactPoint:
+      type: object
+      properties:
+        uid:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        disableResolveMessage:
+          type: boolean
+        settings:
+          type: object
+          additionalProperties: true
+
+    GrafanaNotificationPolicy:
+      type: object
+      description: "Also known as a 'Route' in the Grafana API"
+      properties:
+        receiver:
+          type: string
+        group_by:
           type: array
           items:
             type: string
-        resource_filter:
-          type: object
+        group_wait:
+          type: string
+          format: duration
+        group_interval:
+          type: string
+          format: duration
+        repeat_interval:
+          type: string
+          format: duration
+        routes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GrafanaNotificationPolicy"
+        object_matchers:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+            minItems: 3
+            maxItems: 3
+        mute_time_intervals:
+          type: array
+          items:
+            type: string
 
-    AlertRuleUpdateRequest:
+    GrafanaMuteTiming:
       type: object
       properties:
         name:
           type: string
-        description:
-          type: string
-        condition:
-          type: object
-        severity:
-          type: string
-        notification_channels:
+        time_intervals:
           type: array
           items:
-            type: string
-        resource_filter:
-          type: object
+            type: object
+            properties:
+              weekdays:
+                type: array
+                items:
+                  type: string
+              days_of_month:
+                type: array
+                items:
+                  type: string
+              months:
+                type: array
+                items:
+                  type: string
+              years:
+                type: array
+                items:
+                  type: string
+              location:
+                type: string
+              times:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    start_time:
+                      type: string
+                    end_time:
+                      type: string
 
     # ============================================
     # Automation Schemas
@@ -2989,9 +3336,10 @@ components:
               description:
                 type: string
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 腳本的鍵值對標籤
         version:
           type: string
         created_by:
@@ -3038,9 +3386,10 @@ components:
           items:
             type: object
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 腳本的鍵值對標籤
 
     ScriptUpdateRequest:
       type: object
@@ -3056,9 +3405,10 @@ components:
           items:
             type: object
         tags:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
+          description: 腳本的鍵值對標籤
 
     ScriptExecuteRequest:
       type: object
@@ -3212,9 +3562,6 @@ components:
         last_login:
           type: string
           format: date-time
-        status:
-          type: string
-          enum: [active, inactive, suspended]
         created_at:
           type: string
           format: date-time
@@ -3281,9 +3628,6 @@ components:
           type: string
         phone:
           type: string
-        status:
-          type: string
-          enum: [active, inactive, suspended]
 
     UserProfile:
       type: object
@@ -3380,8 +3724,131 @@ components:
               format: time
 
     # ============================================
+    # Tag Schemas
+    # ============================================
+    TagValue:
+      type: object
+      properties:
+        value:
+          type: string
+          description: "標籤值 (e.g., 'production')"
+        displayName:
+          type: string
+          description: "顯示名稱 (e.g., '生產環境')"
+        color:
+          type: string
+          description: "顏色代碼 (e.g., '#f5222d')"
+
+    Tag:
+      type: object
+      required:
+        - id
+        - name
+        - displayName
+        - category
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          description: "標籤的鍵名 (e.g., 'environment')"
+        displayName:
+          type: string
+          description: "標籤的顯示名稱 (e.g., '環境')"
+        description:
+          type: string
+        category:
+          type: string
+          description: "標籤分類 (e.g., 'infrastructure', 'application')"
+        required:
+          type: boolean
+          default: false
+        values:
+          type: array
+          items:
+            $ref: "#/components/schemas/TagValue"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TagList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
+        total:
+          type: integer
+
+    TagCreateRequest:
+      type: object
+      required:
+        - name
+        - displayName
+        - category
+      properties:
+        name:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        required:
+          type: boolean
+        values:
+          type: array
+          items:
+            $ref: "#/components/schemas/TagValue"
+
+    TagUpdateRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        required:
+          type: boolean
+        values:
+          type: array
+          items:
+            $ref: "#/components/schemas/TagValue"
+
+    # ============================================
     # Team Schemas
     # ============================================
+    TeamMember:
+      type: object
+      properties:
+        user_id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [manager, member]
+
+    TeamSubscriber:
+      type: object
+      properties:
+        subscriber_id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [USER, SLACK_CHANNEL, EMAIL_GROUP, ON_CALL_SCHEDULE]
+
     Team:
       type: object
       required:
@@ -3394,30 +3861,16 @@ components:
           type: string
         description:
           type: string
-        manager_id:
+        owner_id:
           type: string
-        manager_name:
-          type: string
-        member_count:
-          type: integer
         members:
           type: array
           items:
-            type: object
-            properties:
-              id:
-                type: string
-              name:
-                type: string
-              role:
-                type: string
-        notification_settings:
-          type: object
-          properties:
-            primary_contact:
-              type: string
-            escalation_contact:
-              type: string
+            $ref: "#/components/schemas/TeamMember"
+        subscribers:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamSubscriber"
         created_at:
           type: string
           format: date-time
@@ -3444,14 +3897,16 @@ components:
           type: string
         description:
           type: string
-        manager_id:
+        owner_id:
           type: string
         member_ids:
           type: array
           items:
             type: string
-        notification_settings:
-          type: object
+        subscriber_ids:
+          type: array
+          items:
+            type: string
 
     TeamUpdateRequest:
       type: object
@@ -3460,10 +3915,94 @@ components:
           type: string
         description:
           type: string
-        manager_id:
+        owner_id:
           type: string
-        notification_settings:
-          type: object
+        member_ids:
+          type: array
+          items:
+            type: string
+        subscriber_ids:
+          type: array
+          items:
+            type: string
+
+    # ============================================
+    # Role & Permission Schemas
+    # ============================================
+    Permission:
+      type: object
+      properties:
+        action:
+          type: string
+          description: "e.g., 'read', 'write', 'delete'"
+        resource:
+          type: string
+          description: "e.g., 'resources', 'incidents', 'users'"
+        description:
+          type: string
+
+    Role:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        is_built_in:
+          type: boolean
+          readOnly: true
+        permissions:
+          type: array
+          items:
+            type: string
+            description: "e.g., 'res:list:read', 'inc:rule:write'"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    RoleList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Role"
+        total:
+          type: integer
+
+    RoleCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+
+    RoleUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
 
     # ============================================
     # Notification Channel Schemas

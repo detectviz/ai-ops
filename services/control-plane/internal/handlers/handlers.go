@@ -33,17 +33,17 @@ type ServiceChecker interface {
 type Handlers struct {
 	Services    ServiceChecker
     Templates   *template.Template
-	AuthService *auth.KeycloakService
+	AuthService auth.AuthProvider
 	Logger      *otelzap.Logger
 	mu          sync.RWMutex
 }
 
 // NewHandlers creates and returns a new Handlers instance.
-func NewHandlers(s *services.Services, t *template.Template, as *auth.KeycloakService, l *otelzap.Logger) *Handlers {
+func NewHandlers(s *services.Services, t *template.Template, authProvider auth.AuthProvider, l *otelzap.Logger) *Handlers {
 	return &Handlers{
 		Services:    s,
         Templates:   t,
-		AuthService: as,
+		AuthService: authProvider,
 		Logger:      l,
 	}
 }

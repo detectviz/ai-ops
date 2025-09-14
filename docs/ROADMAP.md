@@ -27,7 +27,7 @@
 
 ### Phase 2: Control Plane 功能擴展與 UI 整合
 - [🚧] **2.1. 實現診斷後端邏輯**:
-    - **目標**: 完整實現 `SREWorkflow` 中的 `_diagnose_alerts`, `_analyze_capacity`, `_execute_query` 方法。
+    - **目標**: 完整實現 `SREWorkflow` 中的 `_diagnose_grafana_alerts`, `_analyze_capacity`, `_execute_query` 方法。
     - **注意事項**:
         - `test_integration.py` 中有兩個測試 (`test_access_protected_endpoint_with_bad_token`, `test_loki_query_integration`) 因環境問題暫時跳過，待後續修復。
 - [ ] **2.2. Control Plane Go 服務完善**:
@@ -73,7 +73,7 @@
   - [x] Python：structlog/python-json-logger + Request/Trace ID 中介層
   - [x] Go：RequestID middleware + otelzap JSON 欄位一致
 - [x] HTTP 逾時/重試/連線池策略統一（httpx / net/http）
-- [x] ControlPlaneTool 唯讀能力覆蓋（resources/resource-groups/audit-logs/incidents/alert-rules/automation/executions）並以 Pydantic 驗證
+- [x] ControlPlaneTool 唯讀能力覆蓋（resources/resource-groups/audit-logs/incidents/grafana-alerting/automation/executions）並以 Pydantic 驗證
 - [x] 修復 Control Plane Tracer 依賴並恢復 OTel Trace；與 SRE Assistant 串接 trace-id
 - [x] 測試覆蓋 ≥ 60%（第一階段）
 
@@ -89,7 +89,7 @@
 - [x] **2. 清理技術債 (Clean Up Technical Debt)**:
     - **任務**: 解決程式碼庫中的小問題：1) 完整實現 `main.py` 中的健康檢查 (`check_database`, `check_redis`)。2) 將 `main.py` 中的認證邏輯重構到獨立的模組中。
 - [x] **3. 增強 ControlPlaneTool (Enhance ControlPlaneTool)**:
-    - **任務**: 將 `ControlPlaneTool` 重構為一個功能完整的工具集。1) 為所有輸入和輸出定義 Pydantic 模型。2) 返回結構化的成功/錯誤回應。3) 增加寫入/修改操作，例如 `restart_deployment`, `acknowledge_alert` 等，使其不僅僅是唯讀的。
+    - **任務**: 將 `ControlPlaneTool` 重構為一個功能完整的工具集。1) 為所有輸入和輸出定義 Pydantic 模型。2) 返回結構化的成功/錯誤回應。3) 增加寫入/修改操作，例如 `restart_deployment` 等，使其不僅僅是唯讀的。
 
 ### Phase 1: 核心整合
 - [x] **1.1. API 契約符合性 (API Contract Compliance)**

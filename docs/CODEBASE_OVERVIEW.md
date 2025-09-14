@@ -117,7 +117,7 @@ The SRE Assistant is a Python-based service that acts as an intelligent agent. I
 *   **Purpose**: The "brain" of the assistant. This file contains the core orchestration logic.
 *   **Responsibilities**:
     *   Defines the `SREWorkflow` class, which holds the primary business logic for handling diagnostic tasks.
-    *   Contains methods like `_diagnose_deployment`, `_analyze_alerts`, and `_execute_query` which are the entry points for the different types of analysis.
+    *   Contains methods like `_diagnose_deployment`, `_diagnose_grafana_alerts`, and `_execute_query` which are the entry points for the different types of analysis.
     *   Coordinates calls to the various tools (Prometheus, Loki, etc.) to gather data.
     *   Analyzes the results from the tools to generate findings and recommendations.
     *   *Note*: This file is currently a placeholder for the core intelligent logic, which is the next major development task.

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/detectviz/control-plane/internal/auth"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -24,17 +25,11 @@ type SreAssistantClient interface {
 	PollDiagnosticStatus(ctx context.Context, sessionID string) (*DiagnosticResult, error)
 }
 
-// SreAssistantTokenProvider 定義了獲取 M2M 權杖所需的方法。
-// 這樣可以解耦 SreAssistantClient 與具體的 KeycloakService 實現。
-type SreAssistantTokenProvider interface {
-	GetM2MToken(ctx context.Context) (string, error)
-}
-
 // SreAssistantClientImpl 是 SreAssistantClient 的具體實現
 type SreAssistantClientImpl struct {
 	baseURL       string
 	httpClient    *http.Client
-	tokenProvider SreAssistantTokenProvider
+	tokenProvider auth.AuthProvider
 	logger        *otelzap.Logger
 }
 
@@ -74,7 +69,7 @@ func init() {
 }
 
 // NewSreAssistantClient 建立一個新的 SRE Assistant 客戶端實例
-func NewSreAssistantClient(baseURL string, tokenProvider SreAssistantTokenProvider, logger *otelzap.Logger) SreAssistantClient {
+func NewSreAssistantClient(baseURL string, tokenProvider auth.AuthProvider, logger *otelzap.Logger) SreAssistantClient {
 	return &SreAssistantClientImpl{
 		baseURL:       baseURL,
 		httpClient:    sharedHTTPClient, // 使用全域共享的客戶端

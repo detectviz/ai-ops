@@ -56,22 +56,15 @@ func main() {
 		logger.Fatal("資料庫遷移失敗", zap.Error(err))
 	}
 
-	var authService *auth.KeycloakService
-	if cfg.Auth.Mode == "keycloak" {
-		var err error
-		authService, err = auth.NewKeycloakService(cfg.Auth)
-		if err != nil {
-			logger.Fatal("初始化 Keycloak 認證服務失敗", zap.Error(err))
-		}
-		logger.Info("✅ Keycloak 認證服務已初始化")
-	} else {
-		authService = &auth.KeycloakService{}
-		logger.Info("🔍 在 DEV 模式下運行，使用空的認證服務")
+	authProvider, err := auth.NewAuthProvider(cfg.Auth)
+	if err != nil {
+		logger.Fatal("初始化認證提供者失敗", zap.Error(err))
 	}
+	logger.Info("✅ 認證服務已初始化", zap.String("provider", cfg.Auth.Mode))
 
-	services := services.NewServices(db, cfg, logger, authService)
-	h := handlers.NewHandlers(services, nil, authService, logger)
-	router := setupRoutes(h, authService, logger, cfg)
+	services := services.NewServices(db, cfg, logger, authProvider)
+	h := handlers.NewHandlers(services, nil, authProvider, logger)
+	router := setupRoutes(h, authProvider, logger, cfg)
 
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   cfg.Server.CORSOrigins,
@@ -164,7 +157,7 @@ func initLogger() *otelzap.Logger {
 	return otelzap.New(zapLogger)
 }
 
-func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelzap.Logger, cfg *config.Config) *mux.Router {
+func setupRoutes(h *handlers.Handlers, authProvider auth.AuthProvider, logger *otelzap.Logger, cfg *config.Config) *mux.Router {
 	r := mux.NewRouter()
 
 	r.Use(otelmux.Middleware(cfg.Otel.ServiceName))
@@ -182,7 +175,7 @@ func setupRoutes(h *handlers.Handlers, auth *auth.KeycloakService, logger *otelz
 	authRouter.HandleFunc("/logout", h.DevLogout).Methods("POST")
 
 	apiRouter := r.PathPrefix("/api/v1").Subrouter()
-	apiRouter.Use(middleware.RequireAuth(auth))
+	apiRouter.Use(middleware.RequireAuth(authProvider))
 
 	// Existing API routes
 	apiRouter.HandleFunc("/dashboard/summary", h.GetDashboardSummary).Methods("GET")
